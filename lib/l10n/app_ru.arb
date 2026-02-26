@@ -1,0 +1,15 @@
+{
+  "@@locale": "ru",
+  "appTitle": "Дневник событий",
+  "newEventTitle": "Новое событие за сегодня",
+  "newEventHint": "Что важного произошло?",
+  "cancelButton": "Отмена",
+  "saveButton": "Сохранить",
+  "closeButton": "Закрыть",
+  "addButton": "Добавить",
+  "subscriptionTitle": "Подписка",
+  "subscriptionBody": "Подпишись, чтобы не потерять свой дневник.\\n\\n(Пока без реального функционала — просто заглушка.)",
+  "noEventsForDay": "Пока нет записей за выбранный день.\\nНажми на +, чтобы добавить первую.",
+  "todayLabel": "Сегодня",
+  "backToTodayTooltip": "Вернуться к сегодня"
+}
