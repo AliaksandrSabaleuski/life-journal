@@ -97,7 +97,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In ru, this message translates to:
-  /// **'Дневник событий'**
+  /// **'Дневник привычек'**
   String get appTitle;
 
   /// No description provided for @newEventTitle.
@@ -145,13 +145,13 @@ abstract class AppLocalizations {
   /// No description provided for @subscriptionBody.
   ///
   /// In ru, this message translates to:
-  /// **'Подпишись, чтобы не потерять свой дневник.\\n\\n(Пока без реального функционала — просто заглушка.)'**
+  /// **'Подпишись, чтобы не потерять свой дневник.\n\n(Пока без реального функционала — просто заглушка.)'**
   String get subscriptionBody;
 
   /// No description provided for @noEventsForDay.
   ///
   /// In ru, this message translates to:
-  /// **'Пока нет записей за выбранный день.\\nНажми на +, чтобы добавить первую.'**
+  /// **'Пока нет записей за выбранный день.\nНажми на +, чтобы добавить первую.'**
   String get noEventsForDay;
 
   /// No description provided for @todayLabel.
@@ -165,6 +165,78 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Вернуться к сегодня'**
   String get backToTodayTooltip;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Поиск'**
+  String get searchHint;
+
+  /// No description provided for @settingsTooltip.
+  ///
+  /// In ru, this message translates to:
+  /// **'Настройки'**
+  String get settingsTooltip;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Настройки'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsPlaceholder.
+  ///
+  /// In ru, this message translates to:
+  /// **'Здесь будут настройки темы, языка, звуков и др.'**
+  String get settingsPlaceholder;
+
+  /// No description provided for @tabMain.
+  ///
+  /// In ru, this message translates to:
+  /// **'Главная'**
+  String get tabMain;
+
+  /// No description provided for @tabCalendar.
+  ///
+  /// In ru, this message translates to:
+  /// **'Календарь'**
+  String get tabCalendar;
+
+  /// No description provided for @tabStats.
+  ///
+  /// In ru, this message translates to:
+  /// **'Статистика'**
+  String get tabStats;
+
+  /// No description provided for @tabAssistant.
+  ///
+  /// In ru, this message translates to:
+  /// **'Помощник'**
+  String get tabAssistant;
+
+  /// No description provided for @newBlockTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Новое'**
+  String get newBlockTitle;
+
+  /// No description provided for @motivationalText.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ключи к более продуктивному образу жизни в ваших руках. Начните новую привычку сегодня!'**
+  String get motivationalText;
+
+  /// No description provided for @calendarViewMonth.
+  ///
+  /// In ru, this message translates to:
+  /// **'Месяц'**
+  String get calendarViewMonth;
+
+  /// No description provided for @calendarViewYear.
+  ///
+  /// In ru, this message translates to:
+  /// **'Год'**
+  String get calendarViewYear;
 }
 
 class _AppLocalizationsDelegate

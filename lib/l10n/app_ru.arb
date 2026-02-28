@@ -1,6 +1,6 @@
 {
   "@@locale": "ru",
-  "appTitle": "Дневник событий",
+  "appTitle": "Дневник привычек",
   "newEventTitle": "Новое событие за сегодня",
   "newEventHint": "Что важного произошло?",
   "cancelButton": "Отмена",
@@ -8,8 +8,20 @@
   "closeButton": "Закрыть",
   "addButton": "Добавить",
   "subscriptionTitle": "Подписка",
-  "subscriptionBody": "Подпишись, чтобы не потерять свой дневник.\\n\\n(Пока без реального функционала — просто заглушка.)",
-  "noEventsForDay": "Пока нет записей за выбранный день.\\nНажми на +, чтобы добавить первую.",
+  "subscriptionBody": "Подпишись, чтобы не потерять свой дневник.\n\n(Пока без реального функционала — просто заглушка.)",
+  "noEventsForDay": "Пока нет записей за выбранный день.\nНажми на +, чтобы добавить первую.",
   "todayLabel": "Сегодня",
-  "backToTodayTooltip": "Вернуться к сегодня"
+  "backToTodayTooltip": "Вернуться к сегодня",
+  "searchHint": "Поиск",
+  "settingsTooltip": "Настройки",
+  "settingsTitle": "Настройки",
+  "settingsPlaceholder": "Здесь будут настройки темы, языка, звуков и др.",
+  "tabMain": "Главная",
+  "tabCalendar": "Календарь",
+  "tabStats": "Статистика",
+  "tabAssistant": "Помощник",
+  "newBlockTitle": "Новое",
+  "motivationalText": "Ключи к более продуктивному образу жизни в ваших руках. Начните новую привычку сегодня!",
+  "calendarViewMonth": "Месяц",
+  "calendarViewYear": "Год"
 }

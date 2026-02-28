@@ -9,7 +9,7 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
-  String get appTitle => 'Дневник событий';
+  String get appTitle => 'Дневник привычек';
 
   @override
   String get newEventTitle => 'Новое событие за сегодня';
@@ -34,15 +34,53 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subscriptionBody =>
-      'Подпишись, чтобы не потерять свой дневник.\\n\\n(Пока без реального функционала — просто заглушка.)';
+      'Подпишись, чтобы не потерять свой дневник.\n\n(Пока без реального функционала — просто заглушка.)';
 
   @override
   String get noEventsForDay =>
-      'Пока нет записей за выбранный день.\\nНажми на +, чтобы добавить первую.';
+      'Пока нет записей за выбранный день.\nНажми на +, чтобы добавить первую.';
 
   @override
   String get todayLabel => 'Сегодня';
 
   @override
   String get backToTodayTooltip => 'Вернуться к сегодня';
+
+  @override
+  String get searchHint => 'Поиск';
+
+  @override
+  String get settingsTooltip => 'Настройки';
+
+  @override
+  String get settingsTitle => 'Настройки';
+
+  @override
+  String get settingsPlaceholder =>
+      'Здесь будут настройки темы, языка, звуков и др.';
+
+  @override
+  String get tabMain => 'Главная';
+
+  @override
+  String get tabCalendar => 'Календарь';
+
+  @override
+  String get tabStats => 'Статистика';
+
+  @override
+  String get tabAssistant => 'Помощник';
+
+  @override
+  String get newBlockTitle => 'Новое';
+
+  @override
+  String get motivationalText =>
+      'Ключи к более продуктивному образу жизни в ваших руках. Начните новую привычку сегодня!';
+
+  @override
+  String get calendarViewMonth => 'Месяц';
+
+  @override
+  String get calendarViewYear => 'Год';
 }
