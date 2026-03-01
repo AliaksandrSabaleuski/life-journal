@@ -1,10 +1,26 @@
+import 'dart:developer' as developer;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../l10n/app_localizations.dart';
 
+/// Включить замеры производительности календаря.
+/// Логи с префиксом [PERF] — скопируй и скинь для анализа.
+const bool _kDebugCalendarPerf = true;
+
 /// Экран календаря: переключатель Месяц/Год; вид месяца — скролл по месяцам с цифрами дней.
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+  const CalendarScreen({
+    super.key,
+    required this.selectedTabIndex,
+    required this.calendarTabIndex,
+  });
+
+  /// Текущая вкладка в shell (0=главная, 1=календарь, 2=статистика, 3=ассистент).
+  final int selectedTabIndex;
+  /// Индекс вкладки календаря в shell (обычно 1).
+  final int calendarTabIndex;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -14,7 +30,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _isMonthView = true;
   ScrollController? _scrollController;
   ScrollController? _yearScrollController;
-  DateTime? _selectedDate;
+  final ValueNotifier<DateTime?> _selectedDateNotifier = ValueNotifier<DateTime?>(null);
+  bool _monthFirstFrameLogged = false;
+  bool _yearFirstFrameLogged = false;
+
+  @override
+  void didUpdateWidget(covariant CalendarScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasOnCalendar = oldWidget.selectedTabIndex == oldWidget.calendarTabIndex;
+    final isOnCalendar = widget.selectedTabIndex == widget.calendarTabIndex;
+    if (wasOnCalendar && !isOnCalendar) {
+      _selectedDateNotifier.value = null;
+    }
+    if (!wasOnCalendar && isOnCalendar) {
+      setState(() => _isMonthView = true);
+    }
+  }
 
   static const List<String> _weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
   static const List<String> _monthNames = [
@@ -43,9 +74,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   static const double _monthBlockHeight = 300;
 
   @override
+  void initState() {
+    super.initState();
+    if (_kDebugCalendarPerf) {
+      debugPrint('[PERF] CALENDAR_TAB_OPENED');
+    }
+  }
+
+  @override
   void dispose() {
     _scrollController?.dispose();
     _yearScrollController?.dispose();
+    _selectedDateNotifier.dispose();
     super.dispose();
   }
 
@@ -80,7 +120,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
             selected: {_isMonthView},
             onSelectionChanged: (Set<bool> selected) {
-              setState(() => _isMonthView = selected.first);
+              final isMonthView = selected.first;
+              if (_kDebugCalendarPerf) {
+                debugPrint('[PERF] SWITCH_TO_${isMonthView ? "MONTH" : "YEAR"}');
+              }
+              setState(() => _isMonthView = isMonthView);
+              _selectedDateNotifier.value = null;
             },
           ),
         ),
@@ -98,6 +143,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildMonthViewContent(ThemeData theme) {
+    if (_kDebugCalendarPerf) {
+      debugPrint('[PERF] MONTH_VIEW_BUILD_START');
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -121,6 +169,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
               _scrollController ??= ScrollController(
                 initialScrollOffset: _initialScrollOffset(constraints.maxHeight),
               );
+              if (_kDebugCalendarPerf && !_monthFirstFrameLogged) {
+                _monthFirstFrameLogged = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  debugPrint('[PERF] MONTH_VIEW_FIRST_FRAME_DONE');
+                });
+              }
               return ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(
                   scrollbars: false,
@@ -137,9 +191,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       month: month,
                       monthName: _monthNames[month - 1],
                       today: DateTime.now(),
-                      selectedDate: _selectedDate,
-                      onDaySelected: (date) =>
-                          setState(() => _selectedDate = date),
+                      selectedDateNotifier: _selectedDateNotifier,
+                      onDaySelected: (date) {
+                        if (_kDebugCalendarPerf) {
+                          final t0 = DateTime.now();
+                          _selectedDateNotifier.value = date;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            debugPrint('[PERF] MONTH_DAY_SELECT date=$date frame_done_ms=${DateTime.now().difference(t0).inMilliseconds}');
+                          });
+                        } else {
+                          _selectedDateNotifier.value = date;
+                        }
+                      },
                     );
                   },
                 ),
@@ -172,12 +235,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildYearViewContent(ThemeData theme) {
     final today = DateTime.now();
+    if (_kDebugCalendarPerf) {
+      debugPrint('[PERF] YEAR_VIEW_BUILD_START');
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
         _yearScrollController ??= ScrollController(
           initialScrollOffset: _initialYearScrollOffset(constraints.maxHeight),
         );
+        if (_kDebugCalendarPerf && !_yearFirstFrameLogged) {
+          _yearFirstFrameLogged = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint('[PERF] YEAR_VIEW_FIRST_FRAME_DONE');
+          });
+        }
         return ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(
             scrollbars: false,
@@ -193,9 +265,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 year: y,
                 monthNames: _monthNames,
                 today: today,
-                selectedDate: _selectedDate,
-                onDaySelected: (date) =>
-                    setState(() => _selectedDate = date),
+                selectedDateNotifier: _selectedDateNotifier,
+                onDaySelected: (date) {
+                  if (_kDebugCalendarPerf) {
+                    final t0 = DateTime.now();
+                    developer.Timeline.startSync('CalendarDaySelected');
+                    _selectedDateNotifier.value = date;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      developer.Timeline.finishSync();
+                      debugPrint('[PERF] YEAR_DAY_SELECT date=$date frame_done_ms=${DateTime.now().difference(t0).inMilliseconds}');
+                    });
+                  } else {
+                    _selectedDateNotifier.value = date;
+                  }
+                },
               );
             },
           ),
@@ -205,85 +288,87 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 }
 
-/// Один год в виде «ГОД YYYY»: заголовок и 12 месяцев без дней недели, с подсветкой сегодня/выбранного.
+/// Один год: заголовок и 12 месяцев. Слушатель выбора — в каждом мини-месяце, чтобы пересобирались только 2 месяца, а не весь год.
 class _YearBlock extends StatelessWidget {
   const _YearBlock({
     required this.year,
     required this.monthNames,
     required this.today,
-    required this.selectedDate,
+    required this.selectedDateNotifier,
     required this.onDaySelected,
   });
 
   final int year;
   final List<String> monthNames;
   final DateTime today;
-  final DateTime? selectedDate;
+  final ValueListenable<DateTime?> selectedDateNotifier;
   final ValueChanged<DateTime> onDaySelected;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Text(
-              '$year',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Text(
+                '$year',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (int row = 0; row < 4; row++) ...[
-                if (row > 0) const SizedBox(height: 2),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int col = 0; col < 3; col++)
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            left: col > 0 ? 5.0 : 0,
-                            right: col < 2 ? 5.0 : 0,
-                          ),
-                          child: _MiniMonthGrid(
-                            year: year,
-                            month: row * 3 + col + 1,
-                            monthName: monthNames[row * 3 + col],
-                            today: today,
-                            selectedDate: selectedDate,
-                            onDaySelected: onDaySelected,
+            const SizedBox(height: 12),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int row = 0; row < 4; row++) ...[
+                  if (row > 0) const SizedBox(height: 2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (int col = 0; col < 3; col++)
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: col > 0 ? 5.0 : 0,
+                              right: col < 2 ? 5.0 : 0,
+                            ),
+                            child: _MiniMonthGrid(
+                              year: year,
+                              month: row * 3 + col + 1,
+                              monthName: monthNames[row * 3 + col],
+                              today: today,
+                              selectedDateNotifier: selectedDateNotifier,
+                              onDaySelected: onDaySelected,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Один месяц в скролле: заголовок «Март 2026» и сетка дней с подсветкой сегодня/выбранного.
+/// Один месяц в скролле. Сетка не знает о выборе; подсветка — оверлей поверх (один слушатель, без пересборки ячеек).
 class _MonthBlock extends StatelessWidget {
   const _MonthBlock({
     required this.year,
     required this.month,
     required this.monthName,
     required this.today,
-    required this.selectedDate,
+    required this.selectedDateNotifier,
     required this.onDaySelected,
   });
 
@@ -291,64 +376,116 @@ class _MonthBlock extends StatelessWidget {
   final int month;
   final String monthName;
   final DateTime today;
-  final DateTime? selectedDate;
+  final ValueListenable<DateTime?> selectedDateNotifier;
   final ValueChanged<DateTime> onDaySelected;
 
   static bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  static const double _cellHeight = 40;
+  static const double _cellSize = 36;
+  static const double _titleHeight = 24;
+  static const double _titleGap = 8;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final first = DateTime(year, month, 1);
     final last = DateTime(year, month + 1, 0);
-    final firstWeekday = first.weekday;
     final daysInMonth = last.day;
-    final leadingEmpty = firstWeekday - 1;
+    final leadingEmpty = first.weekday - 1;
     final totalCells = leadingEmpty + daysInMonth;
     final rows = (totalCells / 7).ceil();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Text(
-            '$monthName $year',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Table(
-            border: TableBorder.symmetric(
-              inside: BorderSide.none,
-            ),
-            children: List.generate(rows, (rowIndex) {
-              return TableRow(
-                children: List.generate(7, (colIndex) {
-                  final cellIndex = rowIndex * 7 + colIndex;
-                  if (cellIndex < leadingEmpty) {
-                    return const SizedBox(height: 40, child: Center());
-                  }
-                  final day = cellIndex - leadingEmpty + 1;
-                  if (day > daysInMonth) {
-                    return const SizedBox(height: 40, child: Center());
-                  }
-                  final date = DateTime(year, month, day);
-                  final isToday = _isSameDay(date, today);
-                  final isSelected =
-                      selectedDate != null && _isSameDay(date, selectedDate!);
-
-                  return _DayCell(
-                    day: day,
-                    isToday: isToday,
-                    isSelected: isSelected,
-                    onTap: () => onDaySelected(date),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$monthName $year',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: _titleGap),
+              Table(
+                border: TableBorder.symmetric(inside: BorderSide.none),
+                children: List.generate(rows, (rowIndex) {
+                  return TableRow(
+                    children: List.generate(7, (colIndex) {
+                      final cellIndex = rowIndex * 7 + colIndex;
+                      if (cellIndex < leadingEmpty) {
+                        return const SizedBox(height: 40, child: Center());
+                      }
+                      final day = cellIndex - leadingEmpty + 1;
+                      if (day > daysInMonth) {
+                        return const SizedBox(height: 40, child: Center());
+                      }
+                      final date = DateTime(year, month, day);
+                      final isToday = _isSameDay(date, today);
+                      return _DayCell(
+                        day: day,
+                        isToday: isToday,
+                        onTap: () => onDaySelected(date),
+                      );
+                    }),
                   );
                 }),
-              );
-            }),
+              ),
+            ],
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return ValueListenableBuilder<DateTime?>(
+                    valueListenable: selectedDateNotifier,
+                    builder: (context, selectedDate, _) {
+                      if (selectedDate == null ||
+                          selectedDate.year != year ||
+                          selectedDate.month != month) {
+                        return const SizedBox.shrink();
+                      }
+                      final first = DateTime(year, month, 1);
+                      final leadingEmpty = first.weekday - 1;
+                      final index = leadingEmpty + selectedDate.day - 1;
+                      final row = index ~/ 7;
+                      final col = index % 7;
+                      final cellW = constraints.maxWidth / 7;
+                      final left = col * cellW + (cellW - _cellSize) / 2;
+                      final top = _titleHeight + _titleGap + row * _cellHeight + (_cellHeight - _cellSize) / 2;
+                      return Stack(
+                        children: [
+                          Positioned(
+                            left: left,
+                            top: top,
+                            width: _cellSize,
+                            height: _cellSize,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                borderRadius: BorderRadius.circular(_cellSize / 2),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '${selectedDate.day}',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -356,17 +493,16 @@ class _MonthBlock extends StatelessWidget {
   }
 }
 
+/// Ячейка дня (вид «Месяц»). Выбор не знает — подсветка рисуется оверлеем.
 class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
     required this.isToday,
-    required this.isSelected,
     required this.onTap,
   });
 
   final int day;
   final bool isToday;
-  final bool isSelected;
   final VoidCallback onTap;
 
   @override
@@ -386,21 +522,15 @@ class _DayCell extends StatelessWidget {
               height: 36,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : isToday
-                        ? theme.colorScheme.primaryContainer
-                        : null,
+                color: isToday ? theme.colorScheme.primaryContainer : null,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(
                 '$day',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isSelected
-                      ? theme.colorScheme.onPrimary
-                      : isToday
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurface,
+                  color: isToday
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurface,
                 ),
               ),
             ),
@@ -411,13 +541,14 @@ class _DayCell extends StatelessWidget {
   }
 }
 
+/// Один мини-месяц в виде года. Сетка не знает о выборе; подсветка — оверлей поверх.
 class _MiniMonthGrid extends StatelessWidget {
   const _MiniMonthGrid({
     required this.year,
     required this.month,
     required this.monthName,
     required this.today,
-    required this.selectedDate,
+    required this.selectedDateNotifier,
     required this.onDaySelected,
   });
 
@@ -425,81 +556,133 @@ class _MiniMonthGrid extends StatelessWidget {
   final int month;
   final String monthName;
   final DateTime today;
-  final DateTime? selectedDate;
+  final ValueListenable<DateTime?> selectedDateNotifier;
   final ValueChanged<DateTime> onDaySelected;
 
   static bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  static const double _miniCellHeight = 18;
+  static const double _miniCellSize = 16;
+  static const double _miniTitleHeight = 16;
+  static const double _miniTitleGap = 4;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final first = DateTime(year, month, 1);
     final last = DateTime(year, month + 1, 0);
-    final firstWeekday = first.weekday;
     final daysInMonth = last.day;
-    final leadingEmpty = firstWeekday - 1;
+    final leadingEmpty = first.weekday - 1;
     final totalCells = leadingEmpty + daysInMonth;
     final rows = (totalCells / 7).ceil();
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        Center(
-          child: Text(
-            monthName,
-            style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Table(
-          border: TableBorder.symmetric(
-            inside: BorderSide.none,
-          ),
-          children: List.generate(rows, (rowIndex) {
-            return TableRow(
-              children: List.generate(7, (colIndex) {
-                final cellIndex = rowIndex * 7 + colIndex;
-                if (cellIndex < leadingEmpty) {
-                  return const SizedBox(height: 18, child: Center());
-                }
-                final day = cellIndex - leadingEmpty + 1;
-                if (day > daysInMonth) {
-                  return const SizedBox(height: 18, child: Center());
-                }
-                final date = DateTime(year, month, day);
-                final isToday = _isSameDay(date, today);
-                final isSelected =
-                    selectedDate != null && _isSameDay(date, selectedDate!);
-
-                return _MiniDayCell(
-                  day: day,
-                  isToday: isToday,
-                  isSelected: isSelected,
-                  onTap: () => onDaySelected(date),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Center(
+              child: Text(
+                monthName,
+                style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: _miniTitleGap),
+            Table(
+              border: TableBorder.symmetric(inside: BorderSide.none),
+              children: List.generate(rows, (rowIndex) {
+                return TableRow(
+                  children: List.generate(7, (colIndex) {
+                    final cellIndex = rowIndex * 7 + colIndex;
+                    if (cellIndex < leadingEmpty) {
+                      return const SizedBox(height: 18, child: Center());
+                    }
+                    final day = cellIndex - leadingEmpty + 1;
+                    if (day > daysInMonth) {
+                      return const SizedBox(height: 18, child: Center());
+                    }
+                    final date = DateTime(year, month, day);
+                    final isToday = _isSameDay(date, today);
+                    return _MiniDayCell(
+                      day: day,
+                      isToday: isToday,
+                      onTap: () => onDaySelected(date),
+                    );
+                  }),
                 );
               }),
-            );
-          }),
+            ),
+          ],
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return ValueListenableBuilder<DateTime?>(
+                  valueListenable: selectedDateNotifier,
+                  builder: (context, selectedDate, _) {
+                    if (selectedDate == null ||
+                        selectedDate.year != year ||
+                        selectedDate.month != month) {
+                      return const SizedBox.shrink();
+                    }
+                    final first = DateTime(year, month, 1);
+                    final leadingEmpty = first.weekday - 1;
+                    final index = leadingEmpty + selectedDate.day - 1;
+                    final row = index ~/ 7;
+                    final col = index % 7;
+                    final cellW = constraints.maxWidth / 7;
+                    final left = col * cellW + (cellW - _miniCellSize) / 2;
+                    final top = _miniTitleHeight + _miniTitleGap + row * _miniCellHeight + (_miniCellHeight - _miniCellSize) / 2;
+                    return Stack(
+                      children: [
+                        Positioned(
+                          left: left,
+                          top: top,
+                          width: _miniCellSize,
+                          height: _miniCellSize,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(_miniCellSize / 2),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${selectedDate.day}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontSize: 9,
+                                color: theme.colorScheme.onPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
+/// Ячейка дня в виде года. Выбор не знает — подсветка рисуется оверлеем.
 class _MiniDayCell extends StatelessWidget {
   const _MiniDayCell({
     required this.day,
     required this.isToday,
-    required this.isSelected,
     required this.onTap,
   });
 
   final int day;
   final bool isToday;
-  final bool isSelected;
   final VoidCallback onTap;
 
   @override
@@ -509,33 +692,24 @@ class _MiniDayCell extends StatelessWidget {
     return SizedBox(
       height: 18,
       child: Center(
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(9),
-            child: Container(
-              width: 16,
-              height: 16,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : isToday
-                        ? theme.colorScheme.primaryContainer
-                        : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '$day',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 9,
-                  color: isSelected
-                      ? theme.colorScheme.onPrimary
-                      : isToday
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurface,
-                ),
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 16,
+            height: 16,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isToday ? theme.colorScheme.primaryContainer : null,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$day',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 9,
+                color: isToday
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurface,
               ),
             ),
           ),

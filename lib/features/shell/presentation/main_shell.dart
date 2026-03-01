@@ -39,30 +39,23 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
-  Widget _buildBody() {
-    switch (_currentIndex) {
-      case 0:
-        return MainMenuContent(
-          habits: _habits,
-          isLoading: !_habitsLoaded,
-        );
-      case 1:
-        return const CalendarScreen();
-      case 2:
-        return const StatsScreen();
-      case 3:
-        return const AssistantScreen();
-      default:
-        return MainMenuContent(
-          habits: _habits,
-          isLoading: !_habitsLoaded,
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+
+    // Все вкладки в дереве один раз — переключение без пересоздания контента.
+    final body = IndexedStack(
+      index: _currentIndex,
+      children: [
+        MainMenuContent(
+          habits: _habits,
+          isLoading: !_habitsLoaded,
+        ),
+        CalendarScreen(selectedTabIndex: _currentIndex, calendarTabIndex: 1),
+        const StatsScreen(),
+        const AssistantScreen(),
+      ],
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -117,7 +110,7 @@ class _MainShellState extends State<MainShell> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: body,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex == 0 ? 0 : _currentIndex - 1,
         onTap: (index) => setState(() => _currentIndex = index + 1),
