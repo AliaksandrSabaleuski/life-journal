@@ -83,4 +83,43 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get calendarViewYear => 'Год';
+
+  @override
+  String get goalTypeTime => 'Время';
+
+  @override
+  String get goalTypeQuantity => 'Количество';
+
+  @override
+  String get goalTypeTask => 'Задача';
+
+  @override
+  String get repeatNever => 'Не повторяется';
+
+  @override
+  String get recordInactive => 'Неактивна';
+
+  @override
+  String get reminderLabel => 'Напоминание';
+
+  @override
+  String get startTimeLabel => 'Старт';
+
+  @override
+  String get endTimeLabel => 'Конец';
+
+  @override
+  String get addRecordTitle => 'Новая запись';
+
+  @override
+  String get goodHabitLabel => 'Хорошая привычка';
+
+  @override
+  String get badHabitLabel => 'Плохая привычка';
+
+  @override
+  String get chooseHabitTypeTitle => 'Тип привычки';
+
+  @override
+  String get chooseHabitTypeHint => 'Выберите, какую привычку хотите добавить';
 }

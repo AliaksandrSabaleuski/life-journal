@@ -9,16 +9,11 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l.settingsTitle),
-      ),
-      body: Center(
-        child: Text(
-          l.settingsPlaceholder,
-          style: Theme.of(context).textTheme.bodyLarge,
-          textAlign: TextAlign.center,
-        ),
+    return Center(
+      child: Text(
+        l.settingsPlaceholder,
+        style: Theme.of(context).textTheme.bodyLarge,
+        textAlign: TextAlign.center,
       ),
     );
   }

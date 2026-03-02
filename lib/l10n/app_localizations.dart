@@ -237,6 +237,84 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Год'**
   String get calendarViewYear;
+
+  /// No description provided for @goalTypeTime.
+  ///
+  /// In ru, this message translates to:
+  /// **'Время'**
+  String get goalTypeTime;
+
+  /// No description provided for @goalTypeQuantity.
+  ///
+  /// In ru, this message translates to:
+  /// **'Количество'**
+  String get goalTypeQuantity;
+
+  /// No description provided for @goalTypeTask.
+  ///
+  /// In ru, this message translates to:
+  /// **'Задача'**
+  String get goalTypeTask;
+
+  /// No description provided for @repeatNever.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не повторяется'**
+  String get repeatNever;
+
+  /// No description provided for @recordInactive.
+  ///
+  /// In ru, this message translates to:
+  /// **'Неактивна'**
+  String get recordInactive;
+
+  /// No description provided for @reminderLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Напоминание'**
+  String get reminderLabel;
+
+  /// No description provided for @startTimeLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Старт'**
+  String get startTimeLabel;
+
+  /// No description provided for @endTimeLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Конец'**
+  String get endTimeLabel;
+
+  /// No description provided for @addRecordTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Новая запись'**
+  String get addRecordTitle;
+
+  /// No description provided for @goodHabitLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Хорошая привычка'**
+  String get goodHabitLabel;
+
+  /// No description provided for @badHabitLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Плохая привычка'**
+  String get badHabitLabel;
+
+  /// No description provided for @chooseHabitTypeTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тип привычки'**
+  String get chooseHabitTypeTitle;
+
+  /// No description provided for @chooseHabitTypeHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выберите, какую привычку хотите добавить'**
+  String get chooseHabitTypeHint;
 }
 
 class _AppLocalizationsDelegate

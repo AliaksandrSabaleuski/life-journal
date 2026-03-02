@@ -23,5 +23,18 @@
   "newBlockTitle": "Новое",
   "motivationalText": "Ключи к более продуктивному образу жизни в ваших руках. Начните новую привычку сегодня!",
   "calendarViewMonth": "Месяц",
-  "calendarViewYear": "Год"
+  "calendarViewYear": "Год",
+  "goalTypeTime": "Время",
+  "goalTypeQuantity": "Количество",
+  "goalTypeTask": "Задача",
+  "repeatNever": "Не повторяется",
+  "recordInactive": "Неактивна",
+  "reminderLabel": "Напоминание",
+  "startTimeLabel": "Старт",
+  "endTimeLabel": "Конец",
+  "addRecordTitle": "Новая запись",
+  "goodHabitLabel": "Хорошая привычка",
+  "badHabitLabel": "Плохая привычка",
+  "chooseHabitTypeTitle": "Тип привычки",
+  "chooseHabitTypeHint": "Выберите, какую привычку хотите добавить"
 }

@@ -1,19 +1,39 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/models/habit.dart';
+import '../../../../core/models/habit_log.dart';
 import '../../../../core/widgets/habit_card.dart';
 import '../../../../l10n/app_localizations.dart';
+import 'add_habit_wizard.dart';
+import 'edit_habit_dialog.dart';
 
-/// Контент главной вкладки: список карточек привычек, блок «Новое», мотивационный текст.
+/// Контент главной вкладки: активные и неактивные привычки, блок «Новое», мотивационный текст.
 class MainMenuContent extends StatelessWidget {
   const MainMenuContent({
     super.key,
     required this.habits,
+    this.todayLogs = const {},
     this.isLoading = false,
+    this.isMainMenuVisible = true,
+    this.recenterCalendarTrigger = 0,
+    this.onTodayVisibilityInStripChanged,
+    this.onAddHabit,
+    this.onHabitTap,
+    this.onLog,
   });
 
   final List<Habit> habits;
+  final Map<String, HabitLog> todayLogs;
   final bool isLoading;
+  final bool isMainMenuVisible;
+  final int recenterCalendarTrigger;
+  final void Function(bool visible)? onTodayVisibilityInStripChanged;
+  final VoidCallback? onAddHabit;
+  final void Function(Habit)? onHabitTap;
+  final void Function(HabitLog)? onLog;
 
   @override
   Widget build(BuildContext context) {
@@ -23,49 +43,337 @@ class MainMenuContent extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 80),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: habits.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) => HabitCard(habit: habits[index]),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                l.newBlockTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+    final active = habits.where((h) => h.isActive).toList();
+    final inactive = habits.where((h) => !h.isActive).toList();
+
+    final bottomPadding = 80.0 + MediaQuery.paddingOf(context).bottom;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _CalendarStrip(
+          isVisible: isMainMenuVisible,
+          recenterTrigger: recenterCalendarTrigger,
+          onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: bottomPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: active.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final habit = active[index];
+                    return HabitCard(
+                      habit: habit,
+                      todayLog: todayLogs[habit.id],
+                      onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
+                      onLog: onLog != null ? (log) => onLog!(log) : null,
+                    );
+                  },
+                ),
+                if (inactive.isNotEmpty) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text(
+                      'Неактивные (позже — на календаре)',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              l.motivationalText,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: inactive.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final habit = inactive[index];
+                      return HabitCard(
+                        habit: habit,
+                        todayLog: todayLogs[habit.id],
+                        onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
+                        onLog: onLog != null ? (log) => onLog!(log) : null,
+                      );
+                    },
+                  ),
+                ],
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: InkWell(
+                    onTap: onAddHabit,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        l.newBlockTitle,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    l.motivationalText,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
+
+const _dayCellWidth = 52.0;
+
+/// Диапазон дат как в экране календаря: январь 2022 — декабрь 2036.
+final DateTime _stripStartDate = DateTime(2022, 1, 1);
+final DateTime _stripEndDate = DateTime(2036, 12, 31);
+
+class _CalendarStrip extends StatefulWidget {
+  const _CalendarStrip({
+    required this.isVisible,
+    required this.recenterTrigger,
+    this.onTodayVisibilityChanged,
+  });
+
+  final bool isVisible;
+  final int recenterTrigger;
+  final void Function(bool visible)? onTodayVisibilityChanged;
+
+  @override
+  State<_CalendarStrip> createState() => _CalendarStripState();
+}
+
+class _CalendarStripState extends State<_CalendarStrip> {
+  late final ScrollController _scrollController;
+  double? _lastViewportWidth;
+  static final DateTime _today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+  static int get _totalDays =>
+      _stripEndDate.difference(_stripStartDate).inDays + 1;
+
+  static int get _todayIndex {
+    if (_today.isBefore(_stripStartDate)) return 0;
+    if (_today.isAfter(_stripEndDate)) return _totalDays - 1;
+    return _today.difference(_stripStartDate).inDays;
+  }
+
+  static bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_notifyTodayVisibility);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: false));
+  }
+
+  @override
+  void didUpdateWidget(covariant _CalendarStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isVisible && !oldWidget.isVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: true));
+    } else if (widget.recenterTrigger != oldWidget.recenterTrigger) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: true));
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_notifyTodayVisibility);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _notifyTodayVisibility() {
+    widget.onTodayVisibilityChanged?.call(_isTodayInViewport());
+  }
+
+  bool _isTodayInViewport() {
+    if (!_scrollController.hasClients) return true;
+    final position = _scrollController.position;
+    const itemWidth = _dayCellWidth;
+    final todayLeft = _todayIndex * itemWidth;
+    final todayRight = todayLeft + itemWidth;
+    final start = position.pixels;
+    final end = position.pixels + position.viewportDimension;
+    // Считаем, что «сегодня видно», только если вся ячейка полностью в пределах viewport.
+    // Как только день хотя бы немного уезжает за край, считаем, что его «не видно»
+    // и показываем кнопку «вернуться к сегодня».
+    return todayLeft >= start && todayRight <= end;
+  }
+
+  void _scrollToToday({bool animate = false}) {
+    if (!mounted) return;
+    if (!_scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: animate));
+      return;
+    }
+    final position = _scrollController.position;
+    final viewportWidth = position.viewportDimension;
+    if (viewportWidth <= 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: animate));
+      return;
+    }
+    const itemWidth = _dayCellWidth;
+    if (!_isSameDay(_selectedDate, _today)) {
+      setState(() => _selectedDate = _today);
+    }
+    final todayIndex = _todayIndex;
+    final targetOffset = (todayIndex * itemWidth) + (itemWidth / 2) - (viewportWidth / 2);
+    final clampedOffset = targetOffset.clamp(0.0, position.maxScrollExtent);
+    if ((position.pixels - clampedOffset).abs() < 1.0) return;
+    if (animate) {
+      _scrollController.animateTo(
+        clampedOffset,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      ).then((_) => _notifyTodayVisibility());
+    } else {
+      _scrollController.jumpTo(clampedOffset);
+      _notifyTodayVisibility();
+    }
+  }
+
+  void _scheduleRecenterIfSizeChanged(double viewportWidth) {
+    if (_lastViewportWidth != null && _lastViewportWidth != viewportWidth) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: true));
+    }
+    _lastViewportWidth = viewportWidth;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final weekdayShortFormat = DateFormat('E', locale.toString());
+    final theme = Theme.of(context);
+    final padding = MediaQuery.paddingOf(context);
+    const sidePadding = 16.0;
+    final paddingLeft = sidePadding + padding.left;
+    final paddingRight = sidePadding + padding.right;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = constraints.maxWidth - paddingLeft - paddingRight;
+        _scheduleRecenterIfSizeChanged(viewportWidth);
+        return Padding(
+          padding: EdgeInsets.fromLTRB(paddingLeft, 8, paddingRight, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 64,
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: const {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                    },
+                  ),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    itemExtent: _dayCellWidth,
+                    itemCount: _totalDays,
+                    itemBuilder: (context, index) {
+                    final date = _stripStartDate.add(Duration(days: index));
+                    final isToday = _isSameDay(date, _today);
+                    final isSelected = _isSameDay(date, _selectedDate);
+                      final weekdayShort = weekdayShortFormat.format(date);
+                    final bgColor = isSelected
+                        ? theme.colorScheme.primary
+                        : (isToday ? theme.colorScheme.primaryContainer : null);
+                    final textColor = isSelected
+                        ? theme.colorScheme.onPrimary
+                        : (isToday ? theme.colorScheme.onPrimaryContainer : null);
+
+                    return InkWell(
+                      onTap: () {
+                        if (!_isSameDay(_selectedDate, date)) {
+                          setState(() => _selectedDate = date);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            weekdayShort,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${date.day}',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: (isToday || isSelected) ? FontWeight.w600 : null,
+                                    color: textColor,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Открыть визард добавления привычки (4 шага). Возвращает [Habit] или null.
+Future<Habit?> showAddHabitWizard(BuildContext context) {
+  return showDialog<Habit>(
+    context: context,
+    builder: (ctx) => const AddHabitWizard(),
+  );
+}
+
+/// Открыть диалог редактирования привычки. Возвращает [Habit] или null.
+Future<Habit?> showEditHabitDialog(BuildContext context, Habit habit) {
+  return showDialog<Habit>(
+    context: context,
+    builder: (ctx) => EditHabitDialog(habit: habit),
+  );
 }
