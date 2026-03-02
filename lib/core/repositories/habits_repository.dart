@@ -6,6 +6,10 @@ import '../models/habit.dart';
 class HabitsRepository {
   HabitsRepository();
 
+  // Для мок-данных задаём общий период действия привычек — 1 неделя от текущей даты.
+  static final DateTime _now = DateTime.now();
+  static final DateTime _weekLater = _now.add(const Duration(days: 7));
+
   Future<List<Habit>> getHabits() async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
     return List.from(_mockHabits);
@@ -22,6 +26,8 @@ class HabitsRepository {
       icon: Icons.bed,
       repeatDays: [1, 2, 3, 4, 5, 6, 7],
       isActive: true,
+      startDate: _now,
+      endDate: _weekLater,
     ),
     Habit(
       id: '2',
@@ -34,6 +40,8 @@ class HabitsRepository {
       icon: Icons.water_drop,
       repeatDays: [1, 2, 3, 4, 5, 6, 7],
       isActive: true,
+      startDate: _now,
+      endDate: _weekLater,
     ),
     Habit(
       id: '3',
@@ -46,6 +54,8 @@ class HabitsRepository {
       icon: Icons.menu_book,
       repeatDays: [1, 3, 5, 7],
       isActive: true,
+      startDate: _now,
+      endDate: _weekLater,
     ),
     Habit(
       id: '4',
@@ -57,6 +67,8 @@ class HabitsRepository {
       icon: Icons.smoke_free,
       repeatDays: [1, 2, 3, 4, 5, 6, 7],
       isActive: true,
+      startDate: _now,
+      endDate: _weekLater,
     ),
   ];
 }

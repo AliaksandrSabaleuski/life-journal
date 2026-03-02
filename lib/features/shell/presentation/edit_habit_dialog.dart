@@ -5,9 +5,14 @@ import '../../../../l10n/app_localizations.dart';
 
 /// Диалог редактирования привычки: название, иконка, цвет, цель (если есть).
 class EditHabitDialog extends StatefulWidget {
-  const EditHabitDialog({super.key, required this.habit});
+  const EditHabitDialog({
+    super.key,
+    required this.habit,
+    this.selectedDate,
+  });
 
   final Habit habit;
+  final DateTime? selectedDate;
 
   @override
   State<EditHabitDialog> createState() => _EditHabitDialogState();
@@ -19,6 +24,12 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
   late TextEditingController _unitController;
   late IconData _icon;
   late Color _color;
+
+  late bool _limitNotExceed;
+  late bool _isOneTime;
+  late Set<int> _repeatWeekdays;
+  DateTime? _endDate;
+  TimeOfDay? _reminder;
 
   static const _presetColors = [
     Colors.green,
@@ -54,6 +65,31 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
     final v = h.goal.value;
     _goalController = TextEditingController(text: v != null ? v.toInt().toString() : '');
     _unitController = TextEditingController(text: h.unit ?? (h.measurement == HabitMeasurement.timed ? 'мин' : 'раз'));
+
+    _limitNotExceed = h.measurement == HabitMeasurement.counted
+        ? h.goal.kind == HabitGoalKind.limit
+        : h.direction == HabitDirection.bad;
+
+    _reminder = h.reminder;
+
+    final start = h.startDate;
+    final end = h.endDate;
+    final sameDay = start != null &&
+        end != null &&
+        start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day;
+
+    _isOneTime = h.repeatDays.isEmpty && sameDay;
+    if (_isOneTime) {
+      _repeatWeekdays = <int>{};
+      _endDate = end;
+    } else {
+      _repeatWeekdays = h.repeatDays.isNotEmpty
+          ? Set<int>.from(h.repeatDays)
+          : <int>{1, 2, 3, 4, 5, 6, 7};
+      _endDate = end;
+    }
   }
 
   @override
@@ -69,7 +105,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final h = widget.habit;
-    final hasGoal = h.measurement != HabitMeasurement.binary;
+    final isBinary = h.measurement == HabitMeasurement.binary;
 
     return AlertDialog(
       title: const Text('Редактировать привычку'),
@@ -135,28 +171,68 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                   );
                 }).toList(),
               ),
-              if (hasGoal) ...[
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _goalController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: h.measurement == HabitMeasurement.timed ? 'Минут' : 'Цель (число)',
-                    suffixText: _unitController.text.isEmpty ? 'раз' : _unitController.text,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _unitController,
-                  decoration: const InputDecoration(labelText: 'Единица'),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ],
+              const SizedBox(height: 16),
+              _buildGoalSection(theme, h, isBinary),
+              const SizedBox(height: 16),
+              _buildReminderSection(theme, l),
+              const SizedBox(height: 16),
+              _buildScheduleSection(theme),
             ],
           ),
         ),
       ),
       actions: [
+        TextButton(
+          onPressed: () async {
+            final h = widget.habit;
+            final base = widget.selectedDate != null
+                ? DateTime(widget.selectedDate!.year, widget.selectedDate!.month, widget.selectedDate!.day)
+                : DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+            final newEnd = base.subtract(const Duration(days: 1));
+
+            DateTime? startDate = h.startDate;
+            if (startDate != null && newEnd.isBefore(startDate)) {
+              // Если "удаляем" до начала действия — считаем привычку неактивной.
+              Navigator.of(context).pop(
+                h.copyWith(isActive: false),
+              );
+              return;
+            }
+
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Удалить привычку?'),
+                content: const Text(
+                  'Привычка будет скрыта из списка активных и перейдёт в раздел неактивных.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: Text(l.cancelButton),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                    child: const Text('Удалить'),
+                  ),
+                ],
+              ),
+            );
+            if (confirm == true && mounted) {
+              Navigator.of(context).pop(
+                h.copyWith(endDate: newEnd),
+              );
+            }
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+          ),
+          child: const Text('Удалить'),
+        ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l.cancelButton),
@@ -166,15 +242,52 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
             final name = _nameController.text.trim();
             if (name.isEmpty) return;
             HabitGoal goal;
-            if (hasGoal) {
+            String? unit;
+
+            if (isBinary) {
               final v = double.tryParse(_goalController.text.replaceAll(',', '.'));
-              goal = h.direction == HabitDirection.good
-                  ? HabitGoal.target(v ?? 1.0)
-                  : HabitGoal.limit(v ?? 1.0);
+              if (v != null && v > 0) {
+                goal = HabitGoal.target(v);
+                unit = 'раз';
+              } else {
+                goal = const HabitGoal.noGoal();
+              }
+            } else if (h.measurement == HabitMeasurement.counted) {
+              final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 1.0;
+              unit = _unitController.text.trim().isNotEmpty ? _unitController.text.trim() : 'раз';
+              final isLimitGoal = _limitNotExceed || h.direction == HabitDirection.bad;
+              goal = isLimitGoal ? HabitGoal.limit(v) : HabitGoal.target(v);
             } else {
-              goal = h.goal;
+              final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 15.0;
+              unit = 'мин';
+              goal = h.direction == HabitDirection.bad && _limitNotExceed
+                  ? HabitGoal.limit(v)
+                  : HabitGoal.target(v);
             }
-            final unit = _unitController.text.trim().isEmpty ? null : _unitController.text.trim();
+
+            final now = DateTime.now();
+            final baseDate = h.startDate != null
+                ? DateTime(h.startDate!.year, h.startDate!.month, h.startDate!.day)
+                : DateTime(now.year, now.month, now.day);
+
+            DateTime? startDate;
+            DateTime? endDate = _endDate;
+            List<int> repeatDays;
+
+            if (_isOneTime) {
+              startDate = baseDate;
+              endDate = baseDate;
+              repeatDays = const [];
+            } else {
+              startDate = baseDate;
+              endDate ??= baseDate.add(const Duration(days: 30));
+              if (_repeatWeekdays.isEmpty) {
+                repeatDays = const [1, 2, 3, 4, 5, 6, 7];
+              } else {
+                repeatDays = _repeatWeekdays.toList()..sort();
+              }
+            }
+
             Navigator.of(context).pop(Habit(
               id: h.id,
               name: name,
@@ -184,15 +297,262 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
               color: _color,
               icon: _icon,
               unit: unit,
-              repeatDays: h.repeatDays,
+              repeatDays: repeatDays,
               isActive: h.isActive,
-              reminder: h.reminder,
+              reminder: _reminder,
               startTime: h.startTime,
-              endTime: h.endTime,
+              startDate: startDate,
+              endDate: endDate,
             ));
           },
           child: Text(l.saveButton),
         ),
+      ],
+    );
+  }
+
+  Widget _buildGoalSection(ThemeData theme, Habit h, bool isBinary) {
+    if (isBinary) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Количество повторений за день (опционально)',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _goalController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Сколько раз в день?',
+              hintText: 'Например: 1',
+              suffixText: 'раз',
+            ),
+          ),
+        ],
+      );
+    }
+
+    final isTimed = h.measurement == HabitMeasurement.timed;
+    final isBad = h.direction == HabitDirection.bad;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          isTimed
+              ? 'Укажите желаемое время'
+              : (isBad ? 'Укажите ограничение для привычки' : 'Укажите целевое количество'),
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _goalController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: isTimed ? 'Минут в день' : (isBad ? 'Лимит' : 'Цель'),
+            suffixText: isTimed
+                ? 'мин'
+                : (_unitController.text.isEmpty ? 'раз' : _unitController.text),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        if (!isTimed) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _unitController,
+            decoration: const InputDecoration(
+              labelText: 'Единицы счёта',
+              hintText: 'раз, км, страниц',
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            value: _limitNotExceed,
+            onChanged: (v) => setState(() => _limitNotExceed = v ?? true),
+            title: const Text('Не превышать это значение'),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildReminderSection(ThemeData theme, AppLocalizations l) {
+    final text = _reminder != null
+        ? _reminder!.format(context)
+        : 'Нет напоминания';
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.notifications_outlined),
+      title: Text('${l.reminderLabel} (опционально)'),
+      subtitle: Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: _reminder != null
+          ? IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => setState(() => _reminder = null),
+            )
+          : null,
+      onTap: () async {
+        final initial = _reminder ?? TimeOfDay.now();
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: initial,
+        );
+        if (picked != null && mounted) {
+          setState(() => _reminder = picked);
+        }
+      },
+    );
+  }
+
+  Widget _buildScheduleSection(ThemeData theme) {
+    final weekdayLabels = const ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Частота',
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        RadioListTile<bool>(
+          value: true,
+          groupValue: _isOneTime,
+          onChanged: (v) => setState(() => _isOneTime = v ?? false),
+          title: const Text('Одноразовое событие'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        RadioListTile<bool>(
+          value: false,
+          groupValue: _isOneTime,
+          onChanged: (v) => setState(() => _isOneTime = v ?? false),
+          title: const Text('Повторяемое'),
+          subtitle: const Text('Как в будильнике'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (!_isOneTime) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: List.generate(7, (index) {
+              final weekday = index + 1;
+              final selected = _repeatWeekdays.contains(weekday);
+              return ChoiceChip(
+                label: Text(weekdayLabels[index]),
+                selected: selected,
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                onSelected: (v) {
+                  setState(() {
+                    if (v) {
+                      _repeatWeekdays.add(weekday);
+                    } else {
+                      _repeatWeekdays.remove(weekday);
+                    }
+                  });
+                },
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _repeatWeekdays
+                      ..clear()
+                      ..addAll({1, 2, 3, 4, 5});
+                  });
+                },
+                child: const Text('Будни'),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _repeatWeekdays
+                      ..clear()
+                      ..addAll({6, 7});
+                  });
+                },
+                child: const Text('Выходные'),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _repeatWeekdays
+                      ..clear()
+                      ..addAll({1, 2, 3, 4, 5, 6, 7});
+                  });
+                },
+                child: const Text('Каждый день'),
+              ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () {
+                setState(() => _repeatWeekdays.clear());
+              },
+              child: const Text('Очистить дни'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Активна с даты начала до',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.event_outlined),
+            title: const Text('Дата окончания привычки'),
+            subtitle: Builder(builder: (context) {
+              final start = widget.habit.startDate ??
+                  DateTime.now();
+              final startStr =
+                  '${start.day.toString().padLeft(2, '0')}.${start.month.toString().padLeft(2, '0')}.${start.year}';
+              final endDate = _endDate ??
+                  start.add(const Duration(days: 30));
+              final endStr =
+                  '${endDate.day.toString().padLeft(2, '0')}.${endDate.month.toString().padLeft(2, '0')}.${endDate.year}';
+              final text = 'С $startStr по $endStr';
+              return Text(
+                text,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              );
+            }),
+            onTap: () async {
+              final base = DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _endDate ?? base.add(const Duration(days: 30)),
+                firstDate: base,
+                lastDate: base.add(const Duration(days: 365 * 5)),
+              );
+              if (picked != null && mounted) {
+                setState(() {
+                  _endDate = DateTime(picked.year, picked.month, picked.day);
+                });
+              }
+            },
+          ),
+        ],
       ],
     );
   }

@@ -55,6 +55,8 @@ class Habit {
     this.reminder,
     this.startTime,
     this.endTime,
+    this.startDate,
+    this.endDate,
   });
 
   final String id;
@@ -72,6 +74,10 @@ class Habit {
   final TimeOfDay? reminder;
   final TimeOfDay? startTime;
   final TimeOfDay? endTime;
+  /// Дата начала действия привычки (включительно). Если null — с самого начала.
+  final DateTime? startDate;
+  /// Дата окончания действия привычки (включительно). Если null — без окончания.
+  final DateTime? endDate;
 
   /// Финальный тип привычки по направлению и измерению.
   HabitType get type {
@@ -111,6 +117,8 @@ class Habit {
     TimeOfDay? reminder,
     TimeOfDay? startTime,
     TimeOfDay? endTime,
+    DateTime? startDate,
+    DateTime? endDate,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -126,6 +134,30 @@ class Habit {
       reminder: reminder ?? this.reminder,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
     );
+  }
+
+  /// Должна ли привычка отображаться в указанный день.
+  bool isScheduledForDate(DateTime date) {
+    if (!isActive) return false;
+    final d = DateTime(date.year, date.month, date.day);
+
+    if (startDate != null) {
+      final s = DateTime(startDate!.year, startDate!.month, startDate!.day);
+      if (d.isBefore(s)) return false;
+    }
+
+    if (endDate != null) {
+      final e = DateTime(endDate!.year, endDate!.month, endDate!.day);
+      if (d.isAfter(e)) return false;
+    }
+
+    if (repeatDays.isNotEmpty && !repeatDays.contains(d.weekday)) {
+      return false;
+    }
+
+    return true;
   }
 }

@@ -22,6 +22,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   int _recenterCalendarTrigger = 0;
+  DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   bool _isTodayVisibleInStrip = true;
   List<Habit> _habits = [];
   Map<String, HabitLog> _todayLogs = {};
@@ -54,14 +55,21 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _openAddHabit() async {
-    final habit = await showAddHabitWizard(context);
+    final habit = await showAddHabitWizard(
+      context,
+      initialDate: _selectedDate,
+    );
     if (habit != null && mounted) {
       setState(() => _habits = [..._habits, habit]);
     }
   }
 
   Future<void> _openEditHabit(Habit habit) async {
-    final updated = await showEditHabitDialog(context, habit);
+    final updated = await showEditHabitDialog(
+      context,
+      habit,
+      selectedDate: _selectedDate,
+    );
     if (updated != null && mounted) {
       setState(() {
         _habits = _habits.map((h) => h.id == updated.id ? updated : h).toList();
@@ -80,15 +88,25 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
 
+    final dayHabits =
+        _habits.where((h) => h.isScheduledForDate(_selectedDate)).toList();
+
     final body = IndexedStack(
       index: _currentIndex,
       children: [
         MainMenuContent(
-          habits: _habits,
+          habits: dayHabits,
           todayLogs: _todayLogs,
           isLoading: !_habitsLoaded,
           isMainMenuVisible: _currentIndex == 0,
           recenterCalendarTrigger: _recenterCalendarTrigger,
+          selectedDate: _selectedDate,
+          onSelectedDateChanged: (date) {
+            if (!mounted) return;
+            setState(() {
+              _selectedDate = DateTime(date.year, date.month, date.day);
+            });
+          },
           onTodayVisibilityInStripChanged: (visible) {
             if (mounted && _isTodayVisibleInStrip != visible) {
               setState(() => _isTodayVisibleInStrip = visible);

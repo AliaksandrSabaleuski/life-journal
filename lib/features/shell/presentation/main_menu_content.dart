@@ -19,6 +19,8 @@ class MainMenuContent extends StatelessWidget {
     this.isLoading = false,
     this.isMainMenuVisible = true,
     this.recenterCalendarTrigger = 0,
+    required this.selectedDate,
+    this.onSelectedDateChanged,
     this.onTodayVisibilityInStripChanged,
     this.onAddHabit,
     this.onHabitTap,
@@ -30,6 +32,8 @@ class MainMenuContent extends StatelessWidget {
   final bool isLoading;
   final bool isMainMenuVisible;
   final int recenterCalendarTrigger;
+  final DateTime selectedDate;
+  final void Function(DateTime date)? onSelectedDateChanged;
   final void Function(bool visible)? onTodayVisibilityInStripChanged;
   final VoidCallback? onAddHabit;
   final void Function(Habit)? onHabitTap;
@@ -53,6 +57,8 @@ class MainMenuContent extends StatelessWidget {
         _CalendarStrip(
           isVisible: isMainMenuVisible,
           recenterTrigger: recenterCalendarTrigger,
+          initialSelectedDate: selectedDate,
+          onDateSelected: onSelectedDateChanged,
           onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
         ),
         Expanded(
@@ -155,11 +161,15 @@ class _CalendarStrip extends StatefulWidget {
   const _CalendarStrip({
     required this.isVisible,
     required this.recenterTrigger,
+    required this.initialSelectedDate,
+    this.onDateSelected,
     this.onTodayVisibilityChanged,
   });
 
   final bool isVisible;
   final int recenterTrigger;
+  final DateTime initialSelectedDate;
+  final void Function(DateTime date)? onDateSelected;
   final void Function(bool visible)? onTodayVisibilityChanged;
 
   @override
@@ -170,7 +180,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
   late final ScrollController _scrollController;
   double? _lastViewportWidth;
   static final DateTime _today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-  DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  late DateTime _selectedDate;
 
   static int get _totalDays =>
       _stripEndDate.difference(_stripStartDate).inDays + 1;
@@ -190,6 +200,11 @@ class _CalendarStripState extends State<_CalendarStrip> {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_notifyTodayVisibility);
+    _selectedDate = DateTime(
+      widget.initialSelectedDate.year,
+      widget.initialSelectedDate.month,
+      widget.initialSelectedDate.day,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: false));
   }
 
@@ -242,7 +257,9 @@ class _CalendarStripState extends State<_CalendarStrip> {
     }
     const itemWidth = _dayCellWidth;
     if (!_isSameDay(_selectedDate, _today)) {
-      setState(() => _selectedDate = _today);
+      _selectedDate = _today;
+      widget.onDateSelected?.call(_selectedDate);
+      setState(() {});
     }
     final todayIndex = _todayIndex;
     final targetOffset = (todayIndex * itemWidth) + (itemWidth / 2) - (viewportWidth / 2);
@@ -317,7 +334,9 @@ class _CalendarStripState extends State<_CalendarStrip> {
                     return InkWell(
                       onTap: () {
                         if (!_isSameDay(_selectedDate, date)) {
-                          setState(() => _selectedDate = date);
+                          _selectedDate = date;
+                          widget.onDateSelected?.call(date);
+                          setState(() {});
                         }
                       },
                       borderRadius: BorderRadius.circular(24),
@@ -363,17 +382,27 @@ class _CalendarStripState extends State<_CalendarStrip> {
 }
 
 /// Открыть визард добавления привычки (4 шага). Возвращает [Habit] или null.
-Future<Habit?> showAddHabitWizard(BuildContext context) {
+Future<Habit?> showAddHabitWizard(
+  BuildContext context, {
+  DateTime? initialDate,
+}) {
   return showDialog<Habit>(
     context: context,
-    builder: (ctx) => const AddHabitWizard(),
+    builder: (ctx) => AddHabitWizard(initialDate: initialDate),
   );
 }
 
 /// Открыть диалог редактирования привычки. Возвращает [Habit] или null.
-Future<Habit?> showEditHabitDialog(BuildContext context, Habit habit) {
+Future<Habit?> showEditHabitDialog(
+  BuildContext context,
+  Habit habit, {
+  DateTime? selectedDate,
+}) {
   return showDialog<Habit>(
     context: context,
-    builder: (ctx) => EditHabitDialog(habit: habit),
+    builder: (ctx) => EditHabitDialog(
+      habit: habit,
+      selectedDate: selectedDate,
+    ),
   );
 }
