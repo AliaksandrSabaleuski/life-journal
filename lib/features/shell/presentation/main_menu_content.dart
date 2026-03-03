@@ -10,7 +10,9 @@ import '../../../../l10n/app_localizations.dart';
 import 'add_habit_wizard.dart';
 import 'edit_habit_dialog.dart';
 
-/// Контент главной вкладки: активные и неактивные привычки, блок «Новое», мотивационный текст.
+enum MainListTab { events, habits }
+
+/// Контент главной вкладки: календарная полоса + события/привычки, блок «Новое», мотивационный текст.
 class MainMenuContent extends StatelessWidget {
   const MainMenuContent({
     super.key,
@@ -22,7 +24,9 @@ class MainMenuContent extends StatelessWidget {
     required this.selectedDate,
     this.onSelectedDateChanged,
     this.onTodayVisibilityInStripChanged,
-    this.onAddHabit,
+    required this.currentTab,
+    this.onTabChanged,
+    this.onAddPressed,
     this.onHabitTap,
     this.onLog,
   });
@@ -35,7 +39,9 @@ class MainMenuContent extends StatelessWidget {
   final DateTime selectedDate;
   final void Function(DateTime date)? onSelectedDateChanged;
   final void Function(bool visible)? onTodayVisibilityInStripChanged;
-  final VoidCallback? onAddHabit;
+  final MainListTab currentTab;
+  final ValueChanged<MainListTab>? onTabChanged;
+  final VoidCallback? onAddPressed;
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
 
@@ -47,8 +53,8 @@ class MainMenuContent extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final active = habits.where((h) => h.isActive).toList();
-    final inactive = habits.where((h) => !h.isActive).toList();
+    final active = habits.where((h) => h.isActive && !h.isEvent).toList();
+    final inactive = habits.where((h) => !h.isActive && !h.isEvent).toList();
 
     final bottomPadding = 80.0 + MediaQuery.paddingOf(context).bottom;
     return Column(
@@ -61,93 +67,216 @@ class MainMenuContent extends StatelessWidget {
           onDateSelected: onSelectedDateChanged,
           onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+          child: SegmentedButton<MainListTab>(
+            segments: const [
+              ButtonSegment(
+                value: MainListTab.events,
+                icon: Icon(Icons.event_note_outlined),
+                label: Text('События'),
+              ),
+              ButtonSegment(
+                value: MainListTab.habits,
+                icon: Icon(Icons.checklist_rtl),
+                label: Text('Привычки'),
+              ),
+            ],
+            selected: {currentTab},
+            onSelectionChanged: (set) {
+              if (onTabChanged != null && set.isNotEmpty) {
+                onTabChanged!(set.first);
+              }
+            },
+          ),
+        ),
         Expanded(
           child: SingleChildScrollView(
             padding: EdgeInsets.only(bottom: bottomPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: active.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final habit = active[index];
-                    return HabitCard(
-                      habit: habit,
-                      todayLog: todayLogs[habit.id],
-                      onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
-                      onLog: onLog != null ? (log) => onLog!(log) : null,
-                    );
-                  },
-                ),
-                if (inactive.isNotEmpty) ...[
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Text(
-                      'Неактивные (позже — на календаре)',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: inactive.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final habit = inactive[index];
-                      return HabitCard(
-                        habit: habit,
-                        todayLog: todayLogs[habit.id],
-                        onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
-                        onLog: onLog != null ? (log) => onLog!(log) : null,
-                      );
-                    },
-                  ),
-                ],
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: InkWell(
-                    onTap: onAddHabit,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        l.newBlockTitle,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    l.motivationalText,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
+              children: currentTab == MainListTab.habits
+                  ? _buildHabitsSection(context, l, active, inactive)
+                  : _buildEventsSection(context, l),
             ),
           ),
         ),
       ],
     );
+  }
+
+  List<Widget> _buildHabitsSection(
+    BuildContext context,
+    AppLocalizations l,
+    List<Habit> active,
+    List<Habit> inactive,
+  ) {
+    return [
+      ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: active.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final habit = active[index];
+          return HabitCard(
+            habit: habit,
+            todayLog: todayLogs[habit.id],
+            onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
+            onLog: onLog != null ? (log) => onLog!(log) : null,
+          );
+        },
+      ),
+      if (inactive.isNotEmpty) ...[
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            'Неактивные (позже — на календаре)',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: inactive.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final habit = inactive[index];
+            return HabitCard(
+              habit: habit,
+              todayLog: todayLogs[habit.id],
+              onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
+              onLog: onLog != null ? (log) => onLog!(log) : null,
+            );
+          },
+        ),
+      ],
+      const Divider(height: 1),
+      Padding(
+        padding: const EdgeInsets.all(24),
+        child: InkWell(
+          onTap: onAddPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              l.newBlockTitle,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Text(
+          l.motivationalText,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ),
+      const SizedBox(height: 24),
+    ];
+  }
+
+  List<Widget> _buildEventsSection(BuildContext context, AppLocalizations l) {
+    final day = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final eventsForDay = habits.where((h) {
+      if (!h.isEvent) return false;
+      // Для вкладки «События» показываем все записи-события,
+      // которые по расписанию попадают в выбранный день.
+      return h.isScheduledForDate(day);
+    }).toList();
+
+    if (eventsForDay.isEmpty) {
+      return [
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            l.noEventsForDay,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: InkWell(
+            onTap: onAddPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                l.newEventTitle,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return [
+      ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: eventsForDay.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final habit = eventsForDay[index];
+          return HabitCard(
+            habit: habit,
+            todayLog: todayLogs[habit.id],
+            onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
+            onLog: onLog != null ? (log) => onLog!(log) : null,
+          );
+        },
+      ),
+      const Divider(height: 1),
+      Padding(
+        padding: const EdgeInsets.all(24),
+        child: InkWell(
+          onTap: onAddPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              l.newEventTitle,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+    ];
   }
 }
 
@@ -385,10 +514,20 @@ class _CalendarStripState extends State<_CalendarStrip> {
 Future<Habit?> showAddHabitWizard(
   BuildContext context, {
   DateTime? initialDate,
+  HabitDirection? initialDirection,
+  HabitMeasurement? initialMeasurement,
+  int startStep = 1,
+  bool isEventMode = false,
 }) {
   return showDialog<Habit>(
     context: context,
-    builder: (ctx) => AddHabitWizard(initialDate: initialDate),
+    builder: (ctx) => AddHabitWizard(
+      initialDate: initialDate,
+      initialDirection: initialDirection,
+      initialMeasurement: initialMeasurement,
+      startStep: startStep,
+      isEventMode: isEventMode,
+    ),
   );
 }
 

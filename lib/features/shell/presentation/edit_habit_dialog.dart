@@ -28,6 +28,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
   late bool _limitNotExceed;
   late bool _isOneTime;
   late Set<int> _repeatWeekdays;
+  DateTime? _startDate;
   DateTime? _endDate;
   TimeOfDay? _reminder;
 
@@ -81,6 +82,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
         start.day == end.day;
 
     _isOneTime = h.repeatDays.isEmpty && sameDay;
+    _startDate = start;
     if (_isOneTime) {
       _repeatWeekdays = <int>{};
       _endDate = end;
@@ -245,13 +247,9 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
             String? unit;
 
             if (isBinary) {
-              final v = double.tryParse(_goalController.text.replaceAll(',', '.'));
-              if (v != null && v > 0) {
-                goal = HabitGoal.target(v);
-                unit = 'раз';
-              } else {
-                goal = const HabitGoal.noGoal();
-              }
+              // Ритуал остаётся бинарным: только «сделал / не сделал».
+              goal = const HabitGoal.noGoal();
+              unit = null;
             } else if (h.measurement == HabitMeasurement.counted) {
               final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 1.0;
               unit = _unitController.text.trim().isNotEmpty ? _unitController.text.trim() : 'раз';
@@ -279,7 +277,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
               endDate = baseDate;
               repeatDays = const [];
             } else {
-              startDate = baseDate;
+              startDate = _startDate ?? baseDate;
               endDate ??= baseDate.add(const Duration(days: 30));
               if (_repeatWeekdays.isEmpty) {
                 repeatDays = const [1, 2, 3, 4, 5, 6, 7];
@@ -303,6 +301,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
               startTime: h.startTime,
               startDate: startDate,
               endDate: endDate,
+              isEvent: h.isEvent,
             ));
           },
           child: Text(l.saveButton),
@@ -317,18 +316,8 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Количество повторений за день (опционально)',
+            'Для ритуала не задаётся числовая цель — просто отмечайте выполнение один раз за день.',
             style: theme.textTheme.titleSmall,
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _goalController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Сколько раз в день?',
-              hintText: 'Например: 1',
-              suffixText: 'раз',
-            ),
           ),
         ],
       );
@@ -367,14 +356,6 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
               hintText: 'раз, км, страниц',
             ),
             onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 8),
-          CheckboxListTile(
-            value: _limitNotExceed,
-            onChanged: (v) => setState(() => _limitNotExceed = v ?? true),
-            title: const Text('Не превышать это значение'),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
           ),
         ],
       ],
@@ -417,6 +398,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
 
   Widget _buildScheduleSection(ThemeData theme) {
     final weekdayLabels = const ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    final start = _startDate ?? widget.habit.startDate ?? DateTime.now();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -443,8 +425,43 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
         ),
         if (!_isOneTime) ...[
           const SizedBox(height: 8),
+          Text(
+            'Период действия',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.flag_outlined),
+            title: const Text('Дата начала'),
+            subtitle: Text(
+              '${start.day.toString().padLeft(2, '0')}.${start.month.toString().padLeft(2, '0')}.${start.year}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            onTap: () async {
+              final base = widget.habit.startDate ?? DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: start,
+                firstDate: base.subtract(const Duration(days: 365 * 5)),
+                lastDate: base.add(const Duration(days: 365 * 5)),
+              );
+              if (picked != null && mounted) {
+                setState(() {
+                  _startDate = DateTime(picked.year, picked.month, picked.day);
+                  if (_endDate != null && _endDate!.isBefore(_startDate!)) {
+                    _endDate = _startDate!.add(const Duration(days: 30));
+                  }
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 4),
           Wrap(
             spacing: 8,
+            runSpacing: 8,
             children: List.generate(7, (index) {
               final weekday = index + 1;
               final selected = _repeatWeekdays.contains(weekday);
@@ -466,8 +483,9 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
             }),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
             children: [
               TextButton(
                 onPressed: () {
@@ -477,6 +495,10 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                       ..addAll({1, 2, 3, 4, 5});
                   });
                 },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 child: const Text('Будни'),
               ),
               TextButton(
@@ -487,6 +509,10 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                       ..addAll({6, 7});
                   });
                 },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 child: const Text('Выходные'),
               ),
               TextButton(
@@ -497,6 +523,10 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                       ..addAll({1, 2, 3, 4, 5, 6, 7});
                   });
                 },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 child: const Text('Каждый день'),
               ),
             ],
@@ -521,8 +551,6 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
             leading: const Icon(Icons.event_outlined),
             title: const Text('Дата окончания привычки'),
             subtitle: Builder(builder: (context) {
-              final start = widget.habit.startDate ??
-                  DateTime.now();
               final startStr =
                   '${start.day.toString().padLeft(2, '0')}.${start.month.toString().padLeft(2, '0')}.${start.year}';
               final endDate = _endDate ??
@@ -538,7 +566,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
               );
             }),
             onTap: () async {
-              final base = DateTime.now();
+              final base = start;
               final picked = await showDatePicker(
                 context: context,
                 initialDate: _endDate ?? base.add(const Duration(days: 30)),

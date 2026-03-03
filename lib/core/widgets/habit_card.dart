@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/habit.dart';
@@ -5,7 +7,7 @@ import '../models/habit_log.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Карточка привычки: отображение и отметка в зависимости от [HabitType].
-class HabitCard extends StatelessWidget {
+class HabitCard extends StatefulWidget {
   const HabitCard({
     super.key,
     required this.habit,
@@ -19,6 +21,21 @@ class HabitCard extends StatelessWidget {
   final VoidCallback? onTap;
   final void Function(HabitLog)? onLog;
 
+  @override
+  State<HabitCard> createState() => _HabitCardState();
+}
+
+class _HabitCardState extends State<HabitCard> {
+  bool _timerRunning = false;
+  DateTime? _timerStart;
+  Timer? _timerTicker;
+  double _currentSessionMinutes = 0;
+
+  Habit get habit => widget.habit;
+  HabitLog? get todayLog => widget.todayLog;
+  void Function(HabitLog)? get onLog => widget.onLog;
+  VoidCallback? get onTap => widget.onTap;
+
   double get _goalValue {
     switch (habit.goal.kind) {
       case HabitGoalKind.target:
@@ -30,9 +47,32 @@ class HabitCard extends StatelessWidget {
   }
 
   @override
+  void dispose() {
+    _timerTicker?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
+
+    // Для таймеров и счётчиков считаем прогресс для обводки вокруг иконки.
+    double? circularProgress;
+    if (habit.type == HabitType.timer || habit.type == HabitType.durationLimiter) {
+      final baseCurrent = todayLog?.value ?? 0.0;
+      final effectiveCurrent = _timerRunning ? baseCurrent + _currentSessionMinutes : baseCurrent;
+      final goal = _goalValue;
+      if (goal > 0) {
+        circularProgress = (effectiveCurrent / goal).clamp(0.0, 1.0);
+      }
+    } else if (habit.type == HabitType.counter || habit.type == HabitType.limiter) {
+      final current = todayLog?.value ?? 0.0;
+      final goal = _goalValue;
+      if (goal > 0) {
+        circularProgress = (current / goal).clamp(0.0, 1.0);
+      }
+    }
 
     return Material(
       color: theme.colorScheme.surface,
@@ -42,17 +82,37 @@ class HabitCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: habit.color.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  habit.icon ?? Icons.star_outline,
-                  color: habit.color,
-                  size: 26,
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (circularProgress != null)
+                      SizedBox(
+                        width: 52,
+                        height: 52,
+                        child: CircularProgressIndicator(
+                          value: circularProgress,
+                          strokeWidth: 4,
+                          backgroundColor: habit.color.withValues(alpha: 0.12),
+                          valueColor: AlwaysStoppedAnimation<Color>(habit.color),
+                        ),
+                      ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: habit.color.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        habit.icon ?? Icons.star_outline,
+                        color: habit.color,
+                        size: 24,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 12),
@@ -87,6 +147,10 @@ class HabitCard extends StatelessWidget {
                           ),
                       ],
                     ),
+                    if (habit.type == HabitType.ritual) ...[
+                      const SizedBox(height: 4),
+                      _buildRitualMeta(theme),
+                    ],
                     const SizedBox(height: 6),
                     _buildProgressOrAction(context, theme, l),
                   ],
@@ -102,85 +166,169 @@ class HabitCard extends StatelessWidget {
   Widget _buildProgressOrAction(BuildContext context, ThemeData theme, AppLocalizations l) {
     switch (habit.type) {
       case HabitType.ritual:
-        return _BinaryButton(
-          done: todayLog?.isCompleted == true,
-          isGood: true,
-          onTap: () => _logBinary(context, true),
+        final done = todayLog?.isCompleted == true;
+        return Align(
+          alignment: Alignment.centerRight,
+          child: _BinaryButton(
+            done: done,
+            isGood: true,
+            // Повторное нажатие снимает отметку (переключаем состояние).
+            onTap: () => _logBinary(context, !done),
+          ),
         );
       case HabitType.temptation:
-        return _BinaryButton(
-          done: todayLog != null,
-          isGood: todayLog?.isCompleted != false,
-          isRelapse: todayLog?.isCompleted == false,
-          onTap: () => _tapTemptation(context),
+        final isRelapse = todayLog?.isCompleted == false;
+        final isHold = todayLog?.isCompleted == true;
+        return _TemptationButtons(
+          isRelapse: isRelapse,
+          isHold: isHold,
+          onRelapse: () => _logBinary(context, false),
+          onHold: () => _logBinary(context, true),
         );
       case HabitType.counter:
       case HabitType.limiter:
         final current = todayLog?.value ?? 0.0;
         final goal = _goalValue;
         final isLimit = habit.type == HabitType.limiter;
-        return _CounterProgress(
-          current: current,
-          goal: goal,
-          unit: habit.unit ?? 'раз',
-          isLimit: isLimit,
-          color: habit.color,
-          onTap: () => _tapCounter(context, current, goal),
+        final done = todayLog?.isCompleted == true;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: _BinaryButton(
+                done: done,
+                isGood: habit.isGoodHabit,
+                onTap: () => _logBinary(context, !done),
+              ),
+            ),
+            const SizedBox(height: 4),
+            _CounterProgress(
+              current: current,
+              goal: goal,
+              unit: habit.unit ?? 'раз',
+              isLimit: isLimit,
+              color: habit.color,
+              onTap: () => _tapCounter(context, current, goal),
+              onIncrement: () {
+                final newValue = current + 1;
+                onLog?.call(HabitLog(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  habitId: habit.id,
+                  date: DateTime.now(),
+                  value: newValue,
+                ));
+              },
+            ),
+          ],
         );
       case HabitType.timer:
       case HabitType.durationLimiter:
-        final current = todayLog?.value ?? 0.0;
+        final baseCurrent = todayLog?.value ?? 0.0;
+        final effectiveCurrent = _timerRunning ? baseCurrent + _currentSessionMinutes : baseCurrent;
         final goal = _goalValue;
         final isLimit = habit.type == HabitType.durationLimiter;
-        return _TimerProgress(
-          currentMinutes: current,
-          goalMinutes: goal,
-          isLimit: isLimit,
-          color: habit.color,
-          onTap: () => _tapTimer(context, current, goal),
+        final done = todayLog?.isCompleted == true;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: _BinaryButton(
+                done: done,
+                isGood: habit.isGoodHabit,
+                onTap: () => _logBinary(context, !done),
+              ),
+            ),
+            const SizedBox(height: 4),
+            _TimerProgress(
+              currentMinutes: effectiveCurrent,
+              goalMinutes: goal,
+              isLimit: isLimit,
+              color: habit.color,
+              isRunning: _timerRunning,
+              onTap: () => _tapTimer(context, baseCurrent, goal),
+              onPlayPause: () => _toggleTimer(context, baseCurrent),
+            ),
+          ],
         );
     }
   }
 
+  Widget _buildRitualMeta(ThemeData theme) {
+    final schedule = _ritualScheduleText();
+    final done = todayLog?.isCompleted == true;
+    final statusText = done ? 'Сегодня выполнено' : 'Сегодня не отмечено';
+
+    Color statusBg;
+    Color statusFg;
+    if (done) {
+      statusBg = Colors.green.withValues(alpha: 0.18);
+      statusFg = Colors.green.shade400;
+    } else {
+      statusBg = theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6);
+      statusFg = theme.colorScheme.onSurfaceVariant;
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        _RitualChip(
+          label: 'Ритуал',
+          bg: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+          fg: theme.colorScheme.onSurfaceVariant,
+        ),
+        _RitualChip(
+          label: schedule,
+          bg: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+          fg: theme.colorScheme.onSurfaceVariant,
+        ),
+        _RitualChip(
+          label: statusText,
+          bg: statusBg,
+          fg: statusFg,
+        ),
+      ],
+    );
+  }
+
+  String _ritualScheduleText() {
+    final days = habit.repeatDays.toSet();
+
+    if (days.isEmpty &&
+        habit.startDate != null &&
+        habit.endDate != null &&
+        habit.startDate!.year == habit.endDate!.year &&
+        habit.startDate!.month == habit.endDate!.month &&
+        habit.startDate!.day == habit.endDate!.day) {
+      return 'Одноразовый ритуал';
+    }
+    if (days.containsAll({1, 2, 3, 4, 5, 6, 7}) && days.length == 7) {
+      return 'Каждый день';
+    }
+    if (days.containsAll({1, 2, 3, 4, 5}) && days.length == 5) {
+      return 'По будням';
+    }
+    if (days.containsAll({6, 7}) && days.length == 2) {
+      return 'По выходным';
+    }
+    if (days.isNotEmpty) {
+      return 'По расписанию';
+    }
+    return 'Без расписания';
+  }
+
   void _logBinary(BuildContext context, bool completed) {
+    final currentValue = todayLog?.value;
     final log = HabitLog(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       habitId: habit.id,
       date: DateTime.now(),
+      value: currentValue,
       isCompleted: completed,
     );
     onLog?.call(log);
-  }
-
-  void _tapTemptation(BuildContext context) {
-    if (todayLog != null) return; // уже отметили на сегодня
-    showDialog<bool?>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Как сегодня?'),
-        content: const Text(
-          'Отметьте срыв или то, что вы удержались.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: Text(AppLocalizations.of(context)!.cancelButton),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Сорвался'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Удержался'),
-          ),
-        ],
-      ),
-    ).then((result) {
-      if (!context.mounted) return;
-      if (result != null) _logBinary(context, result);
-    });
   }
 
   void _tapCounter(BuildContext context, double current, double goal) {
@@ -228,19 +376,100 @@ class HabitCard extends StatelessWidget {
       }
     });
   }
+
+  void _toggleTimer(BuildContext context, double currentMinutes) {
+    if (!_timerRunning) {
+      // Стартуем новую сессию.
+      setState(() {
+        _timerRunning = true;
+        _timerStart = DateTime.now();
+        _currentSessionMinutes = 0;
+      });
+      _timerTicker?.cancel();
+      _timerTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+        final start = _timerStart;
+        if (!mounted || start == null) return;
+        final diff = DateTime.now().difference(start);
+        setState(() {
+          _currentSessionMinutes = diff.inSeconds / 60.0;
+        });
+      });
+    } else {
+      // Останавливаем и записываем дельту в лог.
+      final start = _timerStart;
+      if (start == null) {
+        setState(() {
+          _timerRunning = false;
+        });
+        return;
+      }
+      _timerTicker?.cancel();
+      final diff = DateTime.now().difference(start);
+      final minutes = diff.inSeconds / 60.0;
+      if (minutes <= 0) {
+        setState(() {
+          _timerRunning = false;
+          _timerStart = null;
+          _currentSessionMinutes = 0;
+        });
+        return;
+      }
+      final newValue = currentMinutes + minutes;
+      onLog?.call(HabitLog(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        habitId: habit.id,
+        date: DateTime.now(),
+        value: newValue,
+      ));
+      setState(() {
+        _timerRunning = false;
+        _timerStart = null;
+        _currentSessionMinutes = 0;
+      });
+    }
+  }
+}
+
+class _RitualChip extends StatelessWidget {
+  const _RitualChip({
+    required this.label,
+    required this.bg,
+    required this.fg,
+  });
+
+  final String label;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
 }
 
 class _BinaryButton extends StatelessWidget {
   const _BinaryButton({
     required this.done,
     required this.isGood,
-    this.isRelapse = false,
     required this.onTap,
   });
 
   final bool done;
   final bool isGood;
-  final bool isRelapse;
   final VoidCallback onTap;
 
   @override
@@ -253,26 +482,24 @@ class _BinaryButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isRelapse
-                ? Colors.red.withValues(alpha: 0.15)
-                : (done
-                    ? (isGood ? Colors.green.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2))
-                    : Colors.grey.withValues(alpha: 0.1)),
+            color: done
+                ? (isGood ? Colors.green.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2))
+                : Colors.grey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isRelapse ? Icons.warning_amber_rounded : (done ? Icons.check_circle : Icons.radio_button_unchecked),
+                done ? Icons.check_circle : Icons.radio_button_unchecked,
                 size: 22,
-                color: isRelapse ? Colors.red : (done ? (isGood ? Colors.green : Colors.grey) : Colors.grey),
+                color: done ? (isGood ? Colors.green : Colors.grey) : Colors.grey,
               ),
               const SizedBox(width: 6),
               Text(
-                isRelapse ? 'Срыв' : (done ? (isGood ? 'Сделано' : 'Держусь') : (isGood ? 'Отметить' : 'Держись!')),
+                done ? (isGood ? 'Сделано' : 'Держусь') : (isGood ? 'Отметить' : 'Держись!'),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: isRelapse ? Colors.red : (done ? null : Colors.grey),
+                  color: done ? null : Colors.grey,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -280,6 +507,100 @@ class _BinaryButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TemptationButtons extends StatelessWidget {
+  const _TemptationButtons({
+    required this.isRelapse,
+    required this.isHold,
+    required this.onRelapse,
+    required this.onHold,
+  });
+
+  final bool isRelapse;
+  final bool isHold;
+  final VoidCallback onRelapse;
+  final VoidCallback onHold;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onRelapse,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isRelapse ? Colors.red.withValues(alpha: 0.2) : Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 18,
+                      color: Colors.red.shade700,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Срыв',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.red.shade700,
+                        fontWeight: isRelapse ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onHold,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isHold ? Colors.green.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isHold ? Icons.check_circle : Icons.check_circle_outline,
+                      size: 18,
+                      color: Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Держусь',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.green.shade700,
+                        fontWeight: isHold ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -292,6 +613,7 @@ class _CounterProgress extends StatelessWidget {
     required this.isLimit,
     required this.color,
     required this.onTap,
+    this.onIncrement,
   });
 
   final double current;
@@ -300,39 +622,43 @@ class _CounterProgress extends StatelessWidget {
   final bool isLimit;
   final Color color;
   final VoidCallback onTap;
+  final VoidCallback? onIncrement;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progress = goal > 0 ? (current / goal).clamp(0.0, 1.0) : 0.0;
-    final displayColor = isLimit ? Colors.orange : color;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: displayColor.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(displayColor),
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: onTap,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${current.toInt()}/${goal.toInt()} $unit',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            '${current.toInt()}/${goal.toInt()} $unit',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
+        ),
+        IconButton(
+          onPressed: onTap,
+          icon: const Icon(Icons.edit_outlined),
+          tooltip: 'Ввести значение вручную',
+          visualDensity: VisualDensity.compact,
+        ),
+        if (onIncrement != null)
+          IconButton(
+            onPressed: onIncrement,
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Ещё',
+            visualDensity: VisualDensity.compact,
           ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -344,6 +670,8 @@ class _TimerProgress extends StatelessWidget {
     required this.isLimit,
     required this.color,
     required this.onTap,
+    required this.isRunning,
+    required this.onPlayPause,
   });
 
   final double currentMinutes;
@@ -351,6 +679,8 @@ class _TimerProgress extends StatelessWidget {
   final bool isLimit;
   final Color color;
   final VoidCallback onTap;
+  final bool isRunning;
+  final VoidCallback onPlayPause;
 
   @override
   Widget build(BuildContext context) {
@@ -358,32 +688,43 @@ class _TimerProgress extends StatelessWidget {
     final progress = goalMinutes > 0 ? (currentMinutes / goalMinutes).clamp(0.0, 1.0) : 0.0;
     final displayColor = isLimit ? Colors.orange : color;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: displayColor.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(displayColor),
+    String _format(double minutes) {
+      final totalSeconds = (minutes * 60).floor();
+      final mm = totalSeconds ~/ 60;
+      final ss = totalSeconds % 60;
+      return '${mm.toString().padLeft(2, '0')}:${ss.toString().padLeft(2, '0')}';
+    }
+
+    final currentStr = _format(currentMinutes);
+    final goalStr = _format(goalMinutes);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '$currentStr / $goalStr',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            '${currentMinutes.toInt()}/${goalMinutes.toInt()} мин',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+        ),
+        IconButton(
+          onPressed: onTap,
+          icon: const Icon(Icons.edit_outlined),
+          tooltip: 'Ввести время вручную',
+          visualDensity: VisualDensity.compact,
+        ),
+        IconButton(
+          onPressed: onPlayPause,
+          icon: Icon(isRunning ? Icons.pause_circle_outline : Icons.play_circle_outline),
+          tooltip: isRunning ? 'Остановить таймер' : 'Запустить таймер',
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
     );
   }
 }

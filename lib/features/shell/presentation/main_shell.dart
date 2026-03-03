@@ -29,6 +29,7 @@ class _MainShellState extends State<MainShell> {
   final HabitsRepository _habitsRepository = HabitsRepository();
   final HabitLogsRepository _logsRepository = HabitLogsRepository();
   bool _habitsLoaded = false;
+  MainListTab _mainTab = MainListTab.habits;
 
   @override
   void initState() {
@@ -58,6 +59,20 @@ class _MainShellState extends State<MainShell> {
     final habit = await showAddHabitWizard(
       context,
       initialDate: _selectedDate,
+    );
+    if (habit != null && mounted) {
+      setState(() => _habits = [..._habits, habit]);
+    }
+  }
+
+  Future<void> _openAddEvent() async {
+    final habit = await showAddHabitWizard(
+      context,
+      initialDate: _selectedDate,
+      initialDirection: HabitDirection.good,
+      initialMeasurement: HabitMeasurement.binary,
+      startStep: 2,
+      isEventMode: true,
     );
     if (habit != null && mounted) {
       setState(() => _habits = [..._habits, habit]);
@@ -112,7 +127,18 @@ class _MainShellState extends State<MainShell> {
               setState(() => _isTodayVisibleInStrip = visible);
             }
           },
-          onAddHabit: _openAddHabit,
+          currentTab: _mainTab,
+          onTabChanged: (tab) {
+            if (!mounted) return;
+            setState(() => _mainTab = tab);
+          },
+          onAddPressed: () {
+            if (_mainTab == MainListTab.events) {
+              _openAddEvent();
+            } else {
+              _openAddHabit();
+            }
+          },
           onHabitTap: _openEditHabit,
           onLog: _onLog,
         ),
@@ -223,7 +249,13 @@ class _MainShellState extends State<MainShell> {
               ),
               Expanded(
                 child: IconButton(
-                  onPressed: _openAddHabit,
+                  onPressed: () {
+                    if (_mainTab == MainListTab.events) {
+                      _openAddEvent();
+                    } else {
+                      _openAddHabit();
+                    }
+                  },
                   icon: const Icon(Icons.add),
                   iconSize: 32,
                   style: IconButton.styleFrom(

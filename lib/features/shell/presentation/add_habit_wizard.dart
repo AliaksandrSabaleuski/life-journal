@@ -9,18 +9,34 @@ class AddHabitWizard extends StatefulWidget {
   const AddHabitWizard({
     super.key,
     this.initialDate,
+    this.initialDirection,
+    this.initialMeasurement,
+    this.startStep = 1,
+    this.isEventMode = false,
   });
 
   /// Дата, к которой пользователь сейчас привязан (выбрана на главном экране).
   /// Используется для одноразовых событий и даты старта повторяющихся.
   final DateTime? initialDate;
 
+   /// Предзаполненное направление (для специальных флоу).
+  final HabitDirection? initialDirection;
+
+  /// Предзаполненный тип измерения (для специальных флоу).
+  final HabitMeasurement? initialMeasurement;
+
+  /// Стартовый шаг визарда (по умолчанию 1).
+  final int startStep;
+
+  /// Режим «события»: без выбора характера и типа, всегда хороший ритуал.
+  final bool isEventMode;
+
   @override
   State<AddHabitWizard> createState() => _AddHabitWizardState();
 }
 
 class _AddHabitWizardState extends State<AddHabitWizard> {
-  int _step = 1;
+  late int _step;
 
   final _nameController = TextEditingController();
   final _goalController = TextEditingController();
@@ -40,6 +56,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
   bool _isOneTime = false;
   final Set<int> _repeatWeekdays = {1, 2, 3, 4, 5, 6, 7};
+  DateTime? _startDate;
   DateTime? _endDate;
 
   static const _presetColors = [
@@ -67,6 +84,14 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _direction = widget.initialDirection;
+    _measurement = widget.initialMeasurement;
+    _step = widget.startStep;
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _goalController.dispose();
@@ -76,7 +101,13 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
   void _next() {
     if (!_canGoNext) return;
-    if (_step < 4) {
+    if (widget.isEventMode && _step == 2) {
+      // В режиме событий пропускаем шаг выбора типа.
+      setState(() => _step = 4);
+      return;
+    }
+    final maxStep = widget.isEventMode ? 4 : 3;
+    if (_step < maxStep) {
       setState(() => _step++);
     } else {
       _save();
@@ -84,10 +115,19 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   }
 
   void _back() {
-    if (_step > 1) {
-      setState(() => _step--);
+    if (widget.isEventMode) {
+      // В режиме событий возвращаемся сразу к закрытию с шага описания.
+      if (_step <= 2) {
+        Navigator.of(context).pop();
+      } else {
+        setState(() => _step = 2);
+      }
     } else {
-      Navigator.of(context).pop();
+      if (_step > 1) {
+        setState(() => _step--);
+      } else {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -103,13 +143,9 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     String? unit;
 
     if (measurement == HabitMeasurement.binary) {
-      // Для ритуала можно задать кол-во повторений, но сама отметка остаётся бинарной.
-      if (_goalValue != null && _goalValue! > 0) {
-        goal = HabitGoal.target(_goalValue!);
-        unit = _goalUnit.isNotEmpty ? _goalUnit : 'раз';
-      } else {
-        goal = const HabitGoal.noGoal();
-      }
+      // Ритуал всегда бинарный: только «сделал / не сделал», без числовой цели.
+      goal = const HabitGoal.noGoal();
+      unit = null;
     } else if (measurement == HabitMeasurement.counted) {
       final v = (_goalValue ?? double.tryParse(_goalController.text.replaceAll(',', '.'))) ?? 1.0;
       unit = _unitController.text.trim().isNotEmpty
@@ -128,21 +164,22 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
     // Частота.
     final now = DateTime.now();
-    final baseDate = widget.initialDate != null
+    final initialBaseDate = widget.initialDate != null
         ? DateTime(widget.initialDate!.year, widget.initialDate!.month, widget.initialDate!.day)
         : DateTime(now.year, now.month, now.day);
+    final baseStartDate = _startDate ?? initialBaseDate;
 
     DateTime? startDate;
     DateTime? endDate;
     List<int> repeatDays;
 
     if (_isOneTime) {
-      startDate = baseDate;
-      endDate = baseDate;
+      startDate = initialBaseDate;
+      endDate = initialBaseDate;
       repeatDays = const [];
     } else {
-      startDate = baseDate;
-      endDate = _endDate ?? baseDate.add(const Duration(days: 30));
+      startDate = baseStartDate;
+      endDate = _endDate ?? baseStartDate.add(const Duration(days: 7));
       if (_repeatWeekdays.isEmpty) {
         repeatDays = const [1, 2, 3, 4, 5, 6, 7];
       } else {
@@ -164,6 +201,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       reminder: _reminder,
       startDate: startDate,
       endDate: endDate,
+      isEvent: widget.isEventMode,
     );
 
     Navigator.of(context).pop(habit);
@@ -172,10 +210,14 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   bool get _canGoNext {
     switch (_step) {
       case 1:
-        return _direction != null;
-      case 2:
+        // Шаг 1 всегда про название и оформление.
         return _nameController.text.trim().isNotEmpty;
-      case 3:
+      case 2:
+        // Для событий на шаге 2 тоже только описание.
+        if (widget.isEventMode) {
+          return _nameController.text.trim().isNotEmpty;
+        }
+        // Для привычек на шаге 2 выбираем тип и задаём цель.
         if (_measurement == null) return false;
         if (_measurement == HabitMeasurement.binary) return true;
         final v = _goalValue ??
@@ -183,7 +225,11 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
                 ? double.tryParse(_goalController.text.replaceAll(',', '.'))
                 : null);
         return v != null && v > 0;
+      case 3:
+        // Частота: дополнительных валидаций пока нет.
+        return true;
       case 4:
+        // До шага 4 доходим только в режиме событий.
         return true;
       default:
         return false;
@@ -194,7 +240,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final isGood = _direction != HabitDirection.bad;
 
     return Dialog(
       child: ConstrainedBox(
@@ -215,9 +260,15 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: switch (_step) {
-                  1 => _buildStepDirection(theme, l),
-                  2 => _buildStepBasic(theme),
-                  3 => _buildStepTypeAndGoal(context, theme, l, isGood),
+                  // Для привычек: 1 — имя, 2 — тип, 3 — частота.
+                  // Для событий: стартуем сразу со 2-го шага (описание), 4 — частота.
+                  1 => _buildStepBasic(theme),
+                  2 => widget.isEventMode
+                      ? _buildStepBasic(theme)
+                      : _buildStepTypeAndGoal(context, theme, l),
+                  3 => widget.isEventMode
+                      ? const SizedBox.shrink()
+                      : _buildStepFrequency(theme),
                   4 => _buildStepFrequency(theme),
                   _ => const SizedBox.shrink(),
                 },
@@ -249,62 +300,17 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   String get _stepTitle {
     switch (_step) {
       case 1:
-        return 'Шаг 1: Характер';
+        return widget.isEventMode ? 'Описание события' : 'Шаг 1: Описание';
       case 2:
-        return 'Шаг 2: Описание';
+        return widget.isEventMode ? 'Описание события' : 'Шаг 2: Тип';
       case 3:
-        return 'Шаг 3: Тип и цель';
+        return 'Шаг 3: Частота';
       case 4:
-        return 'Шаг 4: Частота';
+        // В режиме событий это второй шаг: описание → частота.
+        return widget.isEventMode ? 'Шаг 2: Частота' : 'Шаг 4: Частота';
       default:
         return 'Новая привычка';
     }
-  }
-
-  Widget _buildStepDirection(ThemeData theme, AppLocalizations l) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Выберите направление привычки',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: _DirectionCard(
-                icon: Icons.thumb_up_rounded,
-                label: l.goodHabitLabel,
-                subtitle: 'Привычка, которую хотите внедрить',
-                color: Colors.green,
-                selected: _direction == HabitDirection.good,
-                onTap: () => setState(() {
-                  _direction = HabitDirection.good;
-                  _step = 2;
-                }),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _DirectionCard(
-                icon: Icons.thumb_down_rounded,
-                label: l.badHabitLabel,
-                subtitle: 'Привычка, от которой хотите избавиться',
-                color: Colors.orange,
-                selected: _direction == HabitDirection.bad,
-                onTap: () => setState(() {
-                  _direction = HabitDirection.bad;
-                  _step = 2;
-                }),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
   }
 
   Widget _buildStepBasic(ThemeData theme) {
@@ -378,49 +384,61 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     BuildContext context,
     ThemeData theme,
     AppLocalizations l,
-    bool isGood,
   ) {
-    final options = isGood
-        ? [
-            _MeasurementOption(
-              type: HabitMeasurement.binary,
-              icon: Icons.auto_awesome,
-              title: 'Ритуал',
-              subtitle: 'Сделать / не сделать',
+    if (widget.isEventMode) {
+      // Для событий тип заранее фиксирован как ритуал.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Тип события',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Событие создаётся как одноразовый ритуал: просто отметьте, произошло оно или нет.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            _MeasurementOption(
-              type: HabitMeasurement.counted,
-              icon: Icons.format_list_numbered,
-              title: 'Счётчик',
-              subtitle: 'Сделать N раз',
-            ),
-            _MeasurementOption(
-              type: HabitMeasurement.timed,
-              icon: Icons.timer_outlined,
-              title: 'Таймер',
-              subtitle: 'Делать N минут',
-            ),
-          ]
-        : [
-            _MeasurementOption(
-              type: HabitMeasurement.binary,
-              icon: Icons.warning_amber_rounded,
-              title: 'Ритуал',
-              subtitle: 'Удержаться / сорваться',
-            ),
-            _MeasurementOption(
-              type: HabitMeasurement.counted,
-              icon: Icons.trending_down,
-              title: 'Лимит',
-              subtitle: 'Не превысить N раз',
-            ),
-            _MeasurementOption(
-              type: HabitMeasurement.timed,
-              icon: Icons.hourglass_empty,
-              title: 'Таймер',
-              subtitle: 'Время в минутах',
-            ),
-          ];
+          ),
+        ],
+      );
+    }
+
+    // Во вкладке привычек ритуал (binary) убираем — он живёт во вкладке событий.
+    // Пользователь видит только типы, а мы внутри помечаем хорошую/плохую привычку.
+    final options = [
+      _MeasurementOption(
+        type: HabitMeasurement.timed,
+        direction: HabitDirection.good,
+        icon: Icons.timer_outlined,
+        title: 'Таймер',
+        subtitle: 'Ограничение по времени',
+      ),
+      _MeasurementOption(
+        type: HabitMeasurement.counted,
+        direction: HabitDirection.good,
+        icon: Icons.format_list_numbered,
+        title: 'Счётчик',
+        subtitle: 'Сделать N раз',
+      ),
+      _MeasurementOption(
+        type: HabitMeasurement.timed,
+        direction: HabitDirection.bad,
+        icon: Icons.hourglass_empty,
+        title: 'Ограничение по времени',
+        subtitle: 'Не больше N минут',
+      ),
+      _MeasurementOption(
+        type: HabitMeasurement.counted,
+        direction: HabitDirection.bad,
+        icon: Icons.trending_down,
+        title: 'Лимит',
+        subtitle: 'Не превысить N раз',
+      ),
+    ];
+
+    final isGood = _direction != HabitDirection.bad;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -431,57 +449,61 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         ),
         const SizedBox(height: 8),
         Text(
-          isGood ? 'Выберите, как отслеживать привычку.' : 'Выберите, как ограничивать привычку.',
+          'Выберите тип отслеживания.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 16),
-        ...options.map((o) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Material(
-                color: _measurement == o.type
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        ...options.map((o) {
+          final selected = _measurement == o.type && _direction == o.direction;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Material(
+              color: selected
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: () => setState(() {
+                  _measurement = o.type;
+                  _direction = o.direction;
+                }),
                 borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  onTap: () => setState(() {
-                    _measurement = o.type;
-                  }),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Icon(o.icon, color: theme.colorScheme.primary, size: 28),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                o.title,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(o.icon, color: theme.colorScheme.primary, size: 28),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              o.title,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                              Text(
-                                o.subtitle,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                            ),
+                            Text(
+                              o.subtitle,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        if (_measurement == o.type)
-                          Icon(Icons.check_circle, color: theme.colorScheme.primary),
-                      ],
-                    ),
+                      ),
+                      if (selected)
+                        Icon(Icons.check_circle, color: theme.colorScheme.primary),
+                    ],
                   ),
                 ),
               ),
-            )),
+            ),
+          );
+        }),
         if (_measurement != null) ...[
           const SizedBox(height: 24),
           _buildMeasurementDetails(theme, isGood),
@@ -501,27 +523,10 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Количество повторений за день (опционально)',
+              'Для ритуала не задаётся числовая цель — просто отмечайте выполнение один раз за день.',
               style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _goalController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Сколько раз в день?',
-                hintText: 'Например: 1',
-                suffixText: 'раз',
-              ),
-              onChanged: (s) {
-                final v = double.tryParse(s.replaceAll(',', '.'));
-                setState(() {
-                  _goalValue = v;
-                  _goalUnit = 'раз';
-                });
-              },
             ),
           ],
         );
@@ -562,14 +567,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
                 hintText: 'раз, км, страниц',
               ),
               onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 8),
-            CheckboxListTile(
-              value: _limitNotExceed,
-              onChanged: (v) => setState(() => _limitNotExceed = v ?? true),
-              title: const Text('Не превышать это значение'),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
             ),
           ],
         );
@@ -650,6 +647,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     final baseDate = widget.initialDate != null
         ? DateTime(widget.initialDate!.year, widget.initialDate!.month, widget.initialDate!.day)
         : DateTime(now.year, now.month, now.day);
+    final startDate = _startDate ?? baseDate;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -675,9 +673,44 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
           contentPadding: EdgeInsets.zero,
         ),
         if (!_isOneTime) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Период действия',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.flag_outlined),
+            title: const Text('Дата начала'),
+            subtitle: Text(
+              '${startDate.day.toString().padLeft(2, '0')}.${startDate.month.toString().padLeft(2, '0')}.${startDate.year}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: startDate,
+                firstDate: baseDate.subtract(const Duration(days: 365 * 5)),
+                lastDate: baseDate.add(const Duration(days: 365 * 5)),
+              );
+              if (picked != null && mounted) {
+                setState(() {
+                  _startDate = DateTime(picked.year, picked.month, picked.day);
+                  // Если дата окончания раньше старта — сдвигаем конец на месяц вперёд.
+                  if (_endDate != null && _endDate!.isBefore(_startDate!)) {
+                    _endDate = _startDate!.add(const Duration(days: 30));
+                  }
+                });
+              }
+            },
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
+            runSpacing: 8,
             children: List.generate(7, (index) {
               final weekday = index + 1; // 1 — пн, 7 — вс
               final selected = _repeatWeekdays.contains(weekday);
@@ -699,8 +732,9 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
             }),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
             children: [
               TextButton(
                 onPressed: () {
@@ -710,6 +744,10 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
                       ..addAll({1, 2, 3, 4, 5});
                   });
                 },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 child: const Text('Будни'),
               ),
               TextButton(
@@ -720,6 +758,10 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
                       ..addAll({6, 7});
                   });
                 },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 child: const Text('Выходные'),
               ),
               TextButton(
@@ -730,6 +772,10 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
                       ..addAll({1, 2, 3, 4, 5, 6, 7});
                   });
                 },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 child: const Text('Каждый день'),
               ),
             ],
@@ -745,36 +791,25 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
               child: const Text('Очистить дни'),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Активна с выбранной даты до',
-            style: theme.textTheme.titleMedium,
-          ),
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.event_outlined),
-            title: const Text('Дата окончания привычки'),
-            subtitle: Builder(builder: (context) {
-              final startStr =
-                  '${baseDate.day.toString().padLeft(2, '0')}.${baseDate.month.toString().padLeft(2, '0')}.${baseDate.year}';
-              final endDate = _endDate ?? baseDate.add(const Duration(days: 30));
-              final endStr =
-                  '${endDate.day.toString().padLeft(2, '0')}.${endDate.month.toString().padLeft(2, '0')}.${endDate.year}';
-              final text = 'С $startStr по $endStr';
-              return Text(
-                text,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              );
-            }),
+            title: const Text('Дата окончания'),
+            subtitle: Text(
+              _endDate != null
+                  ? '${_endDate!.day.toString().padLeft(2, '0')}.${_endDate!.month.toString().padLeft(2, '0')}.${_endDate!.year}'
+                  : '${startDate.add(const Duration(days: 7)).day.toString().padLeft(2, '0')}.${startDate.add(const Duration(days: 7)).month.toString().padLeft(2, '0')}.${startDate.add(const Duration(days: 7)).year}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
-                initialDate: _endDate ?? baseDate.add(const Duration(days: 30)),
-                firstDate: baseDate,
-                lastDate: baseDate.add(const Duration(days: 365 * 5)),
+                initialDate: _endDate ?? startDate.add(const Duration(days: 7)),
+                firstDate: startDate,
+                lastDate: startDate.add(const Duration(days: 365 * 5)),
               );
               if (picked != null && mounted) {
                 setState(() {
@@ -854,11 +889,13 @@ class _DirectionCard extends StatelessWidget {
 class _MeasurementOption {
   const _MeasurementOption({
     required this.type,
+    required this.direction,
     required this.icon,
     required this.title,
     required this.subtitle,
   });
   final HabitMeasurement type;
+  final HabitDirection direction;
   final IconData icon;
   final String title;
   final String subtitle;

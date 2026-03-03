@@ -57,6 +57,7 @@ class Habit {
     this.endTime,
     this.startDate,
     this.endDate,
+    this.isEvent = false,
   });
 
   final String id;
@@ -78,6 +79,9 @@ class Habit {
   final DateTime? startDate;
   /// Дата окончания действия привычки (включительно). Если null — без окончания.
   final DateTime? endDate;
+
+  /// Является ли запись событием (для вкладки «События»), а не обычной привычкой.
+  final bool isEvent;
 
   /// Финальный тип привычки по направлению и измерению.
   HabitType get type {
@@ -119,6 +123,7 @@ class Habit {
     TimeOfDay? endTime,
     DateTime? startDate,
     DateTime? endDate,
+    bool? isEvent,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -136,6 +141,7 @@ class Habit {
       endTime: endTime ?? this.endTime,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      isEvent: isEvent ?? this.isEvent,
     );
   }
 
