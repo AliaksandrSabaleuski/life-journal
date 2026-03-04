@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -125,6 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (value) {
               setState(() => _notificationsEnabled = value);
               _saveNotificationsEnabled(value);
+              NotificationService.instance.setNotificationsEnabled(value);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(

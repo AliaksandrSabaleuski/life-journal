@@ -224,7 +224,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   static int get _yearCount => _yearEnd - _yearStart + 1;
 
   /// Высота одного блока года (фиксированная для центрирования, как у месяцев).
-  static const double _yearBlockHeight = 720;
+  /// Чуть увеличена с запасом, чтобы исключить визуальный оверфлоу при
+  /// разных сочетаниях строк с точками и без них.
+  static const double _yearBlockHeight = 780;
 
   double _initialYearScrollOffset(double viewportHeight) {
     final now = DateTime.now();
@@ -421,7 +423,8 @@ class _MonthBlock extends StatelessWidget {
             children: [
               Text(
                 '$monthName $year',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                style:
+                    theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: _titleGap),
               Table(
@@ -471,7 +474,10 @@ class _MonthBlock extends StatelessWidget {
                       final col = index % 7;
                       final cellW = constraints.maxWidth / 7;
                       final left = col * cellW + (cellW - _cellSize) / 2;
-                      final top = _titleHeight + _titleGap + row * _cellHeight + (_cellHeight - _cellSize) / 2;
+                      final top = _titleHeight +
+                          _titleGap +
+                          row * _cellHeight +
+                          (_cellHeight - _cellSize) / 2;
                       return Stack(
                         children: [
                           Positioned(
@@ -481,14 +487,13 @@ class _MonthBlock extends StatelessWidget {
                             height: _cellSize,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary,
-                                borderRadius: BorderRadius.circular(_cellSize / 2),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '${selectedDate.day}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onPrimary,
+                                color: Colors.transparent,
+                                borderRadius:
+                                    BorderRadius.circular(_cellSize / 2),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary
+                                      .withValues(alpha: 0.9),
+                                  width: 3,
                                 ),
                               ),
                             ),
@@ -534,12 +539,21 @@ class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bool highlighted = isToday;
+    final Color? bgColor =
+        highlighted ? theme.colorScheme.primaryContainer : null;
+    final Color textColor = highlighted
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onSurface;
 
     return Center(
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          hoverColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          splashColor: Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           child: SizedBox(
             width: 36,
@@ -549,17 +563,23 @@ class _DayCell extends StatelessWidget {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: isToday ? theme.colorScheme.primaryContainer : null,
+                    color: bgColor,
                     borderRadius: BorderRadius.circular(18),
+                    border: highlighted
+                        ? Border.all(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.9,
+                            ),
+                            width: 3,
+                          )
+                        : null,
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     '$day',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: 13,
-                      color: isToday
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurface,
+                      color: textColor,
                     ),
                   ),
                 ),
@@ -712,7 +732,10 @@ class _MiniMonthGrid extends StatelessWidget {
                     final col = index % 7;
                     final cellW = constraints.maxWidth / 7;
                     final left = col * cellW + (cellW - _miniCellSize) / 2;
-                    final top = _miniTitleHeight + _miniTitleGap + row * _miniCellHeight + (_miniCellHeight - _miniCellSize) / 2;
+                    final top = _miniTitleHeight +
+                        _miniTitleGap +
+                        row * _miniCellHeight +
+                        (_miniCellHeight - _miniCellSize) / 2;
                     return Stack(
                       children: [
                         Positioned(
@@ -722,15 +745,13 @@ class _MiniMonthGrid extends StatelessWidget {
                           height: _miniCellSize,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(_miniCellSize / 2),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '${selectedDate.day}',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontSize: 9,
-                                color: theme.colorScheme.onPrimary,
+                              color: Colors.transparent,
+                              borderRadius:
+                                  BorderRadius.circular(_miniCellSize / 2),
+                              border: Border.all(
+                                color: theme.colorScheme.primary
+                                    .withValues(alpha: 0.9),
+                                width: 2,
                               ),
                             ),
                           ),
@@ -751,7 +772,7 @@ class _MiniMonthGrid extends StatelessWidget {
     for (final h in habits) {
       if (!h.isScheduledForDate(date)) continue;
       result.add(h.color);
-      if (result.length == 4) break;
+      if (result.length == 3) break;
     }
     return result;
   }
@@ -777,7 +798,7 @@ class _MiniDayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final outerHeight = hasRowDots ? _miniCellHeight : (_miniCellHeight - 4);
+    final outerHeight = hasRowDots ? 18.0 : 14.0;
 
     return SizedBox(
       height: outerHeight,
@@ -795,6 +816,14 @@ class _MiniDayCell extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isToday ? theme.colorScheme.primaryContainer : null,
                     borderRadius: BorderRadius.circular(8),
+                    border: isToday
+                        ? Border.all(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.9,
+                            ),
+                            width: 2,
+                          )
+                        : null,
                   ),
                   alignment: Alignment.center,
                   child: Transform.translate(
@@ -818,7 +847,7 @@ class _MiniDayCell extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: indicatorColors
-                          .take(4)
+                          .take(3)
                           .map(
                             (c) => Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 1),

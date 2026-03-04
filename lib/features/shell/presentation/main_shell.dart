@@ -6,6 +6,7 @@ import '../../../../core/models/habit_log.dart';
 import '../../../../core/repositories/habit_logs_repository.dart';
 import '../../../../core/repositories/habits_repository.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/services/notification_service.dart';
 import 'main_menu_content.dart';
 import '../../calendar/presentation/calendar_screen.dart';
 import '../../stats/presentation/stats_screen.dart';
@@ -62,6 +63,7 @@ class _MainShellState extends State<MainShell> {
     );
     if (habit != null && mounted) {
       setState(() => _habits = [..._habits, habit]);
+      await NotificationService.instance.resyncHabitReminder(habit);
     }
   }
 
@@ -76,6 +78,7 @@ class _MainShellState extends State<MainShell> {
     );
     if (habit != null && mounted) {
       setState(() => _habits = [..._habits, habit]);
+      await NotificationService.instance.resyncHabitReminder(habit);
     }
   }
 
@@ -89,6 +92,7 @@ class _MainShellState extends State<MainShell> {
       setState(() {
         _habits = _habits.map((h) => h.id == updated.id ? updated : h).toList();
       });
+      await NotificationService.instance.resyncHabitReminder(updated);
     }
   }
 
@@ -143,7 +147,10 @@ class _MainShellState extends State<MainShell> {
           onHabitTap: _openEditHabit,
           onLog: _onLog,
         ),
-        const StatsScreen(),
+        StatsScreen(
+          habitsRepository: _habitsRepository,
+          logsRepository: _logsRepository,
+        ),
         const SettingsScreen(),
       ],
     );

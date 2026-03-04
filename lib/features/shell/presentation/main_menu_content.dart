@@ -472,12 +472,11 @@ class _CalendarStripState extends State<_CalendarStrip> {
                       final isToday = _isSameDay(date, _today);
                       final isSelected = _isSameDay(date, _selectedDate);
                       final weekdayShort = weekdayShortFormat.format(date);
-                      final bgColor = isSelected
-                          ? theme.colorScheme.primary
-                          : (isToday ? theme.colorScheme.primaryContainer : null);
-                      final textColor = isSelected
-                          ? theme.colorScheme.onPrimary
-                          : (isToday ? theme.colorScheme.onPrimaryContainer : null);
+                      final bgColor =
+                          isToday ? theme.colorScheme.primaryContainer : null;
+                      final textColor = isToday
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onSurface;
                       final dots = _indicatorColorsFor(date, theme);
 
                       return InkWell(
@@ -499,21 +498,43 @@ class _CalendarStripState extends State<_CalendarStrip> {
                                   ),
                             ),
                             const SizedBox(height: 4),
-                            Container(
-                              width: 40,
-                              height: 40,
+                            Stack(
                               alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: bgColor,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                '${date.day}',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: (isToday || isSelected) ? FontWeight.w600 : null,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: bgColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${date.day}',
+                                    style:
+                                        theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: isToday || isSelected
+                                          ? FontWeight.w600
+                                          : null,
                                       color: textColor,
                                     ),
-                              ),
+                                  ),
+                                ),
+                                if (isSelected || isToday)
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: theme.colorScheme.primary
+                                            .withValues(alpha: 0.9),
+                                        width: 3,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             if (dots.isNotEmpty) ...[
                               const SizedBox(height: 3),
