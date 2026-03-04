@@ -110,6 +110,7 @@ class _MainShellState extends State<MainShell> {
       index: _currentIndex,
       children: [
         MainMenuContent(
+          allHabits: _habits,
           habits: dayHabits,
           todayLogs: _todayLogs,
           isLoading: !_habitsLoaded,
@@ -167,6 +168,7 @@ class _MainShellState extends State<MainShell> {
                         body: CalendarScreen(
                           selectedTabIndex: 1,
                           calendarTabIndex: 1,
+                          habits: _habits,
                         ),
                       ),
                     ),

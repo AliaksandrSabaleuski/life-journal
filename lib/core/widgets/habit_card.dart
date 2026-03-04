@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -75,84 +76,147 @@ class _HabitCardState extends State<HabitCard> {
     }
 
     return Material(
-      color: theme.colorScheme.surface,
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
               SizedBox(
-                width: 56,
-                height: 56,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (circularProgress != null)
-                      SizedBox(
-                        width: 52,
-                        height: 52,
-                        child: CircularProgressIndicator(
-                          value: circularProgress,
-                          strokeWidth: 4,
-                          backgroundColor: habit.color.withValues(alpha: 0.12),
-                          valueColor: AlwaysStoppedAnimation<Color>(habit.color),
+                width: 72,
+                height: 72,
+                child: habit.type == HabitType.ritual
+                    ? Container(
+                        decoration: BoxDecoration(
+                          color: habit.color.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            habit.icon ?? Icons.star_outline,
+                            color: habit.color,
+                            size: 32,
+                          ),
+                        ),
+                      )
+                    : CustomPaint(
+                        painter: _HabitRingPainter(
+                          progress: circularProgress,
+                          color: habit.color,
+                          trackColor: habit.color.withValues(alpha: 0.18),
+                          strokeWidth: 6,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            habit.icon ?? Icons.star_outline,
+                            color: habit.color,
+                            size: 28,
+                          ),
                         ),
                       ),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: habit.color.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        habit.icon ?? Icons.star_outline,
-                        color: habit.color,
-                        size: 24,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Text(
-                            habit.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                habit.name,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              if (habit.type == HabitType.ritual) ...[
+                                _buildRitualMeta(theme),
+                              ] else ...[
+                                _buildSubtitle(context, theme, l),
+                              ],
+                            ],
                           ),
                         ),
-                        if (!habit.isActive)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(6),
+                        const SizedBox(width: 8),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (habit.type == HabitType.counter || habit.type == HabitType.limiter)
+                                  IconButton(
+                                    onPressed: () {
+                                      final current = todayLog?.value ?? 0.0;
+                                      final newValue = current + 1;
+                                      onLog?.call(
+                                        HabitLog(
+                                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                          habitId: habit.id,
+                                          date: DateTime.now(),
+                                          value: newValue,
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.add),
+                                    tooltip: 'Быстро добавить',
+                                    visualDensity: VisualDensity.compact,
+                                  )
+                                else if (habit.type == HabitType.timer ||
+                                    habit.type == HabitType.durationLimiter)
+                                  IconButton(
+                                    onPressed: () {
+                                      final baseCurrent = todayLog?.value ?? 0.0;
+                                      _toggleTimer(context, baseCurrent);
+                                    },
+                                    icon: Icon(
+                                      _timerRunning ? Icons.pause : Icons.play_arrow,
+                                    ),
+                                    tooltip: _timerRunning ? 'Пауза' : 'Старт',
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                IconButton(
+                                  onPressed: onTap,
+                                  icon: const Icon(Icons.more_horiz),
+                                  tooltip: 'Подробнее',
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              l.recordInactive,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                            if (!habit.isActive)
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  l.recordInactive,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
+                          ],
+                        ),
                       ],
                     ),
-                    if (habit.type == HabitType.ritual) ...[
-                      const SizedBox(height: 4),
-                      _buildRitualMeta(theme),
-                    ],
-                    const SizedBox(height: 6),
-                    _buildProgressOrAction(context, theme, l),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildProgressOrAction(context, theme, l),
+                    ),
                   ],
                 ),
               ),
@@ -167,14 +231,11 @@ class _HabitCardState extends State<HabitCard> {
     switch (habit.type) {
       case HabitType.ritual:
         final done = todayLog?.isCompleted == true;
-        return Align(
-          alignment: Alignment.centerRight,
-          child: _BinaryButton(
-            done: done,
-            isGood: true,
-            // Повторное нажатие снимает отметку (переключаем состояние).
-            onTap: () => _logBinary(context, !done),
-          ),
+        return _BinaryButton(
+          done: done,
+          isGood: true,
+          // Повторное нажатие снимает отметку (переключаем состояние).
+          onTap: () => _logBinary(context, !done),
         );
       case HabitType.temptation:
         final isRelapse = todayLog?.isCompleted == false;
@@ -187,70 +248,86 @@ class _HabitCardState extends State<HabitCard> {
         );
       case HabitType.counter:
       case HabitType.limiter:
+        final done = todayLog?.isCompleted == true;
+        return _BinaryButton(
+          done: done,
+          isGood: habit.isGoodHabit,
+          onTap: () => _logBinary(context, !done),
+        );
+      case HabitType.timer:
+      case HabitType.durationLimiter:
+        final done = todayLog?.isCompleted == true;
+        return _BinaryButton(
+          done: done,
+          isGood: habit.isGoodHabit,
+          onTap: () => _logBinary(context, !done),
+        );
+    }
+  }
+
+  Widget _buildSubtitle(BuildContext context, ThemeData theme, AppLocalizations l) {
+    switch (habit.type) {
+      case HabitType.counter:
+      case HabitType.limiter:
         final current = todayLog?.value ?? 0.0;
         final goal = _goalValue;
-        final isLimit = habit.type == HabitType.limiter;
-        final done = todayLog?.isCompleted == true;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: _BinaryButton(
-                done: done,
-                isGood: habit.isGoodHabit,
-                onTap: () => _logBinary(context, !done),
+        final unit = habit.unit ?? 'раз';
+        final text = '${current.toInt()}/${goal.toInt()} $unit';
+        return InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _tapCounter(context, current, goal),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 2, right: 4),
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 4),
-            _CounterProgress(
-              current: current,
-              goal: goal,
-              unit: habit.unit ?? 'раз',
-              isLimit: isLimit,
-              color: habit.color,
-              onTap: () => _tapCounter(context, current, goal),
-              onIncrement: () {
-                final newValue = current + 1;
-                onLog?.call(HabitLog(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  habitId: habit.id,
-                  date: DateTime.now(),
-                  value: newValue,
-                ));
-              },
-            ),
-          ],
+          ),
         );
       case HabitType.timer:
       case HabitType.durationLimiter:
         final baseCurrent = todayLog?.value ?? 0.0;
         final effectiveCurrent = _timerRunning ? baseCurrent + _currentSessionMinutes : baseCurrent;
         final goal = _goalValue;
-        final isLimit = habit.type == HabitType.durationLimiter;
-        final done = todayLog?.isCompleted == true;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: _BinaryButton(
-                done: done,
-                isGood: habit.isGoodHabit,
-                onTap: () => _logBinary(context, !done),
+
+        String format(double minutes) {
+          final totalSeconds = (minutes * 60).floor();
+          final mm = totalSeconds ~/ 60;
+          final ss = totalSeconds % 60;
+          return '${mm.toString().padLeft(2, '0')}:${ss.toString().padLeft(2, '0')}';
+        }
+
+        final text = '${format(effectiveCurrent)} / ${format(goal)}';
+        return InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _tapTimer(context, baseCurrent, goal),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 2, right: 4),
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 4),
-            _TimerProgress(
-              currentMinutes: effectiveCurrent,
-              goalMinutes: goal,
-              isLimit: isLimit,
-              color: habit.color,
-              isRunning: _timerRunning,
-              onTap: () => _tapTimer(context, baseCurrent, goal),
-              onPlayPause: () => _toggleTimer(context, baseCurrent),
-            ),
-          ],
+          ),
+        );
+      case HabitType.ritual:
+        return const SizedBox.shrink();
+      case HabitType.temptation:
+        final isRelapse = todayLog?.isCompleted == false;
+        final isHold = todayLog?.isCompleted == true;
+        final text = isRelapse
+            ? 'Сегодня был срыв'
+            : (isHold ? 'Сегодня держитесь' : 'Сегодня ещё не отмечено');
+        return Text(
+          text,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         );
     }
   }
@@ -461,6 +538,54 @@ class _RitualChip extends StatelessWidget {
   }
 }
 
+class _HabitRingPainter extends CustomPainter {
+  const _HabitRingPainter({
+    required this.progress,
+    required this.color,
+    required this.trackColor,
+    required this.strokeWidth,
+  });
+
+  final double? progress;
+  final Color color;
+  final Color trackColor;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = math.min(size.width, size.height) / 2 - strokeWidth;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    final bgPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    canvas.drawArc(rect, 0, 2 * math.pi, false, bgPaint);
+
+    if (progress != null && progress! > 0) {
+      final fgPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      final sweep = 2 * math.pi * progress!.clamp(0.0, 1.0);
+      const startAngle = -math.pi / 2; // как в макете — сверху
+      canvas.drawArc(rect, startAngle, sweep, false, fgPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _HabitRingPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.color != color ||
+        oldDelegate.trackColor != trackColor ||
+        oldDelegate.strokeWidth != strokeWidth;
+  }
+}
+
 class _BinaryButton extends StatelessWidget {
   const _BinaryButton({
     required this.done,
@@ -474,33 +599,43 @@ class _BinaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseColor = isGood ? Colors.green : Colors.grey;
+    final bgColor = done ? baseColor.withValues(alpha: 0.18) : theme.colorScheme.surfaceContainerHighest;
+    final borderColor = done ? baseColor : theme.colorScheme.outlineVariant;
+    final dotColor = done ? baseColor : theme.colorScheme.outline;
+    final text = done ? (isGood ? 'Сделано' : 'Держусь') : (isGood ? 'Отметить' : 'Держись!');
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: done
-                ? (isGood ? Colors.green.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2))
-                : Colors.grey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
+            color: bgColor,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: borderColor.withValues(alpha: 0.7)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                done ? Icons.check_circle : Icons.radio_button_unchecked,
-                size: 22,
-                color: done ? (isGood ? Colors.green : Colors.grey) : Colors.grey,
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? dotColor : Colors.transparent,
+                  border: Border.all(color: dotColor, width: 2),
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Text(
-                done ? (isGood ? 'Сделано' : 'Держусь') : (isGood ? 'Отметить' : 'Держись!'),
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: done ? null : Colors.grey,
-                  fontWeight: FontWeight.w500,
+                text,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: done ? baseColor : theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

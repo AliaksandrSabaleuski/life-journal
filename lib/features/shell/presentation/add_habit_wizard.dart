@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/habit.dart';
@@ -329,52 +331,81 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         const SizedBox(height: 20),
         Text('Иконка', style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _presetIcons.map((icon) {
-            final selected = _icon == icon;
-            return GestureDetector(
-              onTap: () => setState(() => _icon = icon),
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _color.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: selected ? theme.colorScheme.primary : Colors.transparent,
-                    width: 2,
+        SizedBox(
+          height: 56,
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+              },
+            ),
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _presetIcons.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, index) {
+                final icon = _presetIcons[index];
+                final selected = _icon == icon;
+                return GestureDetector(
+                  onTap: () => setState(() => _icon = icon),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: _color.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? theme.colorScheme.primary : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(icon, color: _color, size: 24),
                   ),
-                ),
-                child: Icon(icon, color: _color, size: 24),
-              ),
-            );
-          }).toList(),
+                );
+              },
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         Text('Цвет (опционально)', style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: _presetColors.map((c) {
-            final selected = _color == c;
-            return GestureDetector(
-              onTap: () => setState(() => _color = c),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: c,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: selected ? theme.colorScheme.primary : Colors.transparent,
-                    width: 3,
+        SizedBox(
+          height: 40,
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+              },
+            ),
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _presetColors.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, index) {
+                final c = _presetColors[index];
+                final selected = _color == c;
+                return GestureDetector(
+                  onTap: () => setState(() => _color = c),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? theme.colorScheme.primary : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          }).toList(),
+                );
+              },
+            ),
+          ),
         ),
       ],
     );

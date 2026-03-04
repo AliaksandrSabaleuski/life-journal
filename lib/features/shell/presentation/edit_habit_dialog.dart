@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/habit.dart';
@@ -109,204 +111,283 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
     final h = widget.habit;
     final isBinary = h.measurement == HabitMeasurement.binary;
 
-    return AlertDialog(
-      title: const Text('Редактировать привычку'),
-      content: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Название'),
-                textCapitalization: TextCapitalization.sentences,
-              ),
-              const SizedBox(height: 16),
-              Text('Иконка', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _presetIcons.map((icon) {
-                  final selected = _icon == icon;
-                  return GestureDetector(
-                    onTap: () => setState(() => _icon = icon),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: _color.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected ? theme.colorScheme.primary : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      child: Icon(icon, color: _color, size: 24),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              Text('Цвет', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: _presetColors.map((c) {
-                  final selected = _color == c;
-                  return GestureDetector(
-                    onTap: () => setState(() => _color = c),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected ? theme.colorScheme.primary : Colors.transparent,
-                          width: 3,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              _buildGoalSection(theme, h, isBinary),
-              const SizedBox(height: 16),
-              _buildReminderSection(theme, l),
-              const SizedBox(height: 16),
-              _buildScheduleSection(theme),
-            ],
-          ),
-        ),
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
       ),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            final h = widget.habit;
-            final base = widget.selectedDate != null
-                ? DateTime(widget.selectedDate!.year, widget.selectedDate!.month, widget.selectedDate!.day)
-                : DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-
-            final newEnd = base.subtract(const Duration(days: 1));
-
-            DateTime? startDate = h.startDate;
-            if (startDate != null && newEnd.isBefore(startDate)) {
-              // Если "удаляем" до начала действия — считаем привычку неактивной.
-              Navigator.of(context).pop(
-                h.copyWith(isActive: false),
-              );
-              return;
-            }
-
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Удалить привычку?'),
-                content: const Text(
-                  'Привычка будет скрыта из списка активных и перейдёт в раздел неактивных.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: Text(l.cancelButton),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380, maxHeight: 640),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Редактировать привычку',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Название привычки',
+                        hintText: 'Например: Стакан воды',
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 20),
+                    Text('Иконка', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 56,
+                      child: ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(
+                          dragDevices: {
+                            PointerDeviceKind.touch,
+                            PointerDeviceKind.mouse,
+                          },
+                        ),
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: _presetIcons.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (_, index) {
+                            final icon = _presetIcons[index];
+                            final selected = _icon == icon;
+                            return GestureDetector(
+                              onTap: () => setState(() => _icon = icon),
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: _color.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: selected ? theme.colorScheme.primary : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(icon, color: _color, size: 24),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text('Цвет (опционально)', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 40,
+                      child: ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(
+                          dragDevices: {
+                            PointerDeviceKind.touch,
+                            PointerDeviceKind.mouse,
+                          },
+                        ),
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: _presetColors.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (_, index) {
+                            final c = _presetColors[index];
+                            final selected = _color == c;
+                            return GestureDetector(
+                              onTap: () => setState(() => _color = c),
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: c,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: selected ? theme.colorScheme.primary : Colors.transparent,
+                                    width: 3,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildGoalSection(theme, h, isBinary),
+                    const SizedBox(height: 16),
+                    _buildReminderSection(theme, l),
+                    const SizedBox(height: 16),
+                    _buildScheduleSection(theme),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Row(
+                children: [
                   TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(true),
+                    onPressed: () async {
+                      final habit = widget.habit;
+                      final base = widget.selectedDate != null
+                          ? DateTime(
+                              widget.selectedDate!.year,
+                              widget.selectedDate!.month,
+                              widget.selectedDate!.day,
+                            )
+                          : DateTime(
+                              DateTime.now().year,
+                              DateTime.now().month,
+                              DateTime.now().day,
+                            );
+
+                      final newEnd = base.subtract(const Duration(days: 1));
+
+                      DateTime? startDate = habit.startDate;
+                      if (startDate != null && newEnd.isBefore(startDate)) {
+                        Navigator.of(context).pop(
+                          habit.copyWith(isActive: false),
+                        );
+                        return;
+                      }
+
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Удалить привычку?'),
+                          content: const Text(
+                            'Привычка будет скрыта из списка активных и перейдёт в раздел неактивных.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: Text(l.cancelButton),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              child: const Text('Удалить'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true && mounted) {
+                        Navigator.of(context).pop(
+                          habit.copyWith(endDate: newEnd),
+                        );
+                      }
+                    },
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.red,
                     ),
                     child: const Text('Удалить'),
                   ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(l.cancelButton),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () {
+                      final name = _nameController.text.trim();
+                      if (name.isEmpty) return;
+                      HabitGoal goal;
+                      String? unit;
+
+                      if (isBinary) {
+                        goal = const HabitGoal.noGoal();
+                        unit = null;
+                      } else if (h.measurement == HabitMeasurement.counted) {
+                        final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 1.0;
+                        unit = _unitController.text.trim().isNotEmpty ? _unitController.text.trim() : 'раз';
+                        final isLimitGoal = _limitNotExceed || h.direction == HabitDirection.bad;
+                        goal = isLimitGoal ? HabitGoal.limit(v) : HabitGoal.target(v);
+                      } else {
+                        final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 15.0;
+                        unit = 'мин';
+                        goal = h.direction == HabitDirection.bad && _limitNotExceed
+                            ? HabitGoal.limit(v)
+                            : HabitGoal.target(v);
+                      }
+
+                      final now = DateTime.now();
+                      final baseDate = h.startDate != null
+                          ? DateTime(h.startDate!.year, h.startDate!.month, h.startDate!.day)
+                          : DateTime(now.year, now.month, now.day);
+
+                      DateTime? startDate;
+                      DateTime? endDate = _endDate;
+                      List<int> repeatDays;
+
+                      if (_isOneTime) {
+                        startDate = baseDate;
+                        endDate = baseDate;
+                        repeatDays = const [];
+                      } else {
+                        startDate = _startDate ?? baseDate;
+                        endDate ??= baseDate.add(const Duration(days: 30));
+                        if (_repeatWeekdays.isEmpty) {
+                          repeatDays = const [1, 2, 3, 4, 5, 6, 7];
+                        } else {
+                          repeatDays = _repeatWeekdays.toList()..sort();
+                        }
+                      }
+
+                      Navigator.of(context).pop(
+                        Habit(
+                          id: h.id,
+                          name: name,
+                          direction: h.direction,
+                          measurement: h.measurement,
+                          goal: goal,
+                          color: _color,
+                          icon: _icon,
+                          unit: unit,
+                          repeatDays: repeatDays,
+                          isActive: h.isActive,
+                          reminder: _reminder,
+                          startTime: h.startTime,
+                          startDate: startDate,
+                          endDate: endDate,
+                          isEvent: h.isEvent,
+                        ),
+                      );
+                    },
+                    child: Text(l.saveButton),
+                  ),
                 ],
               ),
-            );
-            if (confirm == true && mounted) {
-              Navigator.of(context).pop(
-                h.copyWith(endDate: newEnd),
-              );
-            }
-          },
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.red,
-          ),
-          child: const Text('Удалить'),
+            ),
+          ],
         ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l.cancelButton),
-        ),
-        FilledButton(
-          onPressed: () {
-            final name = _nameController.text.trim();
-            if (name.isEmpty) return;
-            HabitGoal goal;
-            String? unit;
-
-            if (isBinary) {
-              // Ритуал остаётся бинарным: только «сделал / не сделал».
-              goal = const HabitGoal.noGoal();
-              unit = null;
-            } else if (h.measurement == HabitMeasurement.counted) {
-              final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 1.0;
-              unit = _unitController.text.trim().isNotEmpty ? _unitController.text.trim() : 'раз';
-              final isLimitGoal = _limitNotExceed || h.direction == HabitDirection.bad;
-              goal = isLimitGoal ? HabitGoal.limit(v) : HabitGoal.target(v);
-            } else {
-              final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 15.0;
-              unit = 'мин';
-              goal = h.direction == HabitDirection.bad && _limitNotExceed
-                  ? HabitGoal.limit(v)
-                  : HabitGoal.target(v);
-            }
-
-            final now = DateTime.now();
-            final baseDate = h.startDate != null
-                ? DateTime(h.startDate!.year, h.startDate!.month, h.startDate!.day)
-                : DateTime(now.year, now.month, now.day);
-
-            DateTime? startDate;
-            DateTime? endDate = _endDate;
-            List<int> repeatDays;
-
-            if (_isOneTime) {
-              startDate = baseDate;
-              endDate = baseDate;
-              repeatDays = const [];
-            } else {
-              startDate = _startDate ?? baseDate;
-              endDate ??= baseDate.add(const Duration(days: 30));
-              if (_repeatWeekdays.isEmpty) {
-                repeatDays = const [1, 2, 3, 4, 5, 6, 7];
-              } else {
-                repeatDays = _repeatWeekdays.toList()..sort();
-              }
-            }
-
-            Navigator.of(context).pop(Habit(
-              id: h.id,
-              name: name,
-              direction: h.direction,
-              measurement: h.measurement,
-              goal: goal,
-              color: _color,
-              icon: _icon,
-              unit: unit,
-              repeatDays: repeatDays,
-              isActive: h.isActive,
-              reminder: _reminder,
-              startTime: h.startTime,
-              startDate: startDate,
-              endDate: endDate,
-              isEvent: h.isEvent,
-            ));
-          },
-          child: Text(l.saveButton),
-        ),
-      ],
+      ),
     );
   }
 

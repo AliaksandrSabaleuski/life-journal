@@ -16,6 +16,7 @@ enum MainListTab { events, habits }
 class MainMenuContent extends StatelessWidget {
   const MainMenuContent({
     super.key,
+    required this.allHabits,
     required this.habits,
     this.todayLogs = const {},
     this.isLoading = false,
@@ -31,6 +32,10 @@ class MainMenuContent extends StatelessWidget {
     this.onLog,
   });
 
+  /// Все привычки пользователя (нужны для индикаторов под календарём).
+  final List<Habit> allHabits;
+
+  /// Привычки, отфильтрованные под выбранный день (для списка ниже).
   final List<Habit> habits;
   final Map<String, HabitLog> todayLogs;
   final bool isLoading;
@@ -64,6 +69,7 @@ class MainMenuContent extends StatelessWidget {
           isVisible: isMainMenuVisible,
           recenterTrigger: recenterCalendarTrigger,
           initialSelectedDate: selectedDate,
+          habits: allHabits,
           onDateSelected: onSelectedDateChanged,
           onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
         ),
@@ -291,6 +297,7 @@ class _CalendarStrip extends StatefulWidget {
     required this.isVisible,
     required this.recenterTrigger,
     required this.initialSelectedDate,
+    required this.habits,
     this.onDateSelected,
     this.onTodayVisibilityChanged,
   });
@@ -298,6 +305,7 @@ class _CalendarStrip extends StatefulWidget {
   final bool isVisible;
   final int recenterTrigger;
   final DateTime initialSelectedDate;
+  final List<Habit> habits;
   final void Function(DateTime date)? onDateSelected;
   final void Function(bool visible)? onTodayVisibilityChanged;
 
@@ -322,6 +330,17 @@ class _CalendarStripState extends State<_CalendarStrip> {
 
   static bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  List<Color> _indicatorColorsFor(DateTime date, ThemeData theme) {
+    final result = <Color>[];
+    for (final h in widget.habits) {
+      if (!h.isActive) continue;
+      if (!h.isScheduledForDate(date)) continue;
+      result.add(h.color);
+      if (result.length == 6) break;
+    }
+    return result;
   }
 
   @override
@@ -434,7 +453,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                height: 64,
+                height: 80,
                 child: ScrollConfiguration(
                   behavior: ScrollConfiguration.of(context).copyWith(
                     dragDevices: const {
@@ -449,55 +468,81 @@ class _CalendarStripState extends State<_CalendarStrip> {
                     itemExtent: _dayCellWidth,
                     itemCount: _totalDays,
                     itemBuilder: (context, index) {
-                    final date = _stripStartDate.add(Duration(days: index));
-                    final isToday = _isSameDay(date, _today);
-                    final isSelected = _isSameDay(date, _selectedDate);
+                      final date = _stripStartDate.add(Duration(days: index));
+                      final isToday = _isSameDay(date, _today);
+                      final isSelected = _isSameDay(date, _selectedDate);
                       final weekdayShort = weekdayShortFormat.format(date);
-                    final bgColor = isSelected
-                        ? theme.colorScheme.primary
-                        : (isToday ? theme.colorScheme.primaryContainer : null);
-                    final textColor = isSelected
-                        ? theme.colorScheme.onPrimary
-                        : (isToday ? theme.colorScheme.onPrimaryContainer : null);
+                      final bgColor = isSelected
+                          ? theme.colorScheme.primary
+                          : (isToday ? theme.colorScheme.primaryContainer : null);
+                      final textColor = isSelected
+                          ? theme.colorScheme.onPrimary
+                          : (isToday ? theme.colorScheme.onPrimaryContainer : null);
+                      final dots = _indicatorColorsFor(date, theme);
 
-                    return InkWell(
-                      onTap: () {
-                        if (!_isSameDay(_selectedDate, date)) {
-                          _selectedDate = date;
-                          widget.onDateSelected?.call(date);
-                          setState(() {});
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            weekdayShort,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            width: 40,
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: bgColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              '${date.day}',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: (isToday || isSelected) ? FontWeight.w600 : null,
-                                    color: textColor,
+                      return InkWell(
+                        onTap: () {
+                          if (!_isSameDay(_selectedDate, date)) {
+                            _selectedDate = date;
+                            widget.onDateSelected?.call(date);
+                            setState(() {});
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              weekdayShort,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
+                            const SizedBox(height: 4),
+                            Container(
+                              width: 40,
+                              height: 40,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: bgColor,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${date.day}',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: (isToday || isSelected) ? FontWeight.w600 : null,
+                                      color: textColor,
+                                    ),
+                              ),
+                            ),
+                            if (dots.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              SizedBox(
+                                height: 8,
+                                child: Center(
+                                  child: Wrap(
+                                    spacing: 2,
+                                    runSpacing: 2,
+                                    alignment: WrapAlignment.center,
+                                    children: dots
+                                        .map(
+                                          (c) => Container(
+                                            width: 4,
+                                            height: 4,
+                                            decoration: BoxDecoration(
+                                              color: c,
+                                              borderRadius: BorderRadius.circular(2),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
                     },
                   ),
                 ),
