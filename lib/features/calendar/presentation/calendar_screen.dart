@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/habit.dart';
+import '../../../../core/services/calendar_indicators_service.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Включить замеры производительности календаря.
@@ -32,11 +33,13 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   bool _isMonthView = true;
+  bool _showIndicators = false;
   ScrollController? _scrollController;
   ScrollController? _yearScrollController;
   final ValueNotifier<DateTime?> _selectedDateNotifier = ValueNotifier<DateTime?>(null);
   bool _monthFirstFrameLogged = false;
   bool _yearFirstFrameLogged = false;
+  late final CalendarIndicatorsService _indicators;
 
   @override
   void didUpdateWidget(covariant CalendarScreen oldWidget) {
@@ -80,6 +83,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
+    _indicators = CalendarIndicatorsService(widget.habits);
+    // Прогреваем кэш примерно для +/- 2 лет вокруг текущего,
+    // остальное будет досчитываться лениво по запросу.
+    final now = DateTime.now();
+    final preloadStart = DateTime(now.year - 2, 1, 1);
+    final preloadEnd = DateTime(now.year + 2, 12, 31);
+    _indicators.preloadRange(preloadStart, preloadEnd);
     if (_kDebugCalendarPerf) {
       debugPrint('[PERF] CALENDAR_TAB_OPENED');
     }
@@ -133,12 +143,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
             },
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'Показывать индикаторы',
+                style: theme.textTheme.labelSmall,
+              ),
+              const SizedBox(width: 8),
+              Switch(
+                value: _showIndicators,
+                onChanged: (value) {
+                  if (_kDebugCalendarPerf) {
+                    debugPrint('[PERF] TOGGLE_INDICATORS enabled=$value');
+                  }
+                  setState(() => _showIndicators = value);
+                },
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: IndexedStack(
             index: _isMonthView ? 0 : 1,
             children: [
-              _buildMonthViewContent(theme),
-              _buildYearViewContent(theme),
+              _buildMonthViewContent(theme, _showIndicators),
+              _buildYearViewContent(theme, _showIndicators),
             ],
           ),
         ),
@@ -146,7 +178,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildMonthViewContent(ThemeData theme) {
+  Widget _buildMonthViewContent(ThemeData theme, bool showIndicators) {
     if (_kDebugCalendarPerf) {
       debugPrint('[PERF] MONTH_VIEW_BUILD_START');
     }
@@ -196,6 +228,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       monthName: _monthNames[month - 1],
                       today: DateTime.now(),
                       habits: widget.habits,
+                      indicators: _indicators,
+                      showIndicators: showIndicators,
                       selectedDateNotifier: _selectedDateNotifier,
                       onDaySelected: (date) {
                         if (_kDebugCalendarPerf) {
@@ -240,13 +274,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return offset.clamp(0.0, maxOffset);
   }
 
-  Widget _buildYearViewContent(ThemeData theme) {
+  Widget _buildYearViewContent(ThemeData theme, bool showIndicators) {
     final today = DateTime.now();
     if (_kDebugCalendarPerf) {
       debugPrint('[PERF] YEAR_VIEW_BUILD_START');
     }
 
-    return LayoutBuilder(
+    final t0 = _kDebugCalendarPerf ? DateTime.now() : null;
+
+    final widgetTree = LayoutBuilder(
       builder: (context, constraints) {
         _yearScrollController ??= ScrollController(
           initialScrollOffset: _initialYearScrollOffset(constraints.maxHeight),
@@ -273,6 +309,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 monthNames: _monthNames,
                 today: today,
                 habits: widget.habits,
+                indicators: _indicators,
+                showIndicators: showIndicators,
                 selectedDateNotifier: _selectedDateNotifier,
                 onDaySelected: (date) {
                   if (_kDebugCalendarPerf) {
@@ -293,6 +331,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
         );
       },
     );
+
+    if (_kDebugCalendarPerf && t0 != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ms = DateTime.now().difference(t0).inMilliseconds;
+        debugPrint('[PERF] YEAR_VIEW_BUILD_DONE ms=$ms');
+      });
+    }
+
+    return widgetTree;
   }
 }
 
@@ -303,6 +350,8 @@ class _YearBlock extends StatelessWidget {
     required this.monthNames,
     required this.today,
     required this.habits,
+    required this.indicators,
+    required this.showIndicators,
     required this.selectedDateNotifier,
     required this.onDaySelected,
   });
@@ -310,8 +359,10 @@ class _YearBlock extends StatelessWidget {
   final int year;
   final List<String> monthNames;
   final DateTime today;
-   /// Все привычки — для индикаторов в мини-месяцах.
+  /// Все привычки — для индикаторов в мини-месяцах.
   final List<Habit> habits;
+  final CalendarIndicatorsService indicators;
+  final bool showIndicators;
   final ValueListenable<DateTime?> selectedDateNotifier;
   final ValueChanged<DateTime> onDaySelected;
 
@@ -356,6 +407,8 @@ class _YearBlock extends StatelessWidget {
                               monthName: monthNames[row * 3 + col],
                               today: today,
                               habits: habits,
+                              indicators: indicators,
+                              showIndicators: showIndicators,
                               selectedDateNotifier: selectedDateNotifier,
                               onDaySelected: onDaySelected,
                             ),
@@ -381,6 +434,8 @@ class _MonthBlock extends StatelessWidget {
     required this.monthName,
     required this.today,
     required this.habits,
+    required this.indicators,
+    required this.showIndicators,
     required this.selectedDateNotifier,
     required this.onDaySelected,
   });
@@ -390,6 +445,8 @@ class _MonthBlock extends StatelessWidget {
   final String monthName;
   final DateTime today;
   final List<Habit> habits;
+  final CalendarIndicatorsService indicators;
+  final bool showIndicators;
   final ValueListenable<DateTime?> selectedDateNotifier;
   final ValueChanged<DateTime> onDaySelected;
 
@@ -512,13 +569,8 @@ class _MonthBlock extends StatelessWidget {
   }
 
   List<Color> _indicatorColorsFor(DateTime date) {
-    final result = <Color>[];
-    for (final h in habits) {
-      if (!h.isScheduledForDate(date)) continue;
-      result.add(h.color);
-      if (result.length == 6) break;
-    }
-    return result;
+    if (!showIndicators) return const <Color>[];
+    return indicators.dotsFor(date).take(6).toList();
   }
 }
 
@@ -625,6 +677,8 @@ class _MiniMonthGrid extends StatelessWidget {
     required this.monthName,
     required this.today,
     required this.habits,
+    required this.indicators,
+    required this.showIndicators,
     required this.selectedDateNotifier,
     required this.onDaySelected,
   });
@@ -634,6 +688,8 @@ class _MiniMonthGrid extends StatelessWidget {
   final String monthName;
   final DateTime today;
   final List<Habit> habits;
+  final CalendarIndicatorsService indicators;
+  final bool showIndicators;
   final ValueListenable<DateTime?> selectedDateNotifier;
   final ValueChanged<DateTime> onDaySelected;
 
@@ -681,7 +737,8 @@ class _MiniMonthGrid extends StatelessWidget {
                   final day = cellIndex - leadingEmpty + 1;
                   if (day > daysInMonth) continue;
                   final date = DateTime(year, month, day);
-                  if (_indicatorColorsFor(date).isNotEmpty) {
+                  final dots = _indicatorColorsFor(date);
+                  if (dots.isNotEmpty) {
                     rowHasDots = true;
                     break;
                   }
@@ -768,13 +825,8 @@ class _MiniMonthGrid extends StatelessWidget {
     );
   }
   List<Color> _indicatorColorsFor(DateTime date) {
-    final result = <Color>[];
-    for (final h in habits) {
-      if (!h.isScheduledForDate(date)) continue;
-      result.add(h.color);
-      if (result.length == 3) break;
-    }
-    return result;
+    if (!showIndicators) return const <Color>[];
+    return indicators.dotsFor(date).take(3).toList();
   }
 }
 

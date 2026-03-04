@@ -170,7 +170,10 @@ class HabitDetailStatsScreen extends StatelessWidget {
                   final f = fail[i].toDouble();
                   final total = s + f;
                   final h = maxVal == 0 ? 0.0 : total / maxVal;
-                  final hSuccess = total == 0 ? 0.0 : s / total;
+                  final hClamped = h.isNaN ? 0.0 : h.clamp(0.0, 1.0);
+                  final hSuccess =
+                      total == 0 ? 0.0 : (s / total).clamp(0.0, 1.0);
+
                   return Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -180,26 +183,28 @@ class HabitDetailStatsScreen extends StatelessWidget {
                             alignment: Alignment.bottomCenter,
                             child: SizedBox(
                               width: 14,
-                              child: FractionallySizedBox(
-                                heightFactor: h.isNaN ? 0.0 : h.clamp(0.0, 1.0),
+                              child: Align(
                                 alignment: Alignment.bottomCenter,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.8),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: FractionallySizedBox(
-                                      heightFactor:
-                                          hSuccess.isNaN ? 0.0 : hSuccess.clamp(0.0, 1.0),
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: habit.color,
-                                          borderRadius:
-                                              const BorderRadius.vertical(
-                                            bottom: Radius.circular(8),
+                                child: SizedBox(
+                                  height: 120 * (hClamped == 0.0 ? 0.0 : hClamped),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: theme
+                                          .colorScheme.surfaceContainerHighest
+                                          .withValues(alpha: 0.8),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: FractionallySizedBox(
+                                        heightFactor: hSuccess,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: habit.color,
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                              bottom: Radius.circular(8),
+                                            ),
                                           ),
                                         ),
                                       ),

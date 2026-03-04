@@ -53,6 +53,7 @@ class MainMenuContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final t0 = DateTime.now();
 
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -62,7 +63,7 @@ class MainMenuContent extends StatelessWidget {
     final inactive = habits.where((h) => !h.isActive && !h.isEvent).toList();
 
     final bottomPadding = 80.0 + MediaQuery.paddingOf(context).bottom;
-    return Column(
+    final result = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _CalendarStrip(
@@ -97,18 +98,23 @@ class MainMenuContent extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: bottomPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: currentTab == MainListTab.habits
-                  ? _buildHabitsSection(context, l, active, inactive)
-                  : _buildEventsSection(context, l),
-            ),
-          ),
+          child: currentTab == MainListTab.habits
+              ? ListView(
+                  padding: EdgeInsets.only(bottom: bottomPadding),
+                  children: _buildHabitsSection(context, l, active, inactive),
+                )
+              : ListView(
+                  padding: EdgeInsets.only(bottom: bottomPadding),
+                  children: _buildEventsSection(context, l),
+                ),
         ),
       ],
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ms = DateTime.now().difference(t0).inMilliseconds;
+      debugPrint('[PERF] MAIN_MENU_BUILD date=$selectedDate tab=$currentTab ms=$ms');
+    });
+    return result;
   }
 
   List<Widget> _buildHabitsSection(
@@ -117,6 +123,11 @@ class MainMenuContent extends StatelessWidget {
     List<Habit> active,
     List<Habit> inactive,
   ) {
+    // Лёгкий перф‑лог: сколько карточек мы вообще рисуем.
+    debugPrint(
+      '[PERF] HABITS_SECTION active=${active.length} inactive=${inactive.length}',
+    );
+
     return [
       ListView.separated(
         shrinkWrap: true,
@@ -204,6 +215,10 @@ class MainMenuContent extends StatelessWidget {
       // которые по расписанию попадают в выбранный день.
       return h.isScheduledForDate(day);
     }).toList();
+
+    debugPrint(
+      '[PERF] EVENTS_SECTION date=$day count=${eventsForDay.length}',
+    );
 
     if (eventsForDay.isEmpty) {
       return [
@@ -481,11 +496,20 @@ class _CalendarStripState extends State<_CalendarStrip> {
 
                       return InkWell(
                         onTap: () {
+                          final t0 = DateTime.now();
                           if (!_isSameDay(_selectedDate, date)) {
                             _selectedDate = date;
                             widget.onDateSelected?.call(date);
                             setState(() {});
                           }
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            final ms = DateTime.now()
+                                .difference(t0)
+                                .inMilliseconds;
+                            debugPrint(
+                              '[PERF] STRIP_DAY_SELECT date=$date ms=$ms',
+                            );
+                          });
                         },
                         borderRadius: BorderRadius.circular(24),
                         child: Column(
