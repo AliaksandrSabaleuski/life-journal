@@ -73,7 +73,6 @@ class _MainShellState extends State<MainShell> {
       initialDate: _selectedDate,
       initialDirection: HabitDirection.good,
       initialMeasurement: HabitMeasurement.binary,
-      startStep: 2,
       isEventMode: true,
     );
     if (habit != null && mounted) {

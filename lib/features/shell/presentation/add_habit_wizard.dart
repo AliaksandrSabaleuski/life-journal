@@ -2,6 +2,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/catalog/color_registry.dart';
+import '../../../../core/catalog/habit_template.dart';
+import '../../../../core/catalog/habits_catalog.dart';
+import '../../../../core/catalog/icon_registry.dart';
 import '../../../../core/models/habit.dart';
 import '../../../../l10n/app_localizations.dart';
 
@@ -13,7 +17,7 @@ class AddHabitWizard extends StatefulWidget {
     this.initialDate,
     this.initialDirection,
     this.initialMeasurement,
-    this.startStep = 1,
+    this.startStep = 0,
     this.isEventMode = false,
   });
 
@@ -27,7 +31,7 @@ class AddHabitWizard extends StatefulWidget {
   /// Предзаполненный тип измерения (для специальных флоу).
   final HabitMeasurement? initialMeasurement;
 
-  /// Стартовый шаг визарда (по умолчанию 1).
+  /// Стартовый шаг визарда (по умолчанию 0 — выбор источника).
   final int startStep;
 
   /// Режим «события»: без выбора характера и типа, всегда хороший ритуал.
@@ -39,6 +43,11 @@ class AddHabitWizard extends StatefulWidget {
 
 class _AddHabitWizardState extends State<AddHabitWizard> {
   late int _step;
+
+  HabitsCatalog? _catalog;
+  String? _selectedTemplateId;
+  bool _isCatalogLoading = false;
+  bool _lockTypeSelection = false;
 
   final _nameController = TextEditingController();
   final _goalController = TextEditingController();
@@ -85,12 +94,193 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     Icons.thumb_up_rounded,
   ];
 
+  static const _defaultStepForHabit = 1;
+  static const _defaultStepForEvent = 2;
+
+  CreationSource _source = CreationSource.custom;
+
   @override
   void initState() {
     super.initState();
     _direction = widget.initialDirection;
     _measurement = widget.initialMeasurement;
     _step = widget.startStep;
+    // По умолчанию для событий выбираем преднастроенные события,
+    // для привычек — преднастроенные привычки.
+    _source =
+        widget.isEventMode ? CreationSource.presetEvent : CreationSource.presetHabit;
+    _loadCatalog();
+  }
+
+  List<HabitTemplate> _templatesForCurrentSource() {
+    final catalog = _catalog;
+    if (catalog == null) return const [];
+    switch (_source) {
+      case CreationSource.presetHabit:
+        return catalog.habits.toList();
+      case CreationSource.presetEvent:
+        return catalog.events.toList();
+      case CreationSource.custom:
+        return const [];
+    }
+  }
+
+  Widget _buildStepSource(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations l,
+  ) {
+    final isEvent = widget.isEventMode;
+    final presets = _templatesForCurrentSource();
+
+    final options = <Widget>[];
+
+    if (!isEvent) {
+      options.add(
+        RadioListTile<CreationSource>(
+          value: CreationSource.presetHabit,
+          groupValue: _source,
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _source = v;
+              _lockTypeSelection = false;
+              _selectedTemplateId = null;
+              _ensurePresetSelectedForSource();
+            });
+          },
+          title: const Text('Преднастроенные привычки'),
+          subtitle: const Text('Выбрать из каталога шаблонов'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      );
+      options.add(
+        RadioListTile<CreationSource>(
+          value: CreationSource.presetEvent,
+          groupValue: _source,
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _source = v;
+              _lockTypeSelection = false;
+              _selectedTemplateId = null;
+              _ensurePresetSelectedForSource();
+            });
+          },
+          title: const Text('Преднастроенные события'),
+          subtitle: const Text('События из каталога'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      );
+    } else {
+      options.add(
+        RadioListTile<CreationSource>(
+          value: CreationSource.presetEvent,
+          groupValue: _source,
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _source = v;
+              _lockTypeSelection = false;
+              _selectedTemplateId = null;
+              _ensurePresetSelectedForSource();
+            });
+          },
+          title: const Text('Преднастроенные события'),
+          subtitle: const Text('События из каталога'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      );
+    }
+
+    options.add(
+      RadioListTile<CreationSource>(
+        value: CreationSource.custom,
+        groupValue: _source,
+        onChanged: (v) {
+          if (v == null) return;
+          setState(() {
+            _source = v;
+            _lockTypeSelection = false;
+            _selectedTemplateId = null;
+            _ensurePresetSelectedForSource();
+          });
+        },
+        title: const Text('Свое'),
+        subtitle: const Text('Настроить вручную (текущий флоу)'),
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
+
+    final dropdown = (_source == CreationSource.custom)
+        ? const SizedBox.shrink()
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_isCatalogLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (presets.isEmpty)
+                const Text('Каталог пуст — добавьте шаблоны в конфиг.')
+              else
+                DropdownButtonFormField<String>(
+                  key: ValueKey(_source),
+                  value: _selectedTemplateId,
+                  items: presets
+                      .map(
+                        (t) => DropdownMenuItem<String>(
+                          value: t.templateId,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (IconRegistry.byKey(t.iconKey) != null) ...[
+                                Icon(
+                                  IconRegistry.byKey(t.iconKey),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Flexible(
+                                child: Text(
+                                  t.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    setState(() => _selectedTemplateId = v);
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Выберите из преднастроенных',
+                  ),
+                ),
+              const SizedBox(height: 16),
+            ],
+          );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Выберите из преднастроенных',
+          style: theme.textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        dropdown,
+        const SizedBox(height: 8),
+        Text(
+          'Или выберите способ создания ниже. Можно взять готовый шаблон из каталога или настроить свою привычку с нуля.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...options,
+      ],
+    );
   }
 
   @override
@@ -103,6 +293,42 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
   void _next() {
     if (!_canGoNext) return;
+    if (_step == 0) {
+      if (_source == CreationSource.custom) {
+        setState(() {
+          _step = widget.isEventMode ? _defaultStepForEvent : _defaultStepForHabit;
+        });
+        return;
+      }
+
+      // Для преднастроенных привычек даём пользователю
+      // настроить только число, напоминание и периодичность,
+      // поэтому сразу перескакиваем на шаг 2 (тип/цель) и дальше на частоту.
+      if (_source == CreationSource.presetHabit) {
+        final templates = _templatesForCurrentSource();
+        if (templates.isEmpty) return;
+        final template = _resolveCurrentTemplate(templates);
+        _applyPresetToState(template);
+        setState(() {
+          _lockTypeSelection = true;
+          _step = 2; // пропускаем шаг 1: сразу к цели/напоминанию
+        });
+        return;
+      }
+
+      // Для преднастроенных событий: применяем пресет и сразу
+      // открываем шаг с периодом действия (без шага количества).
+      if (_source == CreationSource.presetEvent) {
+        final templates = _templatesForCurrentSource();
+        if (templates.isEmpty) return;
+        final template = _resolveCurrentTemplate(templates);
+        _applyPresetToState(template);
+        setState(() {
+          _step = 4; // сразу к периоду действия
+        });
+        return;
+      }
+    }
     if (widget.isEventMode && _step == 2) {
       // В режиме событий пропускаем шаг выбора типа.
       setState(() => _step = 4);
@@ -110,6 +336,11 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     }
     final maxStep = widget.isEventMode ? 4 : 3;
     if (_step < maxStep) {
+      // Для привычек при выборе одноразового формата пропускаем шаг частоты.
+      if (!widget.isEventMode && _step == 2 && _isOneTime) {
+        _save();
+        return;
+      }
       setState(() => _step++);
     } else {
       _save();
@@ -117,6 +348,10 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   }
 
   void _back() {
+    if (_step == 0) {
+      Navigator.of(context).pop();
+      return;
+    }
     if (widget.isEventMode) {
       // В режиме событий возвращаемся сразу к закрытию с шага описания.
       if (_step <= 2) {
@@ -130,6 +365,140 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       } else {
         Navigator.of(context).pop();
       }
+    }
+  }
+
+  Future<void> _loadCatalog() async {
+    setState(() => _isCatalogLoading = true);
+    try {
+      final catalog = await HabitsCatalog.loadFromAsset();
+      if (!mounted) return;
+      setState(() {
+        _catalog = catalog;
+        _ensurePresetSelectedForSource();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isCatalogLoading = false);
+      }
+    }
+  }
+
+  void _ensurePresetSelectedForSource() {
+    if (_source == CreationSource.custom) {
+      _selectedTemplateId = null;
+      return;
+    }
+    final presets = _templatesForCurrentSource();
+    if (presets.isEmpty) {
+      _selectedTemplateId = null;
+      return;
+    }
+    final hasCurrent =
+        _selectedTemplateId != null && presets.any((t) => t.templateId == _selectedTemplateId);
+    if (!hasCurrent) {
+      _selectedTemplateId = presets.first.templateId;
+    }
+  }
+
+  void _saveFromPreset() {
+    final templates = _templatesForCurrentSource();
+    if (templates.isEmpty) return;
+    final template = _resolveCurrentTemplate(templates);
+
+    final now = DateTime.now();
+    final initialBaseDate = widget.initialDate != null
+        ? DateTime(
+            widget.initialDate!.year,
+            widget.initialDate!.month,
+            widget.initialDate!.day,
+          )
+        : DateTime(now.year, now.month, now.day);
+
+    final color = ColorRegistry.byKey(template.colorKey);
+    final icon = IconRegistry.byKey(template.iconKey);
+
+    final habit = template.createInstance(
+      instanceId: DateTime.now().millisecondsSinceEpoch.toString(),
+      color: color,
+      icon: icon,
+      startDate: initialBaseDate,
+    );
+
+    Navigator.of(context).pop(habit);
+  }
+
+  HabitTemplate _resolveCurrentTemplate(List<HabitTemplate> templates) {
+    if (templates.isEmpty) {
+      throw StateError('No templates available for current source');
+    }
+    if (_selectedTemplateId == null) {
+      return templates.first;
+    }
+    return templates.firstWhere(
+      (t) => t.templateId == _selectedTemplateId,
+      orElse: () => templates.first,
+    );
+  }
+
+  void _applyPresetToState(HabitTemplate template) {
+    // Название
+    _nameController.text = template.name;
+
+    // Иконка и цвет
+    final icon = IconRegistry.byKey(template.iconKey);
+    if (icon != null) {
+      _icon = icon;
+    }
+    _color = ColorRegistry.byKey(template.colorKey);
+
+    // Направление и измерение (тип)
+    _direction = template.direction;
+    _measurement = template.measurement;
+
+    // Цель и единицы
+    switch (template.measurement) {
+      case HabitMeasurement.binary:
+        _goalValue = null;
+        _goalController.text = '';
+        _unitController.text = '';
+        _goalUnit = '';
+        _limitNotExceed = template.direction == HabitDirection.bad;
+        break;
+      case HabitMeasurement.counted:
+        final v = template.goal.value ?? 1;
+        _goalValue = v;
+        _goalController.text = v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
+        _unitController.text = template.unit ?? '';
+        _goalUnit = template.unit ?? '';
+        _limitNotExceed = template.goal.kind == HabitGoalKind.limit ||
+            template.direction == HabitDirection.bad;
+        break;
+      case HabitMeasurement.timed:
+        final v = template.goal.value ?? 10;
+        _goalValue = v;
+        _goalController.text = v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
+        _unitController.text = template.unit ?? 'мин';
+        _goalUnit = template.unit ?? 'мин';
+        _limitNotExceed = template.goal.kind == HabitGoalKind.limit &&
+            template.direction == HabitDirection.bad;
+        break;
+    }
+
+    // Напоминание: по умолчанию выключено, пользователь включает сам
+    _reminder = null;
+
+    // Периодичность
+    if (template.repeatDays.isEmpty) {
+      _isOneTime = true;
+      _repeatWeekdays
+        ..clear()
+        ..addAll({1, 2, 3, 4, 5, 6, 7});
+    } else {
+      _isOneTime = false;
+      _repeatWeekdays
+        ..clear()
+        ..addAll(template.repeatDays);
     }
   }
 
@@ -189,6 +558,9 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       }
     }
 
+    final isEventFlag =
+        widget.isEventMode || _source == CreationSource.presetEvent;
+
     final habit = Habit(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
@@ -203,7 +575,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       reminder: _reminder,
       startDate: startDate,
       endDate: endDate,
-      isEvent: widget.isEventMode,
+      isEvent: isEventFlag,
     );
 
     Navigator.of(context).pop(habit);
@@ -211,6 +583,10 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
   bool get _canGoNext {
     switch (_step) {
+      case 0:
+        if (_source == CreationSource.custom) return true;
+        if (_isCatalogLoading) return false;
+        return _templatesForCurrentSource().isNotEmpty;
       case 1:
         // Шаг 1 всегда про название и оформление.
         return _nameController.text.trim().isNotEmpty;
@@ -262,6 +638,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: switch (_step) {
+                  0 => _buildStepSource(context, theme, l),
                   // Для привычек: 1 — имя, 2 — тип, 3 — частота.
                   // Для событий: стартуем сразу со 2-го шага (описание), 4 — частота.
                   1 => _buildStepBasic(theme),
@@ -284,7 +661,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
                 children: [
                   TextButton(
                     onPressed: _back,
-                    child: Text(_step > 1 ? 'Назад' : l.cancelButton),
+                    child: Text(_step > 0 ? 'Назад' : l.cancelButton),
                   ),
                   FilledButton(
                     onPressed: _canGoNext ? _next : null,
@@ -301,12 +678,14 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
   String get _stepTitle {
     switch (_step) {
+      case 0:
+        return 'Как создать?';
       case 1:
         return widget.isEventMode ? 'Описание события' : 'Шаг 1: Описание';
       case 2:
         return widget.isEventMode ? 'Описание события' : 'Шаг 2: Тип';
       case 3:
-        return 'Шаг 3: Частота';
+        return 'Период действия';
       case 4:
         // В режиме событий это второй шаг: описание → частота.
         return widget.isEventMode ? 'Шаг 2: Частота' : 'Шаг 4: Частота';
@@ -416,6 +795,44 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     ThemeData theme,
     AppLocalizations l,
   ) {
+    // В онбординге с преднастроенной привычкой тип уже выбран из пресета,
+    // поэтому показываем только цель и напоминание, без карточек выбора типа.
+    final isPresetLocked = _lockTypeSelection && !widget.isEventMode;
+    if (isPresetLocked && _measurement != null) {
+      final isGood = _direction != HabitDirection.bad;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildMeasurementDetails(theme, isGood),
+          const SizedBox(height: 24),
+          Text(
+            'Формат',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          RadioListTile<bool>(
+            value: true,
+            groupValue: _isOneTime,
+            onChanged: (v) => setState(() => _isOneTime = v ?? false),
+            title: const Text('Одноразовое событие'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          RadioListTile<bool>(
+            value: false,
+            groupValue: _isOneTime,
+            onChanged: (v) => setState(() => _isOneTime = v ?? false),
+            title: const Text('Повторяемое'),
+            subtitle: const Text('Как в будильнике'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 16),
+          _buildReminderPicker(context, theme, l),
+        ],
+      );
+    }
+
     if (widget.isEventMode) {
       // Для событий тип заранее фиксирован как ритуал.
       return Column(
@@ -565,42 +982,94 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         final isBad = !isGood;
         final label = isBad ? 'Укажите ограничение для привычки' : 'Укажите целевое количество';
         final hint = isBad ? 'Не больше скольких раз?' : 'Например: 5';
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+        final lockUnits = _lockTypeSelection && !widget.isEventMode;
+        if (lockUnits) {
+          // Пресет: аккуратное компактное поле по центру + подпись единиц.
+          final unitsText = _unitController.text.isEmpty ? 'раз' : _unitController.text;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _goalController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: isBad ? 'Лимит' : 'Цель',
-                hintText: hint,
-                suffixText: _unitController.text.isEmpty ? 'раз' : _unitController.text,
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 140,
+                child: TextField(
+                  controller: _goalController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall,
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  ),
+                  onChanged: (s) {
+                    final v = double.tryParse(s.replaceAll(',', '.'));
+                    setState(() {
+                      _goalValue = v;
+                    });
+                  },
+                ),
               ),
-              onChanged: (s) {
-                final v = double.tryParse(s.replaceAll(',', '.'));
-                setState(() {
-                  _goalValue = v;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _unitController,
-              decoration: const InputDecoration(
-                labelText: 'Единицы счёта',
-                hintText: 'раз, км, страниц',
+              const SizedBox(height: 4),
+              Text(
+                unitsText,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-              onChanged: (_) => setState(() {}),
-            ),
-          ],
-        );
+            ],
+          );
+        } else {
+          // Обычный флоу: полное управление числом и единицами.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _goalController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: isBad ? 'Лимит' : 'Цель',
+                  hintText: hint,
+                  suffixText: _unitController.text.isEmpty ? 'раз' : _unitController.text,
+                ),
+                onChanged: (s) {
+                  final v = double.tryParse(s.replaceAll(',', '.'));
+                  setState(() {
+                    _goalValue = v;
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _unitController,
+                decoration: const InputDecoration(
+                  labelText: 'Единицы счёта',
+                  hintText: 'раз, км, страниц',
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
+          );
+        }
       case HabitMeasurement.timed:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -683,33 +1152,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Частота',
-          style: theme.textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        RadioListTile<bool>(
-          value: true,
-          groupValue: _isOneTime,
-          onChanged: (v) => setState(() => _isOneTime = v ?? false),
-          title: const Text('Одноразовое событие'),
-          contentPadding: EdgeInsets.zero,
-        ),
-        RadioListTile<bool>(
-          value: false,
-          groupValue: _isOneTime,
-          onChanged: (v) => setState(() => _isOneTime = v ?? false),
-          title: const Text('Повторяемое'),
-          subtitle: const Text('Как в будильнике'),
-          contentPadding: EdgeInsets.zero,
-        ),
         if (!_isOneTime) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Период действия',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.flag_outlined),
@@ -739,28 +1182,60 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
             },
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(7, (index) {
-              final weekday = index + 1; // 1 — пн, 7 — вс
-              final selected = _repeatWeekdays.contains(weekday);
-              return ChoiceChip(
-                label: Text(weekdayLabels[index]),
-                selected: selected,
-                shape: const StadiumBorder(),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                onSelected: (v) {
-                  setState(() {
-                    if (v) {
-                      _repeatWeekdays.add(weekday);
-                    } else {
-                      _repeatWeekdays.remove(weekday);
-                    }
-                  });
+          SizedBox(
+            height: 40,
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
                 },
-              );
-            }),
+              ),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: 7,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, index) {
+                  final weekday = index + 1; // 1 — пн, 7 — вс
+                  final selected = _repeatWeekdays.contains(weekday);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (selected) {
+                          _repeatWeekdays.remove(weekday);
+                        } else {
+                          _repeatWeekdays.add(weekday);
+                        }
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                            : theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color:
+                              selected ? theme.colorScheme.primary : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Text(
+                        weekdayLabels[index],
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: selected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -930,4 +1405,10 @@ class _MeasurementOption {
   final IconData icon;
   final String title;
   final String subtitle;
+}
+
+enum CreationSource {
+  presetHabit,
+  presetEvent,
+  custom,
 }

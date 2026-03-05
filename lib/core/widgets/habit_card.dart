@@ -15,12 +15,14 @@ class HabitCard extends StatefulWidget {
     this.todayLog,
     this.onTap,
     this.onLog,
+    this.dragHandle,
   });
 
   final Habit habit;
   final HabitLog? todayLog;
   final VoidCallback? onTap;
   final void Function(HabitLog)? onLog;
+  final Widget? dragHandle;
 
   @override
   State<HabitCard> createState() => _HabitCardState();
@@ -75,19 +77,39 @@ class _HabitCardState extends State<HabitCard> {
       }
     }
 
+    // Визуальное состояние карточки: активная / успешная / проваленная.
+    final bool? completedFlag = todayLog?.isCompleted;
+    final bool isTemptation = habit.type == HabitType.temptation;
+
+    Color cardColor = theme.colorScheme.surfaceContainerHigh;
+    BorderSide borderSide = BorderSide.none;
+
+    if (completedFlag == true) {
+      // Успешно выполнено (для любых типов).
+      cardColor = cardColor.withValues(alpha: 0.96);
+      borderSide = BorderSide(color: Colors.green.shade400.withValues(alpha: 0.7), width: 1.5);
+    } else if (isTemptation && completedFlag == false) {
+      // Для искушений: явный срыв.
+      cardColor = cardColor.withValues(alpha: 0.96);
+      borderSide = BorderSide(color: Colors.red.shade400.withValues(alpha: 0.7), width: 1.5);
+    }
+
     return Material(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(20),
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: borderSide,
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             children: [
               SizedBox(
-                width: 72,
-                height: 72,
+                width: 64,
+                height: 64,
                 child: habit.type == HabitType.ritual
                     ? Container(
                         decoration: BoxDecoration(
@@ -118,7 +140,7 @@ class _HabitCardState extends State<HabitCard> {
                         ),
                       ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,10 +234,17 @@ class _HabitCardState extends State<HabitCard> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _buildProgressOrAction(context, theme, l),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        if (widget.dragHandle != null)
+                          Expanded(
+                            child: Center(child: widget.dragHandle),
+                          )
+                        else
+                          const Spacer(),
+                        _buildProgressOrAction(context, theme, l),
+                      ],
                     ),
                   ],
                 ),

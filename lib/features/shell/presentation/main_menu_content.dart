@@ -129,20 +129,11 @@ class MainMenuContent extends StatelessWidget {
     );
 
     return [
-      ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: active.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final habit = active[index];
-          return HabitCard(
-            habit: habit,
-            todayLog: todayLogs[habit.id],
-            onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
-            onLog: onLog != null ? (log) => onLog!(log) : null,
-          );
-        },
+      _ReorderableHabitsList(
+        habits: active,
+        todayLogs: todayLogs,
+        onHabitTap: onHabitTap,
+        onLog: onLog,
       ),
       if (inactive.isNotEmpty) ...[
         const Divider(height: 1),
@@ -259,20 +250,11 @@ class MainMenuContent extends StatelessWidget {
     }
 
     return [
-      ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: eventsForDay.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final habit = eventsForDay[index];
-          return HabitCard(
-            habit: habit,
-            todayLog: todayLogs[habit.id],
-            onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
-            onLog: onLog != null ? (log) => onLog!(log) : null,
-          );
-        },
+      _ReorderableEventsList(
+        habits: eventsForDay,
+        todayLogs: todayLogs,
+        onHabitTap: onHabitTap,
+        onLog: onLog,
       ),
       const Divider(height: 1),
       Padding(
@@ -326,6 +308,164 @@ class _CalendarStrip extends StatefulWidget {
 
   @override
   State<_CalendarStrip> createState() => _CalendarStripState();
+}
+
+class _ReorderableHabitsList extends StatefulWidget {
+  const _ReorderableHabitsList({
+    required this.habits,
+    required this.todayLogs,
+    this.onHabitTap,
+    this.onLog,
+  });
+
+  final List<Habit> habits;
+  final Map<String, HabitLog> todayLogs;
+  final void Function(Habit)? onHabitTap;
+  final void Function(HabitLog)? onLog;
+
+  @override
+  State<_ReorderableHabitsList> createState() => _ReorderableHabitsListState();
+}
+
+class _ReorderableHabitsListState extends State<_ReorderableHabitsList> {
+  late List<Habit> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = List<Habit>.from(widget.habits);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReorderableHabitsList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.habits.length != widget.habits.length) {
+      _items = List<Habit>.from(widget.habits);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showHandle = _items.length > 1;
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      itemCount: _items.length,
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) newIndex -= 1;
+          final item = _items.removeAt(oldIndex);
+          _items.insert(newIndex, item);
+        });
+      },
+      itemBuilder: (context, index) {
+        final habit = _items[index];
+        return Column(
+          key: ValueKey(habit.id),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            HabitCard(
+              habit: habit,
+              todayLog: widget.todayLogs[habit.id],
+              onTap:
+                  widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
+              onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
+              dragHandle: showHandle
+                  ? ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(
+                        Icons.drag_handle_rounded,
+                        size: 20,
+                      ),
+                    )
+                  : null,
+            ),
+            const Divider(height: 1),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ReorderableEventsList extends StatefulWidget {
+  const _ReorderableEventsList({
+    required this.habits,
+    required this.todayLogs,
+    this.onHabitTap,
+    this.onLog,
+  });
+
+  final List<Habit> habits;
+  final Map<String, HabitLog> todayLogs;
+  final void Function(Habit)? onHabitTap;
+  final void Function(HabitLog)? onLog;
+
+  @override
+  State<_ReorderableEventsList> createState() => _ReorderableEventsListState();
+}
+
+class _ReorderableEventsListState extends State<_ReorderableEventsList> {
+  late List<Habit> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = List<Habit>.from(widget.habits);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReorderableEventsList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.habits.length != widget.habits.length) {
+      _items = List<Habit>.from(widget.habits);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showHandle = _items.length > 1;
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      itemCount: _items.length,
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) newIndex -= 1;
+          final item = _items.removeAt(oldIndex);
+          _items.insert(newIndex, item);
+        });
+      },
+      itemBuilder: (context, index) {
+        final habit = _items[index];
+        return Column(
+          key: ValueKey(habit.id),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            HabitCard(
+              habit: habit,
+              todayLog: widget.todayLogs[habit.id],
+              onTap:
+                  widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
+              onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
+              dragHandle: showHandle
+                  ? ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(
+                        Icons.drag_handle_rounded,
+                        size: 20,
+                      ),
+                    )
+                  : null,
+            ),
+            const Divider(height: 1),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _CalendarStripState extends State<_CalendarStrip> {
@@ -606,7 +746,7 @@ Future<Habit?> showAddHabitWizard(
   DateTime? initialDate,
   HabitDirection? initialDirection,
   HabitMeasurement? initialMeasurement,
-  int startStep = 1,
+  int startStep = 0,
   bool isEventMode = false,
 }) {
   return showDialog<Habit>(

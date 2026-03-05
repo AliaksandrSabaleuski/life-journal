@@ -100,43 +100,7 @@ class HabitsRepository {
       ),
     );
 
-    // 4) Событие на месяц, уже завершилось (с разными результатами в логах).
-    _habits.add(
-      Habit(
-        id: 'event_month_checkup',
-        name: 'Проверка здоровья',
-        direction: HabitDirection.good,
-        measurement: HabitMeasurement.binary,
-        goal: const HabitGoal.noGoal(),
-        color: Colors.orangeAccent,
-        icon: Icons.medical_information,
-        isEvent: true,
-        repeatDays: const [],
-        isActive: false,
-        startDate: monthStart,
-        endDate: today.subtract(const Duration(days: 7)),
-      ),
-    );
-
-    // 5) Событие на месяц, с которого прошла неделя (ещё в прошлом, но ближе).
-    _habits.add(
-      Habit(
-        id: 'event_month_meet',
-        name: 'Встреча с друзьями',
-        direction: HabitDirection.good,
-        measurement: HabitMeasurement.binary,
-        goal: const HabitGoal.noGoal(),
-        color: Colors.tealAccent,
-        icon: Icons.group,
-        isEvent: true,
-        repeatDays: const [],
-        isActive: false,
-        startDate: today.subtract(const Duration(days: 30)),
-        endDate: today.subtract(const Duration(days: 1)),
-      ),
-    );
-
-    // 6) Таймер-привычка "Экран" — ограничение по времени на месяц.
+    // 4) Таймер-привычка "Экран" — ограничение по времени на месяц.
     _habits.add(
       Habit(
         id: 'habit_timer_screen',
@@ -154,7 +118,7 @@ class HabitsRepository {
       ),
     );
 
-    // 7) Плохая привычка "Сигареты" — лимит по количеству, активна весь месяц.
+    // 5) Плохая привычка "Сигареты" — лимит по количеству, активна весь месяц.
     _habits.add(
       Habit(
         id: 'habit_bad_smoke',
@@ -172,43 +136,7 @@ class HabitsRepository {
       ),
     );
 
-    // 8) Разовое событие "Поездка" на прошлые выходные.
-    final lastWeekend =
-        today.subtract(Duration(days: (today.weekday % 7) + 1)); // пред. вс
-    _habits.add(
-      Habit(
-        id: 'event_one_off_trip',
-        name: 'Поездка за город',
-        direction: HabitDirection.good,
-        measurement: HabitMeasurement.binary,
-        goal: const HabitGoal.noGoal(),
-        color: Colors.blueGrey,
-        icon: Icons.park,
-        isEvent: true,
-        startDate: lastWeekend,
-        endDate: lastWeekend,
-        repeatDays: const [],
-      ),
-    );
-
-    // 9) Еженедельное событие "Генеральная уборка".
-    _habits.add(
-      Habit(
-        id: 'event_weekly_cleanup',
-        name: 'Генеральная уборка',
-        direction: HabitDirection.good,
-        measurement: HabitMeasurement.binary,
-        goal: const HabitGoal.noGoal(),
-        color: Colors.lightGreenAccent,
-        icon: Icons.cleaning_services,
-        isEvent: true,
-        repeatDays: const [6], // суббота
-        isActive: true,
-        startDate: today.subtract(const Duration(days: 30)),
-      ),
-    );
-
-    // 10) Утренняя зарядка — ежедневно, активна уже пару месяцев.
+    // 6) Утренняя зарядка — ежедневно, активна уже пару месяцев.
     _habits.add(
       Habit(
         id: 'habit_morning_exercise',
@@ -227,7 +155,7 @@ class HabitsRepository {
       ),
     );
 
-    // 11) Медитация — будни, активна сейчас и ещё месяц вперёд.
+    // 7) Медитация — будни, активна сейчас и ещё месяц вперёд.
     _habits.add(
       Habit(
         id: 'habit_evening_meditation',
@@ -246,7 +174,7 @@ class HabitsRepository {
       ),
     );
 
-    // 12) Сон не позже 23:00 — привычка с лимитом, активна последние 3 месяца.
+    // 8) Сон не позже 23:00 — привычка с лимитом, активна последние 3 месяца.
     _habits.add(
       Habit(
         id: 'habit_sleep_early',
@@ -262,7 +190,7 @@ class HabitsRepository {
       ),
     );
 
-    // 13) Кофе — плохая привычка, лимит по кружкам, активна сейчас.
+    // 9) Кофе — плохая привычка, лимит по кружкам, активна сейчас.
     _habits.add(
       Habit(
         id: 'habit_bad_coffee',
@@ -280,7 +208,7 @@ class HabitsRepository {
       ),
     );
 
-    // 14) Йога по выходным — хорошая привычка, активна от месяца назад до месяца вперёд.
+    // 10) Йога по выходным — хорошая привычка, активна от месяца назад до месяца вперёд.
     _habits.add(
       Habit(
         id: 'habit_weekend_yoga',
@@ -298,25 +226,7 @@ class HabitsRepository {
       ),
     );
 
-    // 15) Звонок родителям — еженедельное событие, уже завершённый период в прошлом.
-    _habits.add(
-      Habit(
-        id: 'event_call_parents',
-        name: 'Звонок родителям',
-        direction: HabitDirection.good,
-        measurement: HabitMeasurement.binary,
-        goal: const HabitGoal.noGoal(),
-        color: Colors.lightBlue,
-        icon: Icons.call,
-        isEvent: true,
-        repeatDays: const [7],
-        isActive: false,
-        startDate: today.subtract(const Duration(days: 120)),
-        endDate: today.subtract(const Duration(days: 30)),
-      ),
-    );
-
-    // 16) Курсы/обучение — долгий проект на год вперёд.
+    // 11) Курсы/обучение — долгий проект на год вперёд.
     _habits.add(
       Habit(
         id: 'habit_learning_course',
@@ -334,25 +244,7 @@ class HabitsRepository {
       ),
     );
 
-    // 17) Раз в квартал — чек финансов, длинное прошлое и будущее.
-    _habits.add(
-      Habit(
-        id: 'event_finance_review',
-        name: 'Финансовый обзор',
-        direction: HabitDirection.good,
-        measurement: HabitMeasurement.binary,
-        goal: const HabitGoal.noGoal(),
-        color: Colors.green.shade700,
-        icon: Icons.account_balance_wallet,
-        isEvent: true,
-        repeatDays: const [],
-        isActive: true,
-        startDate: today.subtract(const Duration(days: 365)),
-        endDate: today.add(const Duration(days: 365)),
-      ),
-    );
-
-    // 18) Ритуал "Утренний дневник" — без окончания, начиная с прошлого месяца.
+    // 12) Ритуал "Утренний дневник" — без окончания, начиная с прошлого месяца.
     _habits.add(
       Habit(
         id: 'ritual_morning_journal',
@@ -368,7 +260,7 @@ class HabitsRepository {
       ),
     );
 
-    // 19) Ритуал "Вечерний обзор дня" — только будни, начнётся через неделю.
+    // 13) Ритуал "Вечерний обзор дня" — только будни, начнётся через неделю.
     _habits.add(
       Habit(
         id: 'ritual_evening_review',
@@ -385,22 +277,5 @@ class HabitsRepository {
       ),
     );
 
-    // 20) Будущее событие "Сдача анализов" — в следующем месяце.
-    _habits.add(
-      Habit(
-        id: 'event_future_tests',
-        name: 'Сдача анализов',
-        direction: HabitDirection.good,
-        measurement: HabitMeasurement.binary,
-        goal: const HabitGoal.noGoal(),
-        color: Colors.redAccent.shade100,
-        icon: Icons.biotech,
-        isEvent: true,
-        repeatDays: const [],
-        isActive: true,
-        startDate: today.add(const Duration(days: 20)),
-        endDate: today.add(const Duration(days: 50)),
-      ),
-    );
   }
 }

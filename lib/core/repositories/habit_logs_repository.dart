@@ -125,45 +125,7 @@ class HabitLogsRepository {
       );
     }
 
-    // 4) "Проверка здоровья" — несколько визитов за последние месяцы.
-    _logs.addAll([
-      HabitLog(
-        id: 'log_checkup_ok_1',
-        habitId: 'event_month_checkup',
-        date: day(20),
-        isCompleted: true,
-      ),
-      HabitLog(
-        id: 'log_checkup_skip_1',
-        habitId: 'event_month_checkup',
-        date: day(40),
-        isCompleted: false,
-      ),
-      HabitLog(
-        id: 'log_checkup_ok_2',
-        habitId: 'event_month_checkup',
-        date: day(80),
-        isCompleted: true,
-      ),
-    ]);
-
-    // 5) "Встреча с друзьями" — редкие, но успешные встречи.
-    _logs.addAll([
-      HabitLog(
-        id: 'log_meet_friends_1',
-        habitId: 'event_month_meet',
-        date: day(7),
-        isCompleted: true,
-      ),
-      HabitLog(
-        id: 'log_meet_friends_2',
-        habitId: 'event_month_meet',
-        date: day(38),
-        isCompleted: true,
-      ),
-    ]);
-
-    // 6) "Экран менее 1 часа" — много разнотипных дней в последнем месяце.
+    // 4) "Экран менее 1 часа" — много разнотипных дней в последнем месяце.
     for (var i = 0; i < 30; i++) {
       final good = i % 4 != 0;
       _logs.add(
@@ -177,7 +139,7 @@ class HabitLogsRepository {
       );
     }
 
-    // 7) "Сигареты" — частые логи с разными исходами за последние 45 дней.
+    // 5) "Сигареты" — частые логи с разными исходами за последние 45 дней.
     for (var i = 0; i < 45; i++) {
       final ok = i % 5 != 0;
       _logs.add(
@@ -191,29 +153,5 @@ class HabitLogsRepository {
       );
     }
 
-    // 8) "Поездка за город" — одна выполненная поездка.
-    _logs.add(
-      HabitLog(
-        id: 'log_trip_done',
-        habitId: 'event_one_off_trip',
-        date: day(8),
-        isCompleted: true,
-      ),
-    );
-
-    // 9) "Генеральная уборка" — еженедельные события за последние 8 недель,
-    // через раз выполнены.
-    for (var week = 0; week < 8; week++) {
-      final daysAgo = week * 7 + 6; // субботы назад
-      final done = week.isEven;
-      _logs.add(
-        HabitLog(
-          id: 'log_cleanup_$week',
-          habitId: 'event_weekly_cleanup',
-          date: day(daysAgo),
-          isCompleted: done,
-        ),
-      );
-    }
   }
 }
