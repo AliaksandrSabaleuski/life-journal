@@ -3,12 +3,17 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../l10n/app_localizations.dart';
 import 'theme.dart';
-import 'router.dart';
 import '../features/shell/presentation/main_shell.dart';
+import '../features/onboarding/presentation/onboarding_screen.dart';
 
 /// Корневой виджет приложения: темы, локализация, начальный экран.
 class JournalApp extends StatelessWidget {
-  const JournalApp({super.key});
+  const JournalApp({
+    super.key,
+    required this.onboardingCompleted,
+  });
+
+  final bool onboardingCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -35,16 +40,7 @@ class JournalApp extends StatelessWidget {
         }
         return const Locale('ru');
       },
-      initialRoute: AppRouter.main,
-      onGenerateRoute: (settings) {
-        if (settings.name == AppRouter.main) {
-          return MaterialPageRoute<void>(
-            settings: settings,
-            builder: (_) => const MainShell(),
-          );
-        }
-        return null;
-      },
+      home: onboardingCompleted ? const MainShell() : const OnboardingScreen(),
     );
   }
 }

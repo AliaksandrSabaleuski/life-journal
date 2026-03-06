@@ -64,6 +64,8 @@ class HabitTemplate {
     required this.unit,
     required this.repeatDays,
     required this.defaultReminder,
+    this.durationDays,
+    this.isBase = false,
   });
 
   final String templateId;
@@ -77,6 +79,10 @@ class HabitTemplate {
   final String? unit;
   final List<int> repeatDays;
   final TimeOfDay? defaultReminder;
+  /// Длительность базовой программы в днях (если null — бессрочная).
+  final int? durationDays;
+  /// Является ли шаблон базовым (для автодобавления при онбординге).
+  final bool isBase;
 
   bool get isEvent => kind == TemplateKind.event;
 
@@ -85,6 +91,8 @@ class HabitTemplate {
     required Color color,
     IconData? icon,
     DateTime? startDate,
+    DateTime? endDate,
+    String? templateId,
   }) {
     return Habit(
       id: instanceId,
@@ -98,7 +106,9 @@ class HabitTemplate {
       repeatDays: repeatDays,
       reminder: defaultReminder,
       startDate: startDate,
+      endDate: endDate,
       isEvent: isEvent,
+      templateId: templateId ?? this.templateId,
     );
   }
 
@@ -149,6 +159,8 @@ class HabitTemplate {
           .map((e) => (e as num).toInt())
           .toList(growable: false),
       defaultReminder: reminder,
+      durationDays: (json['durationDays'] as num?)?.toInt(),
+      isBase: json['isBase'] == true,
     );
   }
 }

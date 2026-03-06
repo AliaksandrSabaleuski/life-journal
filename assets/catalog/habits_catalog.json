@@ -19,17 +19,57 @@
       "defaultReminder": "09:00"
     },
     {
-      "templateId": "habit_walk",
+      "templateId": "base_walk",
       "kind": "habit",
       "name": "Прогулка",
       "direction": "good",
       "measurement": "counted",
-      "goal": { "kind": "target", "value": 7 },
-      "unit": "тыс. шагов",
+      "goal": { "kind": "target", "value": 5 },
+      "unit": "км",
       "color": "greenAccent",
       "icon": "directions_walk",
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
-      "defaultReminder": "19:00"
+      "durationDays": 30,
+      "isBase": true
+    },
+    {
+      "templateId": "base_exercise_15",
+      "kind": "event",
+      "name": "Зарядка 15 мин",
+      "direction": "good",
+      "measurement": "binary",
+      "goal": { "kind": "noGoal" },
+      "color": "orange",
+      "icon": "fitness_center",
+      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
+      "durationDays": 30,
+      "isBase": true
+    },
+    {
+      "templateId": "base_shower",
+      "kind": "event",
+      "name": "Принять душ",
+      "direction": "good",
+      "measurement": "binary",
+      "goal": { "kind": "noGoal" },
+      "color": "teal",
+      "icon": "bath",
+      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
+      "durationDays": 30,
+      "isBase": true
+    },
+    {
+      "templateId": "base_self_dev",
+      "kind": "event",
+      "name": "Саморазвитие",
+      "direction": "good",
+      "measurement": "binary",
+      "goal": { "kind": "noGoal" },
+      "color": "indigo",
+      "icon": "learning",
+      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
+      "durationDays": 30,
+      "isBase": true
     },
     {
       "templateId": "event_call_family",
@@ -533,6 +573,59 @@
       "color": "purple",
       "icon": "progress",
       "repeatDays": [1, 2, 3, 4, 5, 6, 7]
+    },
+    {
+      "templateId": "event_alcohol",
+      "kind": "event",
+      "name": "Алкоголь",
+      "direction": "bad",
+      "measurement": "binary",
+      "goal": { "kind": "noGoal" },
+      "color": "brown",
+      "icon": "local_bar",
+      "repeatDays": [1, 2, 3, 4, 5, 6, 7]
+    },
+    {
+      "templateId": "habit_smoking",
+      "kind": "habit",
+      "name": "Курение",
+      "direction": "bad",
+      "measurement": "counted",
+      "goal": { "kind": "limit", "value": 10 },
+      "unit": "шт",
+      "color": "brown",
+      "icon": "smoking_rooms",
+      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
+      "durationDays": 30,
+      "isBase": true
+    },
+    {
+      "templateId": "habit_gaming",
+      "kind": "habit",
+      "name": "Игромания",
+      "direction": "bad",
+      "measurement": "timed",
+      "goal": { "kind": "limit", "value": 60 },
+      "unit": "мин",
+      "color": "redAccent",
+      "icon": "sports_esports",
+      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
+      "durationDays": 30,
+      "isBase": true
+    },
+    {
+      "templateId": "habit_coffee",
+      "kind": "habit",
+      "name": "Кофе",
+      "direction": "bad",
+      "measurement": "counted",
+      "goal": { "kind": "limit", "value": 2 },
+      "unit": "кружек",
+      "color": "brown",
+      "icon": "local_cafe",
+      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
+      "durationDays": 30,
+      "isBase": true
     }
   ]
 }

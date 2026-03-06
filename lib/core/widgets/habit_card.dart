@@ -13,6 +13,7 @@ class HabitCard extends StatefulWidget {
     super.key,
     required this.habit,
     this.todayLog,
+    required this.logDate,
     this.onTap,
     this.onLog,
     this.dragHandle,
@@ -20,6 +21,8 @@ class HabitCard extends StatefulWidget {
 
   final Habit habit;
   final HabitLog? todayLog;
+  /// Дата, за которую мы отмечаем (обычно выбранный день в календаре).
+  final DateTime logDate;
   final VoidCallback? onTap;
   final void Function(HabitLog)? onLog;
   final Widget? dragHandle;
@@ -39,6 +42,19 @@ class _HabitCardState extends State<HabitCard> {
   void Function(HabitLog)? get onLog => widget.onLog;
   VoidCallback? get onTap => widget.onTap;
 
+  DateTime get _logDay => DateTime(widget.logDate.year, widget.logDate.month, widget.logDate.day);
+
+  bool get _isLogDayToday {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _logDay.isAtSameMomentAs(today);
+  }
+
+  DateTime _logDateTimeNow() {
+    final now = DateTime.now();
+    return DateTime(_logDay.year, _logDay.month, _logDay.day, now.hour, now.minute, now.second, now.millisecond, now.microsecond);
+  }
+
   double get _goalValue {
     switch (habit.goal.kind) {
       case HabitGoalKind.target:
@@ -47,6 +63,27 @@ class _HabitCardState extends State<HabitCard> {
       case HabitGoalKind.noGoal:
         return 1.0;
     }
+  }
+
+  bool? _autoStatusForValue(double newValue) {
+    // Если пользователь уже явно отметил success/fail — не переопределяем.
+    final existing = todayLog?.isCompleted;
+    if (existing == true || existing == false) return existing;
+
+    final goal = _goalValue;
+    if (goal <= 0) return null;
+
+    // Для целей (good): как только достигли — success.
+    if (habit.goal.kind == HabitGoalKind.target) {
+      return newValue >= goal ? true : null;
+    }
+
+    // Для лимитов (bad): как только превысили — fail; успех ставим только при закрытии дня.
+    if (habit.goal.kind == HabitGoalKind.limit) {
+      return newValue > goal ? false : null;
+    }
+
+    return null;
   }
 
   @override
@@ -79,7 +116,6 @@ class _HabitCardState extends State<HabitCard> {
 
     // Визуальное состояние карточки: активная / успешная / проваленная.
     final bool? completedFlag = todayLog?.isCompleted;
-    final bool isTemptation = habit.type == HabitType.temptation;
 
     Color cardColor = theme.colorScheme.surfaceContainerHigh;
     BorderSide borderSide = BorderSide.none;
@@ -88,11 +124,18 @@ class _HabitCardState extends State<HabitCard> {
       // Успешно выполнено (для любых типов).
       cardColor = cardColor.withValues(alpha: 0.96);
       borderSide = BorderSide(color: Colors.green.shade400.withValues(alpha: 0.7), width: 1.5);
-    } else if (isTemptation && completedFlag == false) {
-      // Для искушений: явный срыв.
+    } else if (completedFlag == false) {
+      // Провалено: день закрыт как fail (в т.ч. автозакрытие после окончания дня).
       cardColor = cardColor.withValues(alpha: 0.96);
       borderSide = BorderSide(color: Colors.red.shade400.withValues(alpha: 0.7), width: 1.5);
     }
+
+    // На тёмной теме тёмные цвета (brown и т.п.) сливаются с фоном — осветляем иконку,
+    // сохраняя оттенок (HSL даёт более насыщенный результат, чем lerp с белым).
+    final iconColor = theme.brightness == Brightness.dark &&
+            habit.color.computeLuminance() < 0.25
+        ? HSLColor.fromColor(habit.color).withLightness(0.6).toColor()
+        : habit.color;
 
     return Material(
       color: cardColor,
@@ -119,7 +162,7 @@ class _HabitCardState extends State<HabitCard> {
                         child: Center(
                           child: Icon(
                             habit.icon ?? Icons.star_outline,
-                            color: habit.color,
+                            color: iconColor,
                             size: 32,
                           ),
                         ),
@@ -134,7 +177,7 @@ class _HabitCardState extends State<HabitCard> {
                         child: Center(
                           child: Icon(
                             habit.icon ?? Icons.star_outline,
-                            color: habit.color,
+                            color: iconColor,
                             size: 28,
                           ),
                         ),
@@ -185,8 +228,9 @@ class _HabitCardState extends State<HabitCard> {
                                         HabitLog(
                                           id: DateTime.now().millisecondsSinceEpoch.toString(),
                                           habitId: habit.id,
-                                          date: DateTime.now(),
+                                          date: _logDateTimeNow(),
                                           value: newValue,
+                                          isCompleted: _autoStatusForValue(newValue),
                                         ),
                                       );
                                     },
@@ -197,10 +241,12 @@ class _HabitCardState extends State<HabitCard> {
                                 else if (habit.type == HabitType.timer ||
                                     habit.type == HabitType.durationLimiter)
                                   IconButton(
-                                    onPressed: () {
+                                    onPressed: _isLogDayToday
+                                        ? () {
                                       final baseCurrent = todayLog?.value ?? 0.0;
                                       _toggleTimer(context, baseCurrent);
-                                    },
+                                    }
+                                        : null,
                                     icon: Icon(
                                       _timerRunning ? Icons.pause : Icons.play_arrow,
                                     ),
@@ -285,11 +331,13 @@ class _HabitCardState extends State<HabitCard> {
         );
       case HabitType.timer:
       case HabitType.durationLimiter:
-        final done = todayLog?.isCompleted == true;
-        return _BinaryButton(
-          done: done,
-          isGood: habit.isGoodHabit,
-          onTap: () => _logBinary(context, !done),
+        final isSuccess = todayLog?.isCompleted == true;
+        final isFail = todayLog?.isCompleted == false;
+        return _SuccessFailButtons(
+          isSuccess: isSuccess,
+          isFail: isFail,
+          onSuccess: () => _logBinary(context, true),
+          onFail: () => _logBinary(context, false),
         );
     }
   }
@@ -430,7 +478,7 @@ class _HabitCardState extends State<HabitCard> {
     final log = HabitLog(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       habitId: habit.id,
-      date: DateTime.now(),
+      date: _logDateTimeNow(),
       value: currentValue,
       isCompleted: completed,
     );
@@ -450,11 +498,13 @@ class _HabitCardState extends State<HabitCard> {
     ).then((value) {
       if (!context.mounted) return;
       if (value != null) {
+        final auto = _autoStatusForValue(value);
         onLog?.call(HabitLog(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           habitId: habit.id,
-          date: DateTime.now(),
+          date: _logDateTimeNow(),
           value: value,
+          isCompleted: auto,
         ));
       }
     });
@@ -473,17 +523,20 @@ class _HabitCardState extends State<HabitCard> {
     ).then((value) {
       if (!context.mounted) return;
       if (value != null) {
+        final auto = _autoStatusForValue(value);
         onLog?.call(HabitLog(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           habitId: habit.id,
-          date: DateTime.now(),
+          date: _logDateTimeNow(),
           value: value,
+          isCompleted: auto,
         ));
       }
     });
   }
 
   void _toggleTimer(BuildContext context, double currentMinutes) {
+    if (!_isLogDayToday) return;
     if (!_timerRunning) {
       // Стартуем новую сессию.
       setState(() {
@@ -521,11 +574,13 @@ class _HabitCardState extends State<HabitCard> {
         return;
       }
       final newValue = currentMinutes + minutes;
+      final auto = _autoStatusForValue(newValue);
       onLog?.call(HabitLog(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         habitId: habit.id,
-        date: DateTime.now(),
+        date: _logDateTimeNow(),
         value: newValue,
+        isCompleted: auto,
       ));
       setState(() {
         _timerRunning = false;
@@ -671,6 +726,104 @@ class _BinaryButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Две кнопки «Успех» и «Провал» для карточек с таймером/ограничением времени.
+class _SuccessFailButtons extends StatelessWidget {
+  const _SuccessFailButtons({
+    required this.isSuccess,
+    required this.isFail,
+    required this.onSuccess,
+    required this.onFail,
+  });
+
+  final bool isSuccess;
+  final bool isFail;
+  final VoidCallback onSuccess;
+  final VoidCallback onFail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onSuccess,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSuccess ? Colors.green.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSuccess ? Colors.green.shade400 : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isSuccess ? Icons.check_circle : Icons.check_circle_outline,
+                    size: 18,
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Успех',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: Colors.green.shade700,
+                      fontWeight: isSuccess ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onFail,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isFail ? Colors.red.withValues(alpha: 0.2) : Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isFail ? Colors.red.shade400 : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isFail ? Icons.cancel : Icons.cancel_outlined,
+                    size: 18,
+                    color: Colors.red.shade700,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Провал',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: Colors.red.shade700,
+                      fontWeight: isFail ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

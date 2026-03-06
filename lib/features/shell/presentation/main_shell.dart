@@ -14,28 +14,74 @@ import '../../settings/presentation/settings_screen.dart';
 
 /// Оболочка приложения: AppBar (настройки, поиск, подписка) + контент по вкладке + нижняя навигация.
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  const MainShell({
+    super.key,
+    this.openAddMenuOnStart = false,
+  });
+
+  /// Если true — сразу после первого кадра открывает меню добавления (привычка/событие).
+  final bool openAddMenuOnStart;
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
   int _recenterCalendarTrigger = 0;
   DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   bool _isTodayVisibleInStrip = true;
   List<Habit> _habits = [];
-  Map<String, HabitLog> _todayLogs = {};
-  final HabitsRepository _habitsRepository = HabitsRepository();
+  Map<String, HabitLog> _dayLogs = {};
+  static final HabitsRepository _habitsRepository = HabitsRepository.instance;
   final HabitLogsRepository _logsRepository = HabitLogsRepository();
   bool _habitsLoaded = false;
-  MainListTab _mainTab = MainListTab.habits;
+  MainListTab _mainTab = MainListTab.events;
+  DateTime _lastToday = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  bool _didOpenAddMenuOnStart = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadHabits();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _handleDateRolloverIfNeeded();
+    }
+  }
+
+  Future<void> _handleDateRolloverIfNeeded() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (today.isAtSameMomentAs(_lastToday)) return;
+    final oldToday = _lastToday;
+    _lastToday = today;
+
+    if (_habitsLoaded) {
+      await _logsRepository.finalizePastDays(_habits, now: now);
+    }
+    if (!mounted) return;
+
+    setState(() {
+      // Если пользователь смотрел «сегодня», переносим на новый день.
+      if (_selectedDate.year == oldToday.year &&
+          _selectedDate.month == oldToday.month &&
+          _selectedDate.day == oldToday.day) {
+        _selectedDate = today;
+        _recenterCalendarTrigger++;
+      }
+    });
+    await _loadLogsForSelectedDate();
   }
 
   Future<void> _loadHabits() async {
@@ -43,26 +89,34 @@ class _MainShellState extends State<MainShell> {
     if (mounted) {
       setState(() => _habits = list);
       _habitsLoaded = true;
-      _loadTodayLogs();
+      await _logsRepository.finalizePastDays(_habits);
+      _loadLogsForSelectedDate();
     }
   }
 
-  Future<void> _loadTodayLogs() async {
+  Future<void> _loadLogsForSelectedDate() async {
+    // Перед загрузкой логов гарантируем, что все прошедшие дни закрыты.
+    // Это важно, когда пользователь листает календарь назад.
+    if (_habitsLoaded) {
+      await _logsRepository.finalizePastDays(_habits);
+    }
     final map = <String, HabitLog>{};
     for (final h in _habits) {
-      final log = await _logsRepository.getTodayLog(h.id);
+      final log = await _logsRepository.getLogForDate(h.id, _selectedDate);
       if (log != null) map[h.id] = log;
     }
-    if (mounted) setState(() => _todayLogs = map);
+    if (mounted) setState(() => _dayLogs = map);
   }
 
   Future<void> _openAddHabit() async {
     final habit = await showAddHabitWizard(
       context,
+      existingHabits: _habits,
       initialDate: _selectedDate,
     );
     if (habit != null && mounted) {
       setState(() => _habits = [..._habits, habit]);
+      await _habitsRepository.addHabit(habit);
       await NotificationService.instance.resyncHabitReminder(habit);
     }
   }
@@ -70,6 +124,7 @@ class _MainShellState extends State<MainShell> {
   Future<void> _openAddEvent() async {
     final habit = await showAddHabitWizard(
       context,
+      existingHabits: _habits,
       initialDate: _selectedDate,
       initialDirection: HabitDirection.good,
       initialMeasurement: HabitMeasurement.binary,
@@ -77,6 +132,7 @@ class _MainShellState extends State<MainShell> {
     );
     if (habit != null && mounted) {
       setState(() => _habits = [..._habits, habit]);
+      await _habitsRepository.addHabit(habit);
       await NotificationService.instance.resyncHabitReminder(habit);
     }
   }
@@ -91,6 +147,7 @@ class _MainShellState extends State<MainShell> {
       setState(() {
         _habits = _habits.map((h) => h.id == updated.id ? updated : h).toList();
       });
+      await _habitsRepository.updateHabit(updated);
       await NotificationService.instance.resyncHabitReminder(updated);
     }
   }
@@ -98,13 +155,31 @@ class _MainShellState extends State<MainShell> {
   Future<void> _onLog(HabitLog log) async {
     await _logsRepository.updateOrAddLog(log);
     if (mounted) {
-      setState(() => _todayLogs[log.habitId] = log);
+      // Обновляем только если лог относится к выбранному дню.
+      final logDay = DateTime(log.date.year, log.date.month, log.date.day);
+      if (logDay.year == _selectedDate.year &&
+          logDay.month == _selectedDate.month &&
+          logDay.day == _selectedDate.day) {
+        setState(() => _dayLogs[log.habitId] = log);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+
+    if (widget.openAddMenuOnStart && !_didOpenAddMenuOnStart) {
+      _didOpenAddMenuOnStart = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        if (_mainTab == MainListTab.events) {
+          await _openAddEvent();
+        } else {
+          await _openAddHabit();
+        }
+      });
+    }
 
     final dayHabits =
         _habits.where((h) => h.isScheduledForDate(_selectedDate)).toList();
@@ -115,7 +190,7 @@ class _MainShellState extends State<MainShell> {
         MainMenuContent(
           allHabits: _habits,
           habits: dayHabits,
-          todayLogs: _todayLogs,
+          todayLogs: _dayLogs,
           isLoading: !_habitsLoaded,
           isMainMenuVisible: _currentIndex == 0,
           recenterCalendarTrigger: _recenterCalendarTrigger,
@@ -125,6 +200,7 @@ class _MainShellState extends State<MainShell> {
             setState(() {
               _selectedDate = DateTime(date.year, date.month, date.day);
             });
+            _loadLogsForSelectedDate();
           },
           onTodayVisibilityInStripChanged: (visible) {
             if (mounted && _isTodayVisibleInStrip != visible) {

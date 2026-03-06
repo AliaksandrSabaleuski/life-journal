@@ -58,6 +58,7 @@ class Habit {
     this.startDate,
     this.endDate,
     this.isEvent = false,
+    this.templateId,
   });
 
   final String id;
@@ -82,6 +83,9 @@ class Habit {
 
   /// Является ли запись событием (для вкладки «События»), а не обычной привычкой.
   final bool isEvent;
+
+  /// ID шаблона каталога, если привычка создана из преднастроенного.
+  final String? templateId;
 
   /// Финальный тип привычки по направлению и измерению.
   HabitType get type {
@@ -124,6 +128,7 @@ class Habit {
     DateTime? startDate,
     DateTime? endDate,
     bool? isEvent,
+    String? templateId,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -142,6 +147,7 @@ class Habit {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       isEvent: isEvent ?? this.isEvent,
+      templateId: templateId ?? this.templateId,
     );
   }
 

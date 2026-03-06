@@ -19,6 +19,7 @@ class AddHabitWizard extends StatefulWidget {
     this.initialMeasurement,
     this.startStep = 0,
     this.isEventMode = false,
+    this.existingHabits = const [],
   });
 
   /// Дата, к которой пользователь сейчас привязан (выбрана на главном экране).
@@ -36,6 +37,9 @@ class AddHabitWizard extends StatefulWidget {
 
   /// Режим «события»: без выбора характера и типа, всегда хороший ритуал.
   final bool isEventMode;
+
+  /// Уже созданные привычки/события — шаблоны с таким templateId не показываем в списке.
+  final List<Habit> existingHabits;
 
   @override
   State<AddHabitWizard> createState() => _AddHabitWizardState();
@@ -115,14 +119,22 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   List<HabitTemplate> _templatesForCurrentSource() {
     final catalog = _catalog;
     if (catalog == null) return const [];
+    final usedTemplateIds = widget.existingHabits
+        .where((h) => h.templateId != null)
+        .map((h) => h.templateId!)
+        .toSet();
+    List<HabitTemplate> list;
     switch (_source) {
       case CreationSource.presetHabit:
-        return catalog.habits.toList();
+        list = catalog.habits.toList();
+        break;
       case CreationSource.presetEvent:
-        return catalog.events.toList();
+        list = catalog.events.toList();
+        break;
       case CreationSource.custom:
         return const [];
     }
+    return list.where((t) => !usedTemplateIds.contains(t.templateId)).toList();
   }
 
   Widget _buildStepSource(
@@ -423,6 +435,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       color: color,
       icon: icon,
       startDate: initialBaseDate,
+      templateId: template.templateId,
     );
 
     Navigator.of(context).pop(habit);

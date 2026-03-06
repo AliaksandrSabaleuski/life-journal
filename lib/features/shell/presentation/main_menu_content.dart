@@ -132,6 +132,7 @@ class MainMenuContent extends StatelessWidget {
       _ReorderableHabitsList(
         habits: active,
         todayLogs: todayLogs,
+        logDate: selectedDate,
         onHabitTap: onHabitTap,
         onLog: onLog,
       ),
@@ -156,6 +157,7 @@ class MainMenuContent extends StatelessWidget {
             return HabitCard(
               habit: habit,
               todayLog: todayLogs[habit.id],
+              logDate: selectedDate,
               onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
               onLog: onLog != null ? (log) => onLog!(log) : null,
             );
@@ -163,27 +165,6 @@ class MainMenuContent extends StatelessWidget {
         ),
       ],
       const Divider(height: 1),
-      Padding(
-        padding: const EdgeInsets.all(24),
-        child: InkWell(
-          onTap: onAddPressed,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              l.newBlockTitle,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-        ),
-      ),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Text(
@@ -224,28 +205,6 @@ class MainMenuContent extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: InkWell(
-            onTap: onAddPressed,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                l.newEventTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-          ),
-        ),
       ];
     }
 
@@ -253,32 +212,10 @@ class MainMenuContent extends StatelessWidget {
       _ReorderableEventsList(
         habits: eventsForDay,
         todayLogs: todayLogs,
+        logDate: selectedDate,
         onHabitTap: onHabitTap,
         onLog: onLog,
       ),
-      const Divider(height: 1),
-      Padding(
-        padding: const EdgeInsets.all(24),
-        child: InkWell(
-          onTap: onAddPressed,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              l.newEventTitle,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(height: 16),
     ];
   }
 }
@@ -312,14 +249,17 @@ class _CalendarStrip extends StatefulWidget {
 
 class _ReorderableHabitsList extends StatefulWidget {
   const _ReorderableHabitsList({
+    Key? key,
     required this.habits,
     required this.todayLogs,
+    required this.logDate,
     this.onHabitTap,
     this.onLog,
-  });
+  }) : super(key: key);
 
   final List<Habit> habits;
   final Map<String, HabitLog> todayLogs;
+  final DateTime logDate;
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
 
@@ -339,7 +279,7 @@ class _ReorderableHabitsListState extends State<_ReorderableHabitsList> {
   @override
   void didUpdateWidget(covariant _ReorderableHabitsList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.habits.length != widget.habits.length) {
+    if (oldWidget.habits != widget.habits) {
       _items = List<Habit>.from(widget.habits);
     }
   }
@@ -368,6 +308,7 @@ class _ReorderableHabitsListState extends State<_ReorderableHabitsList> {
             HabitCard(
               habit: habit,
               todayLog: widget.todayLogs[habit.id],
+              logDate: widget.logDate,
               onTap:
                   widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
               onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
@@ -391,14 +332,17 @@ class _ReorderableHabitsListState extends State<_ReorderableHabitsList> {
 
 class _ReorderableEventsList extends StatefulWidget {
   const _ReorderableEventsList({
+    Key? key,
     required this.habits,
     required this.todayLogs,
+    required this.logDate,
     this.onHabitTap,
     this.onLog,
-  });
+  }) : super(key: key);
 
   final List<Habit> habits;
   final Map<String, HabitLog> todayLogs;
+  final DateTime logDate;
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
 
@@ -418,7 +362,7 @@ class _ReorderableEventsListState extends State<_ReorderableEventsList> {
   @override
   void didUpdateWidget(covariant _ReorderableEventsList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.habits.length != widget.habits.length) {
+    if (oldWidget.habits != widget.habits) {
       _items = List<Habit>.from(widget.habits);
     }
   }
@@ -447,6 +391,7 @@ class _ReorderableEventsListState extends State<_ReorderableEventsList> {
             HabitCard(
               habit: habit,
               todayLog: widget.todayLogs[habit.id],
+              logDate: widget.logDate,
               onTap:
                   widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
               onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
@@ -748,6 +693,7 @@ Future<Habit?> showAddHabitWizard(
   HabitMeasurement? initialMeasurement,
   int startStep = 0,
   bool isEventMode = false,
+  List<Habit> existingHabits = const [],
 }) {
   return showDialog<Habit>(
     context: context,
@@ -757,6 +703,7 @@ Future<Habit?> showAddHabitWizard(
       initialMeasurement: initialMeasurement,
       startStep: startStep,
       isEventMode: isEventMode,
+      existingHabits: existingHabits,
     ),
   );
 }

@@ -47,6 +47,23 @@ class NotificationService {
     _initialized = true;
   }
 
+  /// Запросить разрешение на уведомления (Android 13+).
+  ///
+  /// Возвращает:
+  /// - `true/false` на Android, если платформа поддерживает запрос
+  /// - `null` на остальных платформах (где мы не запрашиваем)
+  Future<bool?> requestPermission() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return null;
+    }
+    if (!_initialized) {
+      await init();
+    }
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return android?.requestNotificationsPermission();
+  }
+
   int _notificationIdForHabit(Habit habit) => habit.id.hashCode;
 
   Future<void> cancelForHabit(Habit habit) async {

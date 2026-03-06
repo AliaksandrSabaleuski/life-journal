@@ -11,7 +11,7 @@ import 'package:flutter_application_1/app/app.dart';
 
 void main() {
   testWidgets('App builds without crashing', (WidgetTester tester) async {
-    await tester.pumpWidget(const JournalApp());
+    await tester.pumpWidget(const JournalApp(onboardingCompleted: true));
     expect(find.byType(JournalApp), findsOneWidget);
   });
 }

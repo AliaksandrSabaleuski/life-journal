@@ -19,5 +19,26 @@ class ColorRegistry {
       _ => Colors.blueGrey,
     };
   }
+
+  /// Все цвета, доступные для выбора в UI (привычки, события).
+  static const List<Color> allColors = [
+    Colors.green,
+    Colors.greenAccent,
+    Colors.lightBlue,
+    Colors.lightBlueAccent,
+    Colors.blue,
+    Colors.indigo,
+    Colors.purple,
+    Colors.deepPurple,
+    Colors.orange,
+    Colors.amber,
+    Colors.red,
+    Colors.redAccent,
+    Colors.pink,
+    Colors.pinkAccent,
+    Colors.teal,
+    Colors.cyan,
+    Colors.brown,
+  ];
 }
 

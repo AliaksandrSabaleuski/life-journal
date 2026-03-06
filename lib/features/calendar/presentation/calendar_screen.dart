@@ -826,7 +826,9 @@ class _MiniMonthGrid extends StatelessWidget {
   }
   List<Color> _indicatorColorsFor(DateTime date) {
     if (!showIndicators) return const <Color>[];
-    return indicators.dotsFor(date).take(3).toList();
+    // Возвращаем все цвета; фактическое число точек подбираем
+    // динамически в _MiniDayCell в зависимости от доступной ширины.
+    return indicators.dotsFor(date).toList();
   }
 }
 
@@ -896,24 +898,34 @@ class _MiniDayCell extends StatelessWidget {
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: indicatorColors
-                          .take(3)
-                          .map(
-                            (c) => Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 1),
-                              child: Container(
-                                width: 3,
-                                height: 3,
-                                decoration: BoxDecoration(
-                                  color: c,
-                                  borderRadius: BorderRadius.circular(1.5),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Оценка: ~3 px точка + ~2 px паддинги по горизонтали.
+                        final maxByWidth = (constraints.maxWidth / 5).floor();
+                        final safeMax = maxByWidth.clamp(1, 3);
+                        final count = indicatorColors.length > safeMax
+                            ? safeMax
+                            : indicatorColors.length;
+                        final visible = indicatorColors.take(count);
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: visible
+                              .map(
+                                (c) => Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                                  child: Container(
+                                    width: 3,
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: c,
+                                      borderRadius: BorderRadius.circular(1.5),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          )
-                          .toList(),
+                              )
+                              .toList(),
+                        );
+                      },
                     ),
                   ),
               ],

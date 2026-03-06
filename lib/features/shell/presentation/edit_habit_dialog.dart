@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/catalog/color_registry.dart';
+import '../../../../core/catalog/icon_registry.dart';
 import '../../../../core/models/habit.dart';
 import '../../../../l10n/app_localizations.dart';
 
@@ -34,29 +36,17 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
   DateTime? _endDate;
   TimeOfDay? _reminder;
 
-  static const _presetColors = [
-    Colors.green,
-    Colors.blue,
-    Colors.indigo,
-    Colors.orange,
-    Colors.pink,
-    Colors.teal,
-    Colors.amber,
-    Colors.deepPurple,
-  ];
+  List<Color> get _colors {
+    final list = List<Color>.from(ColorRegistry.allColors);
+    if (!list.contains(_color)) list.insert(0, _color);
+    return list;
+  }
 
-  static const _presetIcons = [
-    Icons.star_rounded,
-    Icons.fitness_center,
-    Icons.menu_book,
-    Icons.water_drop,
-    Icons.bed,
-    Icons.self_improvement,
-    Icons.local_florist,
-    Icons.pets,
-    Icons.directions_walk,
-    Icons.thumb_up_rounded,
-  ];
+  List<IconData> get _icons {
+    final list = List<IconData>.from(IconRegistry.allIcons);
+    if (!list.any((i) => i.codePoint == _icon.codePoint)) list.insert(0, _icon);
+    return list;
+  }
 
   @override
   void initState() {
@@ -171,10 +161,10 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
-                          itemCount: _presetIcons.length,
+                          itemCount: _icons.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (_, index) {
-                            final icon = _presetIcons[index];
+                            final icon = _icons[index];
                             final selected = _icon == icon;
                             return GestureDetector(
                               onTap: () => setState(() => _icon = icon),
@@ -211,10 +201,10 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
-                          itemCount: _presetColors.length,
+                          itemCount: _colors.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (_, index) {
-                            final c = _presetColors[index];
+                            final c = _colors[index];
                             final selected = _color == c;
                             return GestureDetector(
                               onTap: () => setState(() => _color = c),
@@ -228,6 +218,15 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                                     color: selected ? theme.colorScheme.primary : Colors.transparent,
                                     width: 3,
                                   ),
+                                  boxShadow: selected
+                                      ? [
+                                          BoxShadow(
+                                            color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                                            blurRadius: 6,
+                                            spreadRadius: 1,
+                                          ),
+                                        ]
+                                      : null,
                                 ),
                               ),
                             );
@@ -377,6 +376,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                           startDate: startDate,
                           endDate: endDate,
                           isEvent: h.isEvent,
+                          templateId: h.templateId,
                         ),
                       );
                     },
