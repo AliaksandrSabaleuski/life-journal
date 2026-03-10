@@ -15,25 +15,21 @@ enum HabitMeasurement {
 
 /// Финальный тип привычки (вычисляется из direction + measurement).
 enum HabitType {
-  ritual,          // good + binary — просто сделать/не сделать
-  counter,          // good + counted — сделать N раз
-  timer,            // good + timed — делать N минут
-  temptation,       // bad + binary — удержаться/сорваться
-  limiter,          // bad + counted — не превысить N раз
-  durationLimiter,  // bad + timed — не больше N минут
+  ritual,   // good + binary — просто сделать/не сделать
+  counter,  // good + counted — сделать N раз
+  timer,    // good + timed — делать N минут
+  temptation, // bad + binary — удержаться/сорваться
 }
 
-/// Цель привычки: без цели (бинарные), целевое значение или лимит.
+/// Цель привычки: без цели (бинарные) или целевое значение.
 enum HabitGoalKind {
   noGoal,
   target,  // число для counter/timer
-  limit,   // число для limiter/durationLimiter
 }
 
 class HabitGoal {
   const HabitGoal.noGoal() : kind = HabitGoalKind.noGoal, value = null;
   const HabitGoal.target(this.value) : kind = HabitGoalKind.target;
-  const HabitGoal.limit(this.value) : kind = HabitGoalKind.limit;
 
   final HabitGoalKind kind;
   final double? value;
@@ -88,6 +84,7 @@ class Habit {
   final String? templateId;
 
   /// Финальный тип привычки по направлению и измерению.
+  /// Для bad + counted/timed лимиты убраны — приводим к temptation (binary-like).
   HabitType get type {
     switch (direction) {
       case HabitDirection.good:
@@ -97,11 +94,7 @@ class Habit {
           case HabitMeasurement.timed: return HabitType.timer;
         }
       case HabitDirection.bad:
-        switch (measurement) {
-          case HabitMeasurement.binary: return HabitType.temptation;
-          case HabitMeasurement.counted: return HabitType.limiter;
-          case HabitMeasurement.timed: return HabitType.durationLimiter;
-        }
+        return HabitType.temptation;
     }
   }
 

@@ -503,30 +503,6 @@
       "repeatDays": [1, 2, 3, 4, 5, 6, 7]
     },
     {
-      "templateId": "habit_screen_limit",
-      "kind": "habit",
-      "name": "Меньше экрана",
-      "direction": "bad",
-      "measurement": "timed",
-      "goal": { "kind": "limit", "value": 60 },
-      "unit": "мин",
-      "color": "redAccent",
-      "icon": "screen_limit",
-      "repeatDays": [1, 2, 3, 4, 5, 6, 7]
-    },
-    {
-      "templateId": "habit_sweets_limit",
-      "kind": "habit",
-      "name": "Сладкое",
-      "direction": "bad",
-      "measurement": "counted",
-      "goal": { "kind": "limit", "value": 1 },
-      "unit": "порция",
-      "color": "redAccent",
-      "icon": "sweets",
-      "repeatDays": [1, 2, 3, 4, 5, 6, 7]
-    },
-    {
       "templateId": "habit_language",
       "kind": "habit",
       "name": "Иностранный язык",
@@ -584,48 +560,6 @@
       "color": "brown",
       "icon": "local_bar",
       "repeatDays": [1, 2, 3, 4, 5, 6, 7]
-    },
-    {
-      "templateId": "habit_smoking",
-      "kind": "habit",
-      "name": "Курение",
-      "direction": "bad",
-      "measurement": "counted",
-      "goal": { "kind": "limit", "value": 10 },
-      "unit": "шт",
-      "color": "brown",
-      "icon": "smoking_rooms",
-      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
-      "durationDays": 30,
-      "isBase": true
-    },
-    {
-      "templateId": "habit_gaming",
-      "kind": "habit",
-      "name": "Игромания",
-      "direction": "bad",
-      "measurement": "timed",
-      "goal": { "kind": "limit", "value": 60 },
-      "unit": "мин",
-      "color": "redAccent",
-      "icon": "sports_esports",
-      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
-      "durationDays": 30,
-      "isBase": true
-    },
-    {
-      "templateId": "habit_coffee",
-      "kind": "habit",
-      "name": "Кофе",
-      "direction": "bad",
-      "measurement": "counted",
-      "goal": { "kind": "limit", "value": 2 },
-      "unit": "кружек",
-      "color": "brown",
-      "icon": "local_cafe",
-      "repeatDays": [1, 2, 3, 4, 5, 6, 7],
-      "durationDays": 30,
-      "isBase": true
     }
   ]
 }

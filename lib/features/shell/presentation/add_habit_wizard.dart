@@ -65,7 +65,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
   double? _goalValue;
   String _goalUnit = '';
-  bool _limitNotExceed = true;
 
   TimeOfDay? _reminder;
 
@@ -476,7 +475,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         _goalController.text = '';
         _unitController.text = '';
         _goalUnit = '';
-        _limitNotExceed = template.direction == HabitDirection.bad;
         break;
       case HabitMeasurement.counted:
         final v = template.goal.value ?? 1;
@@ -484,8 +482,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         _goalController.text = v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
         _unitController.text = template.unit ?? '';
         _goalUnit = template.unit ?? '';
-        _limitNotExceed = template.goal.kind == HabitGoalKind.limit ||
-            template.direction == HabitDirection.bad;
         break;
       case HabitMeasurement.timed:
         final v = template.goal.value ?? 10;
@@ -493,8 +489,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         _goalController.text = v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
         _unitController.text = template.unit ?? 'мин';
         _goalUnit = template.unit ?? 'мин';
-        _limitNotExceed = template.goal.kind == HabitGoalKind.limit &&
-            template.direction == HabitDirection.bad;
         break;
     }
 
@@ -535,15 +529,12 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       unit = _unitController.text.trim().isNotEmpty
           ? _unitController.text.trim()
           : (_goalUnit.isNotEmpty ? _goalUnit : 'раз');
-      final isLimitGoal = _limitNotExceed || direction == HabitDirection.bad;
-      goal = isLimitGoal ? HabitGoal.limit(v) : HabitGoal.target(v);
+      goal = HabitGoal.target(v);
     } else {
       // timed
       final v = (_goalValue ?? double.tryParse(_goalController.text.replaceAll(',', '.'))) ?? 15.0;
       unit = 'мин';
-      goal = direction == HabitDirection.bad && _limitNotExceed
-          ? HabitGoal.limit(v)
-          : HabitGoal.target(v);
+      goal = HabitGoal.target(v);
     }
 
     // Частота.
@@ -867,14 +858,14 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     }
 
     // Во вкладке привычек ритуал (binary) убираем — он живёт во вкладке событий.
-    // Пользователь видит только типы, а мы внутри помечаем хорошую/плохую привычку.
+    // Только good + counted/timed (счётчик и таймер).
     final options = [
       _MeasurementOption(
         type: HabitMeasurement.timed,
         direction: HabitDirection.good,
         icon: Icons.timer_outlined,
         title: 'Таймер',
-        subtitle: 'Ограничение по времени',
+        subtitle: 'Делать N минут в день',
       ),
       _MeasurementOption(
         type: HabitMeasurement.counted,
@@ -882,20 +873,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         icon: Icons.format_list_numbered,
         title: 'Счётчик',
         subtitle: 'Сделать N раз',
-      ),
-      _MeasurementOption(
-        type: HabitMeasurement.timed,
-        direction: HabitDirection.bad,
-        icon: Icons.hourglass_empty,
-        title: 'Ограничение по времени',
-        subtitle: 'Не больше N минут',
-      ),
-      _MeasurementOption(
-        type: HabitMeasurement.counted,
-        direction: HabitDirection.bad,
-        icon: Icons.trending_down,
-        title: 'Лимит',
-        subtitle: 'Не превысить N раз',
       ),
     ];
 
@@ -992,9 +969,8 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
           ],
         );
       case HabitMeasurement.counted:
-        final isBad = !isGood;
-        final label = isBad ? 'Укажите ограничение для привычки' : 'Укажите целевое количество';
-        final hint = isBad ? 'Не больше скольких раз?' : 'Например: 5';
+        final label = 'Укажите целевое количество';
+        final hint = 'Например: 5';
         final lockUnits = _lockTypeSelection && !widget.isEventMode;
         if (lockUnits) {
           // Пресет: аккуратное компактное поле по центру + подпись единиц.
@@ -1060,7 +1036,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
                 controller: _goalController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: isBad ? 'Лимит' : 'Цель',
+                  labelText: 'Цель',
                   hintText: hint,
                   suffixText: _unitController.text.isEmpty ? 'раз' : _unitController.text,
                 ),

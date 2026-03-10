@@ -10,9 +10,7 @@ import '../../../../l10n/app_localizations.dart';
 import 'add_habit_wizard.dart';
 import 'edit_habit_dialog.dart';
 
-enum MainListTab { events, habits }
-
-/// Контент главной вкладки: календарная полоса + события/привычки, блок «Новое», мотивационный текст.
+/// Контент главной вкладки: календарная полоса + все записи (привычки и события) в одном списке.
 class MainMenuContent extends StatelessWidget {
   const MainMenuContent({
     super.key,
@@ -25,12 +23,14 @@ class MainMenuContent extends StatelessWidget {
     required this.selectedDate,
     this.onSelectedDateChanged,
     this.onTodayVisibilityInStripChanged,
-    required this.currentTab,
-    this.onTabChanged,
     this.onAddPressed,
     this.onHabitTap,
     this.onLog,
+    this.onReorderActive,
   });
+
+  /// Вызывается при перетаскивании карточки (oldIndex, newIndex в списке активных).
+  final void Function(int oldIndex, int newIndex)? onReorderActive;
 
   /// Все привычки пользователя (нужны для индикаторов под календарём).
   final List<Habit> allHabits;
@@ -44,8 +44,6 @@ class MainMenuContent extends StatelessWidget {
   final DateTime selectedDate;
   final void Function(DateTime date)? onSelectedDateChanged;
   final void Function(bool visible)? onTodayVisibilityInStripChanged;
-  final MainListTab currentTab;
-  final ValueChanged<MainListTab>? onTabChanged;
   final VoidCallback? onAddPressed;
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
@@ -59,14 +57,22 @@ class MainMenuContent extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final active = habits.where((h) => h.isActive && !h.isEvent).toList();
-    final inactive = habits.where((h) => !h.isActive && !h.isEvent).toList();
+    final active = habits.where((h) => h.isActive).toList();
+    final inactive = habits.where((h) => !h.isActive).toList();
+
+    // Сортировка: невыполненные сверху, выполненные внизу (порядок внутри групп сохраняется)
+    active.sort((a, b) {
+      final aDone = todayLogs[a.id]?.isCompleted == true;
+      final bDone = todayLogs[b.id]?.isCompleted == true;
+      if (aDone == bDone) return 0;
+      return aDone ? 1 : -1;
+    });
 
     final bottomPadding = 80.0 + MediaQuery.paddingOf(context).bottom;
     final result = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _CalendarStrip(
+        _CalendarStripWithRecenter(
           isVisible: isMainMenuVisible,
           recenterTrigger: recenterCalendarTrigger,
           initialSelectedDate: selectedDate,
@@ -74,67 +80,55 @@ class MainMenuContent extends StatelessWidget {
           onDateSelected: onSelectedDateChanged,
           onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-          child: SegmentedButton<MainListTab>(
-            segments: const [
-              ButtonSegment(
-                value: MainListTab.events,
-                icon: Icon(Icons.event_note_outlined),
-                label: Text('События'),
-              ),
-              ButtonSegment(
-                value: MainListTab.habits,
-                icon: Icon(Icons.checklist_rtl),
-                label: Text('Привычки'),
-              ),
-            ],
-            selected: {currentTab},
-            onSelectionChanged: (set) {
-              if (onTabChanged != null && set.isNotEmpty) {
-                onTabChanged!(set.first);
-              }
-            },
-          ),
-        ),
         Expanded(
-          child: currentTab == MainListTab.habits
-              ? ListView(
-                  padding: EdgeInsets.only(bottom: bottomPadding),
-                  children: _buildHabitsSection(context, l, active, inactive),
-                )
-              : ListView(
-                  padding: EdgeInsets.only(bottom: bottomPadding),
-                  children: _buildEventsSection(context, l),
-                ),
+          child: ListView(
+            padding: EdgeInsets.only(bottom: bottomPadding),
+            children: _buildListSection(context, l, active, inactive),
+          ),
         ),
       ],
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ms = DateTime.now().difference(t0).inMilliseconds;
-      debugPrint('[PERF] MAIN_MENU_BUILD date=$selectedDate tab=$currentTab ms=$ms');
+      debugPrint('[PERF] MAIN_MENU_BUILD date=$selectedDate ms=$ms');
     });
     return result;
   }
 
-  List<Widget> _buildHabitsSection(
+  List<Widget> _buildListSection(
     BuildContext context,
     AppLocalizations l,
     List<Habit> active,
     List<Habit> inactive,
   ) {
-    // Лёгкий перф‑лог: сколько карточек мы вообще рисуем.
     debugPrint(
-      '[PERF] HABITS_SECTION active=${active.length} inactive=${inactive.length}',
+      '[PERF] LIST_SECTION active=${active.length} inactive=${inactive.length}',
     );
 
+    if (active.isEmpty && inactive.isEmpty) {
+      return [
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            l.noEventsForDay,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ];
+    }
+
     return [
-      _ReorderableHabitsList(
+      _ReorderableList(
         habits: active,
         todayLogs: todayLogs,
         logDate: selectedDate,
         onHabitTap: onHabitTap,
         onLog: onLog,
+        onReorder: onReorderActive,
       ),
       if (inactive.isNotEmpty) ...[
         const Divider(height: 1),
@@ -152,7 +146,7 @@ class MainMenuContent extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: inactive.length,
           separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
+          itemBuilder: (ctx, index) {
             final habit = inactive[index];
             return HabitCard(
               habit: habit,
@@ -164,63 +158,48 @@ class MainMenuContent extends StatelessWidget {
           },
         ),
       ],
-      const Divider(height: 1),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Text(
-          l.motivationalText,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-      ),
-      const SizedBox(height: 24),
     ];
   }
 
-  List<Widget> _buildEventsSection(BuildContext context, AppLocalizations l) {
-    final day = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    final eventsForDay = habits.where((h) {
-      if (!h.isEvent) return false;
-      // Для вкладки «События» показываем все записи-события,
-      // которые по расписанию попадают в выбранный день.
-      return h.isScheduledForDate(day);
-    }).toList();
-
-    debugPrint(
-      '[PERF] EVENTS_SECTION date=$day count=${eventsForDay.length}',
-    );
-
-    if (eventsForDay.isEmpty) {
-      return [
-        const SizedBox(height: 24),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            l.noEventsForDay,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ];
-    }
-
-    return [
-      _ReorderableEventsList(
-        habits: eventsForDay,
-        todayLogs: todayLogs,
-        logDate: selectedDate,
-        onHabitTap: onHabitTap,
-        onLog: onLog,
-      ),
-    ];
-  }
 }
 
 const _dayCellWidth = 52.0;
+
+/// Обёртка календарной полосы (кнопка центрирования — в хедере, слева от календаря).
+class _CalendarStripWithRecenter extends StatelessWidget {
+  const _CalendarStripWithRecenter({
+    required this.isVisible,
+    required this.recenterTrigger,
+    required this.initialSelectedDate,
+    required this.habits,
+    this.onDateSelected,
+    this.onTodayVisibilityChanged,
+  });
+
+  final bool isVisible;
+  final int recenterTrigger;
+  final DateTime initialSelectedDate;
+  final List<Habit> habits;
+  final void Function(DateTime date)? onDateSelected;
+  final void Function(bool visible)? onTodayVisibilityChanged;
+
+  static const double _stripHeight = 100.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _stripHeight,
+      child: _CalendarStrip(
+        isVisible: isVisible,
+        recenterTrigger: recenterTrigger,
+        initialSelectedDate: initialSelectedDate,
+        habits: habits,
+        onDateSelected: onDateSelected,
+        onTodayVisibilityChanged: onTodayVisibilityChanged,
+      ),
+    );
+  }
+}
 
 /// Диапазон дат как в экране календаря: январь 2022 — декабрь 2036.
 final DateTime _stripStartDate = DateTime(2022, 1, 1);
@@ -247,14 +226,15 @@ class _CalendarStrip extends StatefulWidget {
   State<_CalendarStrip> createState() => _CalendarStripState();
 }
 
-class _ReorderableHabitsList extends StatefulWidget {
-  const _ReorderableHabitsList({
+class _ReorderableList extends StatefulWidget {
+  const _ReorderableList({
     Key? key,
     required this.habits,
     required this.todayLogs,
     required this.logDate,
     this.onHabitTap,
     this.onLog,
+    this.onReorder,
   }) : super(key: key);
 
   final List<Habit> habits;
@@ -262,12 +242,13 @@ class _ReorderableHabitsList extends StatefulWidget {
   final DateTime logDate;
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
+  final void Function(int oldIndex, int newIndex)? onReorder;
 
   @override
-  State<_ReorderableHabitsList> createState() => _ReorderableHabitsListState();
+  State<_ReorderableList> createState() => _ReorderableListState();
 }
 
-class _ReorderableHabitsListState extends State<_ReorderableHabitsList> {
+class _ReorderableListState extends State<_ReorderableList> {
   late List<Habit> _items;
 
   @override
@@ -277,7 +258,7 @@ class _ReorderableHabitsListState extends State<_ReorderableHabitsList> {
   }
 
   @override
-  void didUpdateWidget(covariant _ReorderableHabitsList oldWidget) {
+  void didUpdateWidget(covariant _ReorderableList oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.habits != widget.habits) {
       _items = List<Habit>.from(widget.habits);
@@ -286,126 +267,41 @@ class _ReorderableHabitsListState extends State<_ReorderableHabitsList> {
 
   @override
   Widget build(BuildContext context) {
-    final showHandle = _items.length > 1;
+    final canReorder = _items.length > 1 && widget.onReorder != null;
+
     return ReorderableListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       buildDefaultDragHandles: false,
       itemCount: _items.length,
       onReorder: (oldIndex, newIndex) {
-        setState(() {
-          if (newIndex > oldIndex) newIndex -= 1;
-          final item = _items.removeAt(oldIndex);
-          _items.insert(newIndex, item);
-        });
+        if (newIndex > oldIndex) newIndex -= 1;
+        final item = _items.removeAt(oldIndex);
+        _items.insert(newIndex, item);
+        widget.onReorder?.call(oldIndex, newIndex);
+        setState(() {});
       },
       itemBuilder: (context, index) {
         final habit = _items[index];
-        return Column(
-          key: ValueKey(habit.id),
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            HabitCard(
-              habit: habit,
-              todayLog: widget.todayLogs[habit.id],
-              logDate: widget.logDate,
-              onTap:
-                  widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
-              onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
-              dragHandle: showHandle
-                  ? ReorderableDragStartListener(
-                      index: index,
-                      child: const Icon(
-                        Icons.drag_handle_rounded,
-                        size: 20,
-                      ),
-                    )
-                  : null,
-            ),
-            const Divider(height: 1),
-          ],
+        final card = HabitCard(
+          habit: habit,
+          todayLog: widget.todayLogs[habit.id],
+          logDate: widget.logDate,
+          onTap:
+              widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
+          onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
         );
-      },
-    );
-  }
-}
-
-class _ReorderableEventsList extends StatefulWidget {
-  const _ReorderableEventsList({
-    Key? key,
-    required this.habits,
-    required this.todayLogs,
-    required this.logDate,
-    this.onHabitTap,
-    this.onLog,
-  }) : super(key: key);
-
-  final List<Habit> habits;
-  final Map<String, HabitLog> todayLogs;
-  final DateTime logDate;
-  final void Function(Habit)? onHabitTap;
-  final void Function(HabitLog)? onLog;
-
-  @override
-  State<_ReorderableEventsList> createState() => _ReorderableEventsListState();
-}
-
-class _ReorderableEventsListState extends State<_ReorderableEventsList> {
-  late List<Habit> _items;
-
-  @override
-  void initState() {
-    super.initState();
-    _items = List<Habit>.from(widget.habits);
-  }
-
-  @override
-  void didUpdateWidget(covariant _ReorderableEventsList oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.habits != widget.habits) {
-      _items = List<Habit>.from(widget.habits);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final showHandle = _items.length > 1;
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: false,
-      itemCount: _items.length,
-      onReorder: (oldIndex, newIndex) {
-        setState(() {
-          if (newIndex > oldIndex) newIndex -= 1;
-          final item = _items.removeAt(oldIndex);
-          _items.insert(newIndex, item);
-        });
-      },
-      itemBuilder: (context, index) {
-        final habit = _items[index];
         return Column(
           key: ValueKey(habit.id),
           mainAxisSize: MainAxisSize.min,
           children: [
-            HabitCard(
-              habit: habit,
-              todayLog: widget.todayLogs[habit.id],
-              logDate: widget.logDate,
-              onTap:
-                  widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
-              onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
-              dragHandle: showHandle
-                  ? ReorderableDragStartListener(
-                      index: index,
-                      child: const Icon(
-                        Icons.drag_handle_rounded,
-                        size: 20,
-                      ),
-                    )
-                  : null,
-            ),
-            const Divider(height: 1),
+            canReorder
+                ? ReorderableDragStartListener(
+                    index: index,
+                    child: card,
+                  )
+                : card,
+            if (index < _items.length - 1) const SizedBox(height: 6),
           ],
         );
       },
@@ -415,7 +311,6 @@ class _ReorderableEventsListState extends State<_ReorderableEventsList> {
 
 class _CalendarStripState extends State<_CalendarStrip> {
   late final ScrollController _scrollController;
-  double? _lastViewportWidth;
   static final DateTime _today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   late DateTime _selectedDate;
 
@@ -525,13 +420,6 @@ class _CalendarStripState extends State<_CalendarStrip> {
     }
   }
 
-  void _scheduleRecenterIfSizeChanged(double viewportWidth) {
-    if (_lastViewportWidth != null && _lastViewportWidth != viewportWidth) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday(animate: true));
-    }
-    _lastViewportWidth = viewportWidth;
-  }
-
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
@@ -544,8 +432,6 @@ class _CalendarStripState extends State<_CalendarStrip> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final viewportWidth = constraints.maxWidth - paddingLeft - paddingRight;
-        _scheduleRecenterIfSizeChanged(viewportWidth);
         return Padding(
           padding: EdgeInsets.fromLTRB(paddingLeft, 8, paddingRight, 12),
           child: Column(
@@ -645,31 +531,31 @@ class _CalendarStripState extends State<_CalendarStrip> {
                                   ),
                               ],
                             ),
-                            if (dots.isNotEmpty) ...[
-                              const SizedBox(height: 3),
-                              SizedBox(
-                                height: 8,
-                                child: Center(
-                                  child: Wrap(
-                                    spacing: 2,
-                                    runSpacing: 2,
-                                    alignment: WrapAlignment.center,
-                                    children: dots
-                                        .map(
-                                          (c) => Container(
-                                            width: 4,
-                                            height: 4,
-                                            decoration: BoxDecoration(
-                                              color: c,
-                                              borderRadius: BorderRadius.circular(2),
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                                ),
+                            const SizedBox(height: 3),
+                            SizedBox(
+                              height: 8,
+                              child: Center(
+                                child: dots.isNotEmpty
+                                    ? Wrap(
+                                        spacing: 2,
+                                        runSpacing: 2,
+                                        alignment: WrapAlignment.center,
+                                        children: dots
+                                            .map(
+                                              (c) => Container(
+                                                width: 4,
+                                                height: 4,
+                                                decoration: BoxDecoration(
+                                                  color: c,
+                                                  borderRadius: BorderRadius.circular(2),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                      )
+                                    : const SizedBox.shrink(),
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       );

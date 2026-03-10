@@ -31,7 +31,6 @@ class HabitTemplateGoal {
     return switch (kind) {
       HabitGoalKind.noGoal => const HabitGoal.noGoal(),
       HabitGoalKind.target => HabitGoal.target(value ?? 0),
-      HabitGoalKind.limit => HabitGoal.limit(value ?? 0),
     };
   }
 
@@ -40,7 +39,6 @@ class HabitTemplateGoal {
     final kind = switch (kindStr) {
       'noGoal' => HabitGoalKind.noGoal,
       'target' => HabitGoalKind.target,
-      'limit' => HabitGoalKind.limit,
       _ => throw FormatException('Unknown goal kind: $kindStr'),
     };
     final v = json['value'];

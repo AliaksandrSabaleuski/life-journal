@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
@@ -5,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/theme_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -34,13 +37,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userName = prefs.getString(_prefsUserNameKey) ?? '';
-      _notificationsEnabled = prefs.getBool(_prefsNotificationsKey) ?? true;
-      _languageCode = prefs.getString(_prefsLanguageKey) ?? 'ru';
-      _loading = false;
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => throw TimeoutException('SharedPreferences'),
+      );
+      if (!mounted) return;
+      setState(() {
+        _userName = prefs.getString(_prefsUserNameKey) ?? '';
+        _notificationsEnabled = prefs.getBool(_prefsNotificationsKey) ?? true;
+        _languageCode = prefs.getString(_prefsLanguageKey) ?? 'ru';
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _saveUserName(String value) async {
@@ -63,14 +74,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final displayName = _userName.isEmpty ? 'Друг' : _userName;
-
-    return SafeArea(
-      child: ListView(
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: l.closeButton,
+        ),
+        title: Text(l.settingsTitle),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Card(
@@ -93,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          displayName,
+                          _userName.isEmpty ? 'Гость' : _userName,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -136,6 +152,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               );
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Тёмная тема'),
+            subtitle: const Text('Включить тёмное оформление приложения'),
+            value: ThemeService.isDarkMode,
+            onChanged: (value) {
+              ThemeService.setDarkMode(value);
             },
           ),
           const SizedBox(height: 8),
@@ -262,6 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+            ),
     );
   }
 

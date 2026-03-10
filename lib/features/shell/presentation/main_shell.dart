@@ -11,6 +11,7 @@ import 'main_menu_content.dart';
 import '../../calendar/presentation/calendar_screen.dart';
 import '../../stats/presentation/stats_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
+import '../../assistant/presentation/assistant_screen.dart';
 
 /// Оболочка приложения: AppBar (настройки, поиск, подписка) + контент по вкладке + нижняя навигация.
 class MainShell extends StatefulWidget {
@@ -36,7 +37,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   static final HabitsRepository _habitsRepository = HabitsRepository.instance;
   final HabitLogsRepository _logsRepository = HabitLogsRepository();
   bool _habitsLoaded = false;
-  MainListTab _mainTab = MainListTab.events;
   DateTime _lastToday = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   bool _didOpenAddMenuOnStart = false;
 
@@ -108,30 +108,46 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (mounted) setState(() => _dayLogs = map);
   }
 
-  Future<void> _openAddHabit() async {
-    final habit = await showAddHabitWizard(
-      context,
-      existingHabits: _habits,
-      initialDate: _selectedDate,
+  Future<void> _openAddMenu() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.track_changes_outlined),
+                title: const Text('Привычка'),
+                subtitle: const Text('Повторяющееся действие с целью'),
+                onTap: () => Navigator.pop(ctx, 'habit'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.event_outlined),
+                title: const Text('Событие'),
+                subtitle: const Text('Разовое событие за день'),
+                onTap: () => Navigator.pop(ctx, 'event'),
+              ),
+            ],
+          ),
+        ),
     );
-    if (habit != null && mounted) {
-      setState(() => _habits = [..._habits, habit]);
-      await _habitsRepository.addHabit(habit);
-      await NotificationService.instance.resyncHabitReminder(habit);
+    if (choice == null || !mounted) return;
+    if (choice == 'event') {
+      await _openAddHabit(isEventMode: true);
+    } else {
+      await _openAddHabit(isEventMode: false);
     }
   }
 
-  Future<void> _openAddEvent() async {
+  Future<void> _openAddHabit({bool isEventMode = false}) async {
     final habit = await showAddHabitWizard(
       context,
       existingHabits: _habits,
       initialDate: _selectedDate,
-      initialDirection: HabitDirection.good,
-      initialMeasurement: HabitMeasurement.binary,
-      isEventMode: true,
+      isEventMode: isEventMode,
     );
     if (habit != null && mounted) {
-      setState(() => _habits = [..._habits, habit]);
+      setState(() => _habits = [habit, ..._habits]);
       await _habitsRepository.addHabit(habit);
       await NotificationService.instance.resyncHabitReminder(habit);
     }
@@ -150,6 +166,31 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       await _habitsRepository.updateHabit(updated);
       await NotificationService.instance.resyncHabitReminder(updated);
     }
+  }
+
+  Future<void> _onReorderActive(int oldIndex, int newIndex) async {
+    final dayHabits =
+        _habits.where((h) => h.isScheduledForDate(_selectedDate)).toList();
+    var active = dayHabits.where((h) => h.isActive).toList();
+    // Та же сортировка, что и в MainMenuContent: невыполненные сверху
+    active = List.from(active)
+      ..sort((a, b) {
+        final aDone = _dayLogs[a.id]?.isCompleted == true;
+        final bDone = _dayLogs[b.id]?.isCompleted == true;
+        if (aDone == bDone) return 0;
+        return aDone ? 1 : -1;
+      });
+    if (oldIndex < 0 || oldIndex >= active.length || newIndex < 0 || newIndex >= active.length) return;
+    if (newIndex > oldIndex) newIndex -= 1;
+    final reordered = List<Habit>.from(active);
+    final item = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, item);
+    final inactive = dayHabits.where((h) => !h.isActive).toList();
+    final dayIds = dayHabits.map((h) => h.id).toSet();
+    final otherHabits = _habits.where((h) => !dayIds.contains(h.id)).toList();
+    final newHabits = [...reordered, ...inactive, ...otherHabits];
+    if (mounted) setState(() => _habits = newHabits);
+    await _habitsRepository.reorderHabits(newHabits);
   }
 
   Future<void> _onLog(HabitLog log) async {
@@ -173,11 +214,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       _didOpenAddMenuOnStart = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        if (_mainTab == MainListTab.events) {
-          await _openAddEvent();
-        } else {
-          await _openAddHabit();
-        }
+        await _openAddMenu();
       });
     }
 
@@ -207,26 +244,16 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               setState(() => _isTodayVisibleInStrip = visible);
             }
           },
-          currentTab: _mainTab,
-          onTabChanged: (tab) {
-            if (!mounted) return;
-            setState(() => _mainTab = tab);
-          },
-          onAddPressed: () {
-            if (_mainTab == MainListTab.events) {
-              _openAddEvent();
-            } else {
-              _openAddHabit();
-            }
-          },
+          onAddPressed: _openAddMenu,
           onHabitTap: _openEditHabit,
           onLog: _onLog,
+          onReorderActive: _onReorderActive,
         ),
         StatsScreen(
           habitsRepository: _habitsRepository,
           logsRepository: _logsRepository,
         ),
-        const SettingsScreen(),
+        const AssistantScreen(),
       ],
     );
 
@@ -236,38 +263,27 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
     return Scaffold(
       appBar: AppBar(
-        leading: isMainMenu
-            ? IconButton(
-                icon: const Icon(Icons.calendar_month_outlined),
-                tooltip: l.tabCalendar,
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => Scaffold(
-                        appBar: AppBar(
-                          title: Text(l.tabCalendar),
-                        ),
-                        body: CalendarScreen(
-                          selectedTabIndex: 1,
-                          calendarTabIndex: 1,
-                          habits: _habits,
-                        ),
-                      ),
-                    ),
-                  ).then((_) {
-                    if (mounted) setState(() => _recenterCalendarTrigger++);
-                  });
-                },
-              )
-            : IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: l.closeButton,
-                onPressed: () => setState(() => _currentIndex = 0),
-              ),
+        leading: IconButton(
+          icon: isMainMenu
+              ? const Icon(Icons.settings_outlined)
+              : const Icon(Icons.arrow_back),
+          tooltip: isMainMenu ? l.settingsTooltip : l.closeButton,
+          onPressed: () {
+            if (isMainMenu) {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            } else {
+              setState(() => _currentIndex = 0);
+            }
+          },
+        ),
         title: Text(
           isMainMenu
               ? monthYear
-              : (_currentIndex == 1 ? l.tabStats : l.settingsTitle),
+              : (_currentIndex == 1 ? l.tabStats : l.tabAssistant),
         ),
         centerTitle: true,
         actions: [
@@ -276,6 +292,29 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               icon: const Icon(Icons.today_outlined),
               tooltip: l.backToTodayTooltip,
               onPressed: () => setState(() => _recenterCalendarTrigger++),
+            ),
+          if (isMainMenu)
+            IconButton(
+              icon: const Icon(Icons.calendar_month_outlined),
+              tooltip: l.tabCalendar,
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(
+                        title: Text(l.tabCalendar),
+                      ),
+                      body: CalendarScreen(
+                        selectedTabIndex: 1,
+                        calendarTabIndex: 1,
+                        habits: _habits,
+                      ),
+                    ),
+                  ),
+                ).then((_) {
+                  if (mounted) setState(() => _recenterCalendarTrigger++);
+                });
+              },
             ),
           IconButton(
             icon: const Icon(Icons.card_giftcard_outlined),
@@ -333,13 +372,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               ),
               Expanded(
                 child: IconButton(
-                  onPressed: () {
-                    if (_mainTab == MainListTab.events) {
-                      _openAddEvent();
-                    } else {
-                      _openAddHabit();
-                    }
-                  },
+                  onPressed: _openAddMenu,
                   icon: const Icon(Icons.add),
                   iconSize: 32,
                   style: IconButton.styleFrom(
@@ -356,14 +389,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                     children: [
                       Icon(
                         _currentIndex == 2
-                            ? Icons.settings
-                            : Icons.settings_outlined,
+                            ? Icons.smart_toy
+                            : Icons.smart_toy_outlined,
                         color: _currentIndex == 2
                             ? Theme.of(context).colorScheme.primary
                             : null,
                       ),
                       Text(
-                        l.settingsTooltip,
+                        l.tabAssistant,
                         style: TextStyle(
                           fontSize: 12,
                           color: _currentIndex == 2

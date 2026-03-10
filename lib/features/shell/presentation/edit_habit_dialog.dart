@@ -29,7 +29,6 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
   late IconData _icon;
   late Color _color;
 
-  late bool _limitNotExceed;
   late bool _isOneTime;
   late Set<int> _repeatWeekdays;
   DateTime? _startDate;
@@ -58,10 +57,6 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
     final v = h.goal.value;
     _goalController = TextEditingController(text: v != null ? v.toInt().toString() : '');
     _unitController = TextEditingController(text: h.unit ?? (h.measurement == HabitMeasurement.timed ? 'мин' : 'раз'));
-
-    _limitNotExceed = h.measurement == HabitMeasurement.counted
-        ? h.goal.kind == HabitGoalKind.limit
-        : h.direction == HabitDirection.bad;
 
     _reminder = h.reminder;
 
@@ -326,14 +321,11 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                       } else if (h.measurement == HabitMeasurement.counted) {
                         final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 1.0;
                         unit = _unitController.text.trim().isNotEmpty ? _unitController.text.trim() : 'раз';
-                        final isLimitGoal = _limitNotExceed || h.direction == HabitDirection.bad;
-                        goal = isLimitGoal ? HabitGoal.limit(v) : HabitGoal.target(v);
+                        goal = HabitGoal.target(v);
                       } else {
                         final v = double.tryParse(_goalController.text.replaceAll(',', '.')) ?? 15.0;
                         unit = 'мин';
-                        goal = h.direction == HabitDirection.bad && _limitNotExceed
-                            ? HabitGoal.limit(v)
-                            : HabitGoal.target(v);
+                        goal = HabitGoal.target(v);
                       }
 
                       final now = DateTime.now();
@@ -405,7 +397,6 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
     }
 
     final isTimed = h.measurement == HabitMeasurement.timed;
-    final isBad = h.direction == HabitDirection.bad;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -413,7 +404,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
         Text(
           isTimed
               ? 'Укажите желаемое время'
-              : (isBad ? 'Укажите ограничение для привычки' : 'Укажите целевое количество'),
+              : 'Укажите целевое количество',
           style: theme.textTheme.titleSmall,
         ),
         const SizedBox(height: 8),
@@ -421,7 +412,7 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
           controller: _goalController,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            labelText: isTimed ? 'Минут в день' : (isBad ? 'Лимит' : 'Цель'),
+            labelText: isTimed ? 'Минут в день' : 'Цель',
             suffixText: isTimed
                 ? 'мин'
                 : (_unitController.text.isEmpty ? 'раз' : _unitController.text),

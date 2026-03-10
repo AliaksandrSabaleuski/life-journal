@@ -1,18 +1,33 @@
 import '../models/habit_log.dart';
 import '../models/habit.dart';
+import '../persistence/habit_logs_persistence.dart';
 
-/// Репозиторий логов выполнения привычек. Пока в памяти.
+/// Репозиторий логов выполнения привычек.
+/// Хранит данные в памяти и сохраняет в SharedPreferences.
 class HabitLogsRepository {
   HabitLogsRepository();
 
   final List<HabitLog> _logs = [];
+  bool _loaded = false;
+
+  Future<void> _ensureLoaded() async {
+    if (!_loaded) {
+      final loaded = await HabitLogsPersistence.load();
+      _logs.clear();
+      _logs.addAll(loaded);
+      _loaded = true;
+    }
+  }
+
+  Future<void> _persist() async {
+    await HabitLogsPersistence.save(_logs);
+  }
 
   DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
   double _goalValue(Habit habit) {
     switch (habit.goal.kind) {
       case HabitGoalKind.target:
-      case HabitGoalKind.limit:
         return habit.goal.value ?? 1.0;
       case HabitGoalKind.noGoal:
         return 1.0;
@@ -27,7 +42,7 @@ class HabitLogsRepository {
   }
 
   Future<List<HabitLog>> getLogsForHabit(String habitId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await _ensureLoaded();
     return _logs.where((l) => l.habitId == habitId).toList()
       ..sort((a, b) => a.date.compareTo(b.date));
   }
@@ -37,16 +52,19 @@ class HabitLogsRepository {
   }
 
   Future<HabitLog?> getLogForDate(String habitId, DateTime date) async {
-    await Future<void>.delayed(const Duration(milliseconds: 30));
+    await _ensureLoaded();
     final day = _dateOnly(date);
     return _findLog(habitId, day);
   }
 
   Future<void> addLog(HabitLog log) async {
+    await _ensureLoaded();
     _logs.add(log);
+    await _persist();
   }
 
   Future<void> updateOrAddLog(HabitLog log) async {
+    await _ensureLoaded();
     final i = _logs.indexWhere((l) =>
         l.habitId == log.habitId &&
         l.dateOnly.isAtSameMomentAs(log.dateOnly));
@@ -55,6 +73,7 @@ class HabitLogsRepository {
     } else {
       _logs.add(log);
     }
+    await _persist();
   }
 
   /// Закрывает прошедшие дни (строго раньше сегодняшнего): если не отмечено и
@@ -68,6 +87,7 @@ class HabitLogsRepository {
     DateTime? now,
     int maxDaysBack = 60,
   }) async {
+    await _ensureLoaded();
     final n = now ?? DateTime.now();
     final today = _dateOnly(n);
     final start = today.subtract(Duration(days: maxDaysBack));
@@ -99,13 +119,7 @@ class HabitLogsRepository {
           achieved = existing?.isCompleted == true;
         } else {
           final v = value ?? 0.0;
-          if (habit.goal.kind == HabitGoalKind.limit) {
-            // Для лимитов отсутствие значения = 0 (не превысили).
-            achieved = v <= goal;
-          } else {
-            // Для целей отсутствие значения = 0 (не достигли).
-            achieved = v >= goal;
-          }
+          achieved = v >= goal;
         }
 
         final finalized = HabitLog(
@@ -120,6 +134,7 @@ class HabitLogsRepository {
         d = d.add(const Duration(days: 1));
       }
     }
+    await _persist();
   }
 
   Future<List<HabitLog>> getLogsForHabitInRange(
@@ -127,6 +142,7 @@ class HabitLogsRepository {
     DateTime start,
     DateTime end,
   ) async {
+    await _ensureLoaded();
     final startDay = DateTime(start.year, start.month, start.day);
     final endDay = DateTime(end.year, end.month, end.day);
     return _logs.where((l) {
