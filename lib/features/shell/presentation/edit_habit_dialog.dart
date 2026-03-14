@@ -26,6 +26,8 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
   late TextEditingController _nameController;
   late TextEditingController _goalController;
   late TextEditingController _unitController;
+  final ScrollController _iconScrollController = ScrollController();
+  final ScrollController _colorScrollController = ScrollController();
   late IconData _icon;
   late Color _color;
 
@@ -86,6 +88,8 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
     _nameController.dispose();
     _goalController.dispose();
     _unitController.dispose();
+    _iconScrollController.dispose();
+    _colorScrollController.dispose();
     super.dispose();
   }
 
@@ -146,17 +150,24 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 56,
-                      child: ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(
-                          dragDevices: {
-                            PointerDeviceKind.touch,
-                            PointerDeviceKind.mouse,
-                          },
-                        ),
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: _icons.length,
+                      child: ClipRect(
+                        child: Scrollbar(
+                        controller: _iconScrollController,
+                        thumbVisibility: false,
+                        trackVisibility: false,
+                        child: ScrollConfiguration(
+                          behavior: ScrollConfiguration.of(context).copyWith(
+                            dragDevices: {
+                              PointerDeviceKind.touch,
+                              PointerDeviceKind.mouse,
+                            },
+                          ),
+                          child: ListView.separated(
+                            controller: _iconScrollController,
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            itemCount: _icons.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (_, index) {
                             final icon = _icons[index];
@@ -181,22 +192,31 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                         ),
                       ),
                     ),
+                    ),
+                    ),
                     const SizedBox(height: 20),
                     Text('Цвет (опционально)', style: theme.textTheme.titleSmall),
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 40,
-                      child: ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(
-                          dragDevices: {
-                            PointerDeviceKind.touch,
-                            PointerDeviceKind.mouse,
-                          },
-                        ),
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: _colors.length,
+                      child: ClipRect(
+                        child: Scrollbar(
+                        controller: _colorScrollController,
+                        thumbVisibility: false,
+                        trackVisibility: false,
+                        child: ScrollConfiguration(
+                          behavior: ScrollConfiguration.of(context).copyWith(
+                            dragDevices: {
+                              PointerDeviceKind.touch,
+                              PointerDeviceKind.mouse,
+                            },
+                          ),
+                          child: ListView.separated(
+                            controller: _colorScrollController,
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            itemCount: _colors.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (_, index) {
                             final c = _colors[index];
@@ -228,6 +248,8 @@ class _EditHabitDialogState extends State<EditHabitDialog> {
                           },
                         ),
                       ),
+                    ),
+                    ),
                     ),
                     const SizedBox(height: 20),
                     _buildGoalSection(theme, h, isBinary),

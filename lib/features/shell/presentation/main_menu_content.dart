@@ -81,9 +81,14 @@ class MainMenuContent extends StatelessWidget {
           onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
         ),
         Expanded(
-          child: ListView(
-            padding: EdgeInsets.only(bottom: bottomPadding),
-            children: _buildListSection(context, l, active, inactive),
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              scrollbars: false,
+            ),
+            child: ListView(
+              padding: EdgeInsets.only(bottom: bottomPadding),
+              children: _buildListSection(context, l, active, inactive),
+            ),
           ),
         ),
       ],
@@ -327,9 +332,12 @@ class _CalendarStripState extends State<_CalendarStrip> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  /// Порядок маркеров фиксирован по id, не зависит от сортировки списка карточек.
   List<Color> _indicatorColorsFor(DateTime date, ThemeData theme) {
+    final sorted = List<Habit>.from(widget.habits)
+      ..sort((a, b) => a.id.compareTo(b.id));
     final result = <Color>[];
-    for (final h in widget.habits) {
+    for (final h in sorted) {
       if (!h.isActive) continue;
       if (!h.isScheduledForDate(date)) continue;
       result.add(h.color);
@@ -571,7 +579,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
   }
 }
 
-/// Открыть визард добавления привычки (4 шага). Возвращает [Habit] или null.
+/// Открыть визард добавления привычки/действия (4 шага). Возвращает [Habit] или null.
 Future<Habit?> showAddHabitWizard(
   BuildContext context, {
   DateTime? initialDate,
@@ -579,6 +587,7 @@ Future<Habit?> showAddHabitWizard(
   HabitMeasurement? initialMeasurement,
   int startStep = 0,
   bool isEventMode = false,
+  String? initialCreationSource,
   List<Habit> existingHabits = const [],
 }) {
   return showDialog<Habit>(
@@ -589,6 +598,7 @@ Future<Habit?> showAddHabitWizard(
       initialMeasurement: initialMeasurement,
       startStep: startStep,
       isEventMode: isEventMode,
+      initialCreationSource: initialCreationSource,
       existingHabits: existingHabits,
     ),
   );

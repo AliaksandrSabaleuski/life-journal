@@ -9,6 +9,23 @@ import '../../../../core/catalog/icon_registry.dart';
 import '../../../../core/models/habit.dart';
 import '../../../../l10n/app_localizations.dart';
 
+/// Акцент макета: тёмный magenta-red.
+const _wizardAccent = Color(0xFFD81B60);
+
+/// Минимальная яркость для чипов дней и пресетов (Pink 800).
+const _chipAccent = Color(0xFFAD1457);
+
+/// Поведение скролла без отображения скроллбара.
+class _NoScrollbarBehavior extends ScrollBehavior {
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) =>
+      child;
+}
+
 /// Онбординг создания привычки:
 /// 1) Направление → 2) Название/иконка/цвет → 3) Тип + цель/напоминание → 4) Частота.
 class AddHabitWizard extends StatefulWidget {
@@ -19,6 +36,7 @@ class AddHabitWizard extends StatefulWidget {
     this.initialMeasurement,
     this.startStep = 0,
     this.isEventMode = false,
+    this.initialCreationSource,
     this.existingHabits = const [],
   });
 
@@ -38,6 +56,10 @@ class AddHabitWizard extends StatefulWidget {
   /// Режим «события»: без выбора характера и типа, всегда хороший ритуал.
   final bool isEventMode;
 
+  /// Выбор из меню +: 'preset' (преднастроенные действия) или 'custom' (кастомное).
+  /// Если задан — пропускаем выбор привычка/событие, идём сразу к каталогу или к настройке.
+  final String? initialCreationSource;
+
   /// Уже созданные привычки/события — шаблоны с таким templateId не показываем в списке.
   final List<Habit> existingHabits;
 
@@ -49,6 +71,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   late int _step;
 
   HabitsCatalog? _catalog;
+  String? _catalogLoadError;
   String? _selectedTemplateId;
   bool _isCatalogLoading = false;
   bool _lockTypeSelection = false;
@@ -56,6 +79,8 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   final _nameController = TextEditingController();
   final _goalController = TextEditingController();
   final _unitController = TextEditingController();
+  final _iconScrollController = ScrollController();
+  final _colorScrollController = ScrollController();
 
   IconData _icon = Icons.star_rounded;
   Color _color = Colors.green;
@@ -102,16 +127,28 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
 
   CreationSource _source = CreationSource.custom;
 
+  bool get _isUnifiedAddFlow =>
+      widget.initialCreationSource == null && !widget.isEventMode;
+
   @override
   void initState() {
     super.initState();
     _direction = widget.initialDirection;
     _measurement = widget.initialMeasurement;
-    _step = widget.startStep;
-    // По умолчанию для событий выбираем преднастроенные события,
-    // для привычек — преднастроенные привычки.
-    _source =
-        widget.isEventMode ? CreationSource.presetEvent : CreationSource.presetHabit;
+    if (widget.initialCreationSource == 'preset') {
+      _source = CreationSource.presetAction;
+      _step = widget.startStep;
+    } else if (widget.initialCreationSource == 'custom') {
+      _source = CreationSource.custom;
+      _step = 1;
+    } else if (_isUnifiedAddFlow) {
+      _source = CreationSource.presetAction;
+      _step = widget.startStep;
+    } else {
+      _source =
+          widget.isEventMode ? CreationSource.presetEvent : CreationSource.presetHabit;
+      _step = widget.startStep;
+    }
     _loadCatalog();
   }
 
@@ -130,10 +167,29 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       case CreationSource.presetEvent:
         list = catalog.events.toList();
         break;
+      case CreationSource.presetAction:
+        list = catalog.items;
+        break;
       case CreationSource.custom:
         return const [];
     }
     return list.where((t) => !usedTemplateIds.contains(t.templateId)).toList();
+  }
+
+  /// Шаблон по id из полного каталога (без фильтра «уже используется»).
+  HabitTemplate? _resolveTemplateById(String? id) {
+    if (id == null) return null;
+    for (final t in _catalog?.items ?? const []) {
+      if (t.templateId == id) return t;
+    }
+    return null;
+  }
+
+  /// Для шага 0: шаблоны для выбора (если все «использованы» — показываем весь каталог).
+  List<HabitTemplate> _effectivePresetTemplates() {
+    final presets = _templatesForCurrentSource();
+    if (presets.isNotEmpty) return presets;
+    return _catalog?.items ?? const [];
   }
 
   Widget _buildStepSource(
@@ -142,11 +198,53 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     AppLocalizations l,
   ) {
     final isEvent = widget.isEventMode;
-    final presets = _templatesForCurrentSource();
+    final presets = _source == CreationSource.presetAction
+        ? _effectivePresetTemplates()
+        : _templatesForCurrentSource();
+    final fromAddMenu = widget.initialCreationSource != null;
+    final unified = _isUnifiedAddFlow;
 
     final options = <Widget>[];
 
-    if (!isEvent) {
+    // Унифицированный флоу: Преднастроенные | Кастомное
+    if (unified) {
+      options.add(
+        RadioListTile<CreationSource>(
+          value: CreationSource.presetAction,
+          groupValue: _source,
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _source = v;
+              _lockTypeSelection = false;
+              _selectedTemplateId = null;
+              _ensurePresetSelectedForSource();
+            });
+          },
+          title: const Text('Преднастроенные действия'),
+          subtitle: const Text('Выбрать из каталога'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      );
+      options.add(
+        RadioListTile<CreationSource>(
+          value: CreationSource.custom,
+          groupValue: _source,
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _source = v;
+              _lockTypeSelection = false;
+              // Сохраняем _selectedTemplateId — дропдаун преднастроенных показывает прежний выбор
+              _ensurePresetSelectedForSource();
+            });
+          },
+          title: const Text('Кастомное'),
+          subtitle: const Text('Настроить действие с нуля'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      );
+    } else if (!fromAddMenu && !isEvent) {
       options.add(
         RadioListTile<CreationSource>(
           value: CreationSource.presetHabit,
@@ -183,7 +281,8 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
           contentPadding: EdgeInsets.zero,
         ),
       );
-    } else {
+    }
+    if (!fromAddMenu && isEvent && !unified) {
       options.add(
         RadioListTile<CreationSource>(
           value: CreationSource.presetEvent,
@@ -204,92 +303,178 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       );
     }
 
-    options.add(
-      RadioListTile<CreationSource>(
-        value: CreationSource.custom,
-        groupValue: _source,
-        onChanged: (v) {
-          if (v == null) return;
-          setState(() {
-            _source = v;
-            _lockTypeSelection = false;
-            _selectedTemplateId = null;
-            _ensurePresetSelectedForSource();
-          });
-        },
-        title: const Text('Свое'),
-        subtitle: const Text('Настроить вручную (текущий флоу)'),
-        contentPadding: EdgeInsets.zero,
-      ),
-    );
+    if (!fromAddMenu && !unified) {
+      options.add(
+        RadioListTile<CreationSource>(
+          value: CreationSource.custom,
+          groupValue: _source,
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _source = v;
+              _lockTypeSelection = false;
+              _selectedTemplateId = null;
+              _ensurePresetSelectedForSource();
+            });
+          },
+          title: const Text('Свое'),
+          subtitle: const Text('Настроить вручную (текущий флоу)'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      );
+    }
 
-    final dropdown = (_source == CreationSource.custom)
-        ? const SizedBox.shrink()
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_isCatalogLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (presets.isEmpty)
-                const Text('Каталог пуст — добавьте шаблоны в конфиг.')
-              else
-                DropdownButtonFormField<String>(
-                  key: ValueKey(_source),
-                  value: _selectedTemplateId,
-                  items: presets
-                      .map(
-                        (t) => DropdownMenuItem<String>(
-                          value: t.templateId,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (IconRegistry.byKey(t.iconKey) != null) ...[
-                                Icon(
-                                  IconRegistry.byKey(t.iconKey),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              Flexible(
-                                child: Text(
-                                  t.name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() => _selectedTemplateId = v);
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Выберите из преднастроенных',
+    Widget buildDropdown({bool enabled = true}) {
+      final catalogItems = _catalog?.items ?? const [];
+      final hasCatalogItems = catalogItems.isNotEmpty;
+      final resolved = _selectedTemplateId != null ? _resolveTemplateById(_selectedTemplateId) : null;
+      final displayPresets = presets.isNotEmpty
+          ? presets
+          : (resolved != null ? [resolved] : hasCatalogItems ? catalogItems : <HabitTemplate>[]);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isCatalogLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_catalogLoadError != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Ошибка загрузки каталога',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
                   ),
                 ),
-              const SizedBox(height: 16),
-            ],
-          );
+                const SizedBox(height: 8),
+                FilledButton.tonal(
+                  onPressed: () => _loadCatalog(),
+                  child: const Text('Повторить'),
+                ),
+              ],
+            )
+          else if (displayPresets.isEmpty)
+            hasCatalogItems
+                ? const SizedBox.shrink()
+                : Text(
+                    'Каталог пуст — добавьте шаблоны в конфиг.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  )
+          else
+            _TemplatePicker(
+              presets: displayPresets,
+              selectedTemplateId: _selectedTemplateId,
+              onSelected: (id) => setState(() => _selectedTemplateId = id),
+              labelText: 'Выберите действие',
+              enabled: enabled,
+            ),
+          const SizedBox(height: 16),
+        ],
+      );
+    }
+
+    final dropdown = _source == CreationSource.custom && !unified
+        ? const SizedBox.shrink()
+        : buildDropdown(enabled: _source == CreationSource.presetAction);
+
+    if (unified) {
+      final isPreset = _source == CreationSource.presetAction;
+      final catalogItems = _catalog?.items ?? const [];
+      final hasCatalogItems = catalogItems.isNotEmpty;
+      final resolved =
+          _selectedTemplateId != null ? _resolveTemplateById(_selectedTemplateId) : null;
+      final effectivePresets = presets.isNotEmpty
+          ? presets
+          : (resolved != null ? [resolved] : hasCatalogItems ? catalogItems : <HabitTemplate>[]);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _DarkSourceBlock(
+            isSelected: isPreset,
+            onTap: () {
+              setState(() {
+                _source = CreationSource.presetAction;
+                _lockTypeSelection = false;
+                _ensurePresetSelectedForSource();
+              });
+            },
+            icon: Icons.grid_view_rounded,
+            title: 'Преднастроенные действия',
+            subtitle: 'Выбрать из каталога',
+            child: _DarkTemplatePicker(
+              presets: effectivePresets,
+              selectedTemplateId: _selectedTemplateId,
+              onSelected: (id) => setState(() => _selectedTemplateId = id),
+              enabled: isPreset,
+              isLoading: _isCatalogLoading,
+              loadError: _catalogLoadError,
+              onRetry: _loadCatalog,
+            ),
+          ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            height: 1,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.pinkAccent, Colors.purpleAccent],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _DarkSourceBlock(
+            isSelected: !isPreset,
+            onTap: () {
+              setState(() {
+                _source = CreationSource.custom;
+                _lockTypeSelection = false;
+                _ensurePresetSelectedForSource();
+              });
+            },
+            icon: Icons.add_circle_outline,
+            title: 'Кастомное',
+            subtitle: 'Настроить действие с нуля',
+            child: null,
+          ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Выберите из преднастроенных',
+          fromAddMenu && _source == CreationSource.presetAction
+              ? 'Выберите действие'
+              : 'Выберите из преднастроенных',
           style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         dropdown,
-        const SizedBox(height: 8),
-        Text(
-          'Или выберите способ создания ниже. Можно взять готовый шаблон из каталога или настроить свою привычку с нуля.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        if (!fromAddMenu) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Или выберите способ создания ниже. Можно взять готовый шаблон из каталога или настроить свою привычку с нуля.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        ...options,
+          const SizedBox(height: 16),
+          ...options,
+        ],
       ],
     );
   }
@@ -299,6 +484,8 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     _nameController.dispose();
     _goalController.dispose();
     _unitController.dispose();
+    _iconScrollController.dispose();
+    _colorScrollController.dispose();
     super.dispose();
   }
 
@@ -336,6 +523,19 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         _applyPresetToState(template);
         setState(() {
           _step = 4; // сразу к периоду действия
+        });
+        return;
+      }
+
+      // Преднастроенные действия (каталог привычек + событий): по типу шаблона
+      if (_source == CreationSource.presetAction) {
+        final templates = _effectivePresetTemplates();
+        if (templates.isEmpty) return;
+        final template = _resolveCurrentTemplate(templates);
+        _applyPresetToState(template);
+        setState(() {
+          _lockTypeSelection = true;
+          _step = template.isEvent ? 4 : 2;
         });
         return;
       }
@@ -380,14 +580,25 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   }
 
   Future<void> _loadCatalog() async {
-    setState(() => _isCatalogLoading = true);
+    setState(() {
+      _isCatalogLoading = true;
+      _catalogLoadError = null;
+    });
     try {
       final catalog = await HabitsCatalog.loadFromAsset();
       if (!mounted) return;
       setState(() {
         _catalog = catalog;
+        _catalogLoadError = null;
         _ensurePresetSelectedForSource();
       });
+    } catch (e, st) {
+      if (!mounted) return;
+      setState(() {
+        _catalogLoadError = e.toString();
+        _catalog = null;
+      });
+      debugPrint('Catalog load failed: $e\n$st');
     } finally {
       if (mounted) {
         setState(() => _isCatalogLoading = false);
@@ -395,20 +606,91 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     }
   }
 
+  Widget _buildOptionCard({
+    required ThemeData theme,
+    required CreationSource source,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+  }) {
+    final isSelected = _source == source;
+    final cardColor = theme.colorScheme.surfaceContainerHighest;
+    final borderSide = isSelected
+        ? BorderSide(color: color.withValues(alpha: 0.7), width: 1.5)
+        : BorderSide.none;
+    return Material(
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: borderSide,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: () {
+          setState(() {
+            _source = source;
+            _lockTypeSelection = false;
+            // При переключении на «Кастомное» сохраняем выбор в дропдауне преднастроенных
+            if (source != CreationSource.custom) _selectedTemplateId = null;
+            _ensurePresetSelectedForSource();
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _ensurePresetSelectedForSource() {
-    if (_source == CreationSource.custom) {
-      _selectedTemplateId = null;
-      return;
-    }
-    final presets = _templatesForCurrentSource();
-    if (presets.isEmpty) {
+    // При выборе «Кастомное» сохраняем выбранный шаблон в дропдауне преднастроенных.
+    if (_source == CreationSource.custom) return;
+    final templates = _effectivePresetTemplates();
+    if (templates.isEmpty) {
       _selectedTemplateId = null;
       return;
     }
     final hasCurrent =
-        _selectedTemplateId != null && presets.any((t) => t.templateId == _selectedTemplateId);
+        _selectedTemplateId != null && templates.any((t) => t.templateId == _selectedTemplateId);
     if (!hasCurrent) {
-      _selectedTemplateId = presets.first.templateId;
+      _selectedTemplateId = templates.first.templateId;
     }
   }
 
@@ -562,8 +844,12 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       }
     }
 
-    final isEventFlag =
-        widget.isEventMode || _source == CreationSource.presetEvent;
+    final template = _source == CreationSource.presetAction
+        ? _resolveCurrentTemplate(_templatesForCurrentSource())
+        : null;
+    final isEventFlag = widget.isEventMode ||
+        _source == CreationSource.presetEvent ||
+        (template?.isEvent ?? false);
 
     final habit = Habit(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -589,8 +875,10 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     switch (_step) {
       case 0:
         if (_source == CreationSource.custom) return true;
-        if (_isCatalogLoading) return false;
-        return _templatesForCurrentSource().isNotEmpty;
+        if (_isCatalogLoading || _catalogLoadError != null) return false;
+        return _source == CreationSource.presetAction
+            ? _effectivePresetTemplates().isNotEmpty
+            : _templatesForCurrentSource().isNotEmpty;
       case 1:
         // Шаг 1 всегда про название и оформление.
         return _nameController.text.trim().isNotEmpty;
@@ -618,63 +906,126 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     }
   }
 
+  static const _popupAccent = _wizardAccent;
+  static const _popupAccentSecondary = Colors.purpleAccent;
+  static const _popupBackground = Color(0xFF1a1a2e);
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 640),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        colorScheme: ColorScheme.dark(
+          surface: _popupBackground,
+          onSurface: Colors.white,
+          primary: _popupAccent,
+          onPrimary: Colors.white,
+          outline: Colors.white,
+        ),
+      ),
+      child: Dialog(
+        backgroundColor: _popupBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _stepTitle,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 48),
+                  ],
+                ),
               ),
-              title: Text(_stepTitle),
-              centerTitle: true,
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: switch (_step) {
-                  0 => _buildStepSource(context, theme, l),
-                  // Для привычек: 1 — имя, 2 — тип, 3 — частота.
-                  // Для событий: стартуем сразу со 2-го шага (описание), 4 — частота.
-                  1 => _buildStepBasic(theme),
-                  2 => widget.isEventMode
-                      ? _buildStepBasic(theme)
-                      : _buildStepTypeAndGoal(context, theme, l),
-                  3 => widget.isEventMode
-                      ? const SizedBox.shrink()
-                      : _buildStepFrequency(theme),
-                  4 => _buildStepFrequency(theme),
-                  _ => const SizedBox.shrink(),
-                },
+              Container(
+                height: 1,
+                color: Colors.white24,
               ),
-            ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: _back,
-                    child: Text(_step > 0 ? 'Назад' : l.cancelButton),
+              Flexible(
+                child: ScrollConfiguration(
+                  behavior: _NoScrollbarBehavior(),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 380),
+                    child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      _step == 0 ? 0 : 20,
+                      12,
+                      _step == 0 ? 0 : 20,
+                      12,
+                    ),
+                    child: switch (_step) {
+                    0 => _buildStepSource(context, theme, l),
+                    1 => _buildStepBasic(theme),
+                    2 => widget.isEventMode
+                        ? _buildStepBasic(theme)
+                        : _buildStepTypeAndGoal(context, theme, l),
+                    3 => widget.isEventMode
+                        ? const SizedBox.shrink()
+                        : _buildStepFrequency(theme),
+                    4 => _buildStepFrequency(theme),
+                    _ => const SizedBox.shrink(),
+                  },
                   ),
-                  FilledButton(
-                    onPressed: _canGoNext ? _next : null,
-                    child: Text(_step == 4 ? l.saveButton : 'Далее'),
-                  ),
-                ],
+                ),
               ),
             ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _back,
+                          child: Text(
+                            _step > 0 ? 'Назад' : l.cancelButton,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: _GradientButton(
+                          onPressed: _canGoNext ? _next : null,
+                          child: Text(_step == 4 ? l.saveButton : 'Далее'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -683,6 +1034,9 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   String get _stepTitle {
     switch (_step) {
       case 0:
+        if (widget.initialCreationSource == 'preset' || _isUnifiedAddFlow) {
+          return 'Новое действие';
+        }
         return 'Как создать?';
       case 1:
         return widget.isEventMode ? 'Описание события' : 'Шаг 1: Описание';
@@ -699,94 +1053,154 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
   }
 
   Widget _buildStepBasic(ThemeData theme) {
+    const labelStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(
+          'Название привычки',
+          style: labelStyle,
+        ),
+        const SizedBox(height: 8),
         TextField(
           controller: _nameController,
-          decoration: const InputDecoration(
-            labelText: 'Название привычки',
-            hintText: 'Например: Заправить кровать',
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF2d2d3d),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.pinkAccent),
+            ),
           ),
           textCapitalization: TextCapitalization.sentences,
           onChanged: (_) => setState(() {}),
         ),
+        const SizedBox(height: 16),
+        Container(
+          height: 1,
+          color: Colors.white24,
+        ),
         const SizedBox(height: 20),
-        Text('Иконка', style: theme.textTheme.titleSmall),
+        Text('Иконка', style: labelStyle),
         const SizedBox(height: 8),
         SizedBox(
           height: 56,
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              dragDevices: {
-                PointerDeviceKind.touch,
-                PointerDeviceKind.mouse,
-              },
-            ),
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: _presetIcons.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, index) {
-                final icon = _presetIcons[index];
-                final selected = _icon == icon;
-                return GestureDetector(
-                  onTap: () => setState(() => _icon = icon),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: _color.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: selected ? theme.colorScheme.primary : Colors.transparent,
-                        width: 2,
+          child: ClipRect(
+            child: Scrollbar(
+              controller: _iconScrollController,
+              thumbVisibility: false,
+              trackVisibility: false,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                  },
+                ),
+                child: ListView.separated(
+                  controller: _iconScrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemCount: _presetIcons.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, index) {
+                    final icon = _presetIcons[index];
+                    final selected = _icon == icon;
+                    return GestureDetector(
+                      onTap: () => setState(() => _icon = icon),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? _color.withValues(alpha: 0.2)
+                              : const Color(0xFF2d2d3d),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selected
+                                ? Colors.pinkAccent
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: selected ? _color : Colors.white54,
+                          size: 24,
+                        ),
                       ),
-                    ),
-                    child: Icon(icon, color: _color, size: 24),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        Container(
+          height: 1,
+          color: Colors.white24,
+        ),
         const SizedBox(height: 20),
-        Text('Цвет (опционально)', style: theme.textTheme.titleSmall),
+        Text('Цвет', style: labelStyle),
         const SizedBox(height: 8),
         SizedBox(
           height: 40,
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              dragDevices: {
-                PointerDeviceKind.touch,
-                PointerDeviceKind.mouse,
-              },
-            ),
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: _presetColors.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, index) {
-                final c = _presetColors[index];
-                final selected = _color == c;
-                return GestureDetector(
-                  onTap: () => setState(() => _color = c),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: selected ? theme.colorScheme.primary : Colors.transparent,
-                        width: 3,
+          child: ClipRect(
+            child: Scrollbar(
+              controller: _colorScrollController,
+              thumbVisibility: false,
+              trackVisibility: false,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                  },
+                ),
+                child: ListView.separated(
+                  controller: _colorScrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemCount: _presetColors.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, index) {
+                    final c = _presetColors[index];
+                    final selected = _color == c;
+                    return GestureDetector(
+                      onTap: () => setState(() => _color = c),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selected
+                                ? Colors.white
+                                : Colors.transparent,
+                            width: 3,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),
@@ -1130,6 +1544,124 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     );
   }
 
+  static const _frequencyLabelStyle = TextStyle(
+    color: Colors.white70,
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+  );
+
+  Widget _buildDateRow({
+    required String label,
+    required String dateText,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Text(label, style: const TextStyle(color: Colors.white70)),
+            const Spacer(),
+            Text(dateText, style: const TextStyle(color: Colors.white, fontSize: 14)),
+            const SizedBox(width: 8),
+            const Icon(Icons.calendar_today, color: _wizardAccent, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFrequencyPill({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    const borderSide = BorderSide(color: Color(0xFFFFE4EC), width: 1);
+    return GestureDetector(
+      onTap: onTap,
+      child: RepaintBoundary(
+        child: Material(
+          color: selected ? _chipAccent : Colors.transparent,
+          shape: StadiumBorder(
+            side: selected ? BorderSide.none : borderSide,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : _chipAccent,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetPill({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    bool isMuted = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: selected
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: _chipAccent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            )
+          : isMuted
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white38),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                )
+              : Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected ? _chipAccent : Colors.transparent,
+                    border: Border.all(color: _chipAccent),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: selected ? Colors.white : _chipAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+    );
+  }
+
   Widget _buildStepFrequency(ThemeData theme) {
     final weekdayLabels = const ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
     final now = DateTime.now();
@@ -1137,21 +1669,25 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         ? DateTime(widget.initialDate!.year, widget.initialDate!.month, widget.initialDate!.day)
         : DateTime(now.year, now.month, now.day);
     final startDate = _startDate ?? baseDate;
+    final endDate = _endDate ?? startDate.add(const Duration(days: 7));
+    final startStr =
+        '${startDate.day.toString().padLeft(2, '0')}.${startDate.month.toString().padLeft(2, '0')}.${startDate.year}';
+    final endStr =
+        '${endDate.day.toString().padLeft(2, '0')}.${endDate.month.toString().padLeft(2, '0')}.${endDate.year}';
+
+    final isWeekdays = _repeatWeekdays.length == 5 &&
+        _repeatWeekdays.containsAll({1, 2, 3, 4, 5});
+    final isWeekends = _repeatWeekdays.length == 2 &&
+        _repeatWeekdays.containsAll({6, 7});
+    final isEveryDay = _repeatWeekdays.length == 7;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (!_isOneTime) ...[
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.flag_outlined),
-            title: const Text('Дата начала'),
-            subtitle: Text(
-              '${startDate.day.toString().padLeft(2, '0')}.${startDate.month.toString().padLeft(2, '0')}.${startDate.year}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+          _buildDateRow(
+            label: 'Дата начала',
+            dateText: startStr,
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
@@ -1162,7 +1698,6 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
               if (picked != null && mounted) {
                 setState(() {
                   _startDate = DateTime(picked.year, picked.month, picked.day);
-                  // Если дата окончания раньше старта — сдвигаем конец на месяц вперёд.
                   if (_endDate != null && _endDate!.isBefore(_startDate!)) {
                     _endDate = _startDate!.add(const Duration(days: 30));
                   }
@@ -1170,148 +1705,106 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
               }
             },
           ),
+          Container(height: 1, color: Colors.white24),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 40,
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: {
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.mouse,
-                },
-              ),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: 7,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, index) {
-                  final weekday = index + 1; // 1 — пн, 7 — вс
-                  final selected = _repeatWeekdays.contains(weekday);
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (selected) {
-                          _repeatWeekdays.remove(weekday);
-                        } else {
-                          _repeatWeekdays.add(weekday);
-                        }
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? theme.colorScheme.primary.withValues(alpha: 0.2)
-                            : theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color:
-                              selected ? theme.colorScheme.primary : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      child: Text(
-                        weekdayLabels[index],
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: selected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _repeatWeekdays
-                      ..clear()
-                      ..addAll({1, 2, 3, 4, 5});
-                  });
-                },
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('Будни'),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _repeatWeekdays
-                      ..clear()
-                      ..addAll({6, 7});
-                  });
-                },
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('Выходные'),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _repeatWeekdays
-                      ..clear()
-                      ..addAll({1, 2, 3, 4, 5, 6, 7});
-                  });
-                },
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('Каждый день'),
-              ),
-            ],
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: () {
-                setState(() {
-                  _repeatWeekdays.clear();
-                });
-              },
-              child: const Text('Очистить дни'),
-            ),
-          ),
-          const SizedBox(height: 8),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.event_outlined),
-            title: const Text('Дата окончания'),
-            subtitle: Text(
-              _endDate != null
-                  ? '${_endDate!.day.toString().padLeft(2, '0')}.${_endDate!.month.toString().padLeft(2, '0')}.${_endDate!.year}'
-                  : '${startDate.add(const Duration(days: 7)).day.toString().padLeft(2, '0')}.${startDate.add(const Duration(days: 7)).month.toString().padLeft(2, '0')}.${startDate.add(const Duration(days: 7)).year}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+          _buildDateRow(
+            label: 'Дата окончания',
+            dateText: endStr,
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
-                initialDate: _endDate ?? startDate.add(const Duration(days: 7)),
+                initialDate: endDate,
                 firstDate: startDate,
                 lastDate: startDate.add(const Duration(days: 365 * 5)),
               );
               if (picked != null && mounted) {
-                setState(() {
-                  _endDate = DateTime(picked.year, picked.month, picked.day);
-                });
+                setState(() => _endDate = DateTime(picked.year, picked.month, picked.day));
               }
             },
+          ),
+          Container(height: 1, color: Colors.white24),
+          const SizedBox(height: 24),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Дни недели', style: _frequencyLabelStyle),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(7, (index) {
+              final weekday = index + 1;
+              final selected = _repeatWeekdays.contains(weekday);
+              return _buildFrequencyPill(
+                label: weekdayLabels[index],
+                selected: selected,
+                onTap: () {
+                  setState(() {
+                    if (selected) {
+                      _repeatWeekdays.remove(weekday);
+                    } else {
+                      _repeatWeekdays.add(weekday);
+                    }
+                  });
+                },
+              );
+            }),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            height: 1,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_wizardAccent, Colors.purpleAccent],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Быстрый выбор', style: _frequencyLabelStyle),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildPresetPill(
+                label: 'Будни',
+                selected: isWeekdays,
+                onTap: () => setState(() {
+                  _repeatWeekdays
+                    ..clear()
+                    ..addAll({1, 2, 3, 4, 5});
+                }),
+              ),
+              _buildPresetPill(
+                label: 'Выходные',
+                selected: isWeekends,
+                onTap: () => setState(() {
+                  _repeatWeekdays
+                    ..clear()
+                    ..addAll({6, 7});
+                }),
+              ),
+              _buildPresetPill(
+                label: 'Каждый день',
+                selected: isEveryDay,
+                onTap: () => setState(() {
+                  _repeatWeekdays
+                    ..clear()
+                    ..addAll({1, 2, 3, 4, 5, 6, 7});
+                }),
+              ),
+              _buildPresetPill(
+                label: 'Очистить',
+                selected: false,
+                isMuted: true,
+                onTap: () => setState(() => _repeatWeekdays.clear()),
+              ),
+            ],
           ),
         ],
       ],
@@ -1381,6 +1874,374 @@ class _DirectionCard extends StatelessWidget {
   }
 }
 
+/// Категория шаблона для группировки в выборе.
+String _templateCategory(HabitTemplate t) {
+  switch (t.measurement) {
+    case HabitMeasurement.binary:
+      return 'Однократные действия';
+    case HabitMeasurement.timed:
+      return 'Время';
+    case HabitMeasurement.counted:
+      return 'Лимит';
+  }
+}
+
+class _GradientButton extends StatelessWidget {
+  const _GradientButton({required this.onPressed, required this.child});
+
+  final VoidCallback? onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_wizardAccent, Colors.purpleAccent],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 48,
+            child: Center(
+              child: DefaultTextStyle(
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DarkSourceBlock extends StatelessWidget {
+  const _DarkSourceBlock({
+    required this.isSelected,
+    required this.onTap,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.child,
+  });
+
+  final bool isSelected;
+  final VoidCallback onTap;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    const blockBg = Color(0xFF252538);
+    final content = Material(
+      color: blockBg,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: Colors.pinkAccent, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (child != null) ...[
+                const SizedBox(height: 12),
+                child!,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    const borderPadding = EdgeInsets.all(2);
+    return Container(
+      padding: borderPadding,
+      decoration: isSelected
+          ? BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Colors.pinkAccent, Colors.purpleAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.pinkAccent.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                ),
+              ],
+            )
+          : null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: content,
+      ),
+    );
+  }
+}
+
+class _DarkTemplatePicker extends StatelessWidget {
+  const _DarkTemplatePicker({
+    required this.presets,
+    required this.selectedTemplateId,
+    required this.onSelected,
+    required this.enabled,
+    required this.isLoading,
+    required this.loadError,
+    required this.onRetry,
+  });
+
+  final List<HabitTemplate> presets;
+  final String? selectedTemplateId;
+  final void Function(String?)? onSelected;
+  final bool enabled;
+  final bool isLoading;
+  final String? loadError;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(color: Colors.pinkAccent),
+        ),
+      );
+    }
+    if (loadError != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Ошибка загрузки каталога',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.tonal(
+            onPressed: onRetry,
+            child: const Text('Повторить'),
+          ),
+        ],
+      );
+    }
+    if (presets.isEmpty) {
+      return const Text(
+        'Каталог пуст',
+        style: TextStyle(color: Colors.white70),
+      );
+    }
+    final selected = presets.any((t) => t.templateId == selectedTemplateId)
+        ? presets.firstWhere((t) => t.templateId == selectedTemplateId)
+        : presets.first;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.purpleAccent),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<HabitTemplate>(
+            value: selected,
+            focusColor: Colors.transparent,
+            items: presets.map((t) {
+            final ico = IconRegistry.byKey(t.iconKey) ?? Icons.star;
+            return DropdownMenuItem<HabitTemplate>(
+              value: t,
+              child: Row(
+                children: [
+                  Icon(ico, color: Colors.pinkAccent, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t.name,
+                      style: const TextStyle(color: Colors.white),
+                      overflow: TextOverflow.clip,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: enabled
+              ? (t) {
+                  if (t != null) onSelected?.call(t.templateId);
+                }
+              : null,
+          isExpanded: true,
+          dropdownColor: Colors.grey[850],
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+        ),
+      ),
+    ),
+    );
+  }
+}
+
+class _TemplatePicker extends StatelessWidget {
+  const _TemplatePicker({
+    required this.presets,
+    required this.selectedTemplateId,
+    required this.onSelected,
+    required this.labelText,
+    this.enabled = true,
+  });
+
+  final List<HabitTemplate> presets;
+  final String? selectedTemplateId;
+  final void Function(String?)? onSelected;
+  final String labelText;
+  final bool enabled;
+
+  List<DropdownMenuItem<String>> _buildGroupedItems(ThemeData theme) {
+    final grouped = <String, List<HabitTemplate>>{};
+    for (final t in presets) {
+      grouped.putIfAbsent(_templateCategory(t), () => []).add(t);
+    }
+    const categoryOrder = ['Однократные действия', 'Время', 'Лимит'];
+
+    final items = <DropdownMenuItem<String>>[];
+    for (final cat in categoryOrder) {
+      final list = grouped[cat] ?? [];
+      if (list.isEmpty) continue;
+      items.add(
+        DropdownMenuItem<String>(
+          value: '__header_$cat',
+          enabled: false,
+          child: Text(
+            cat,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+      for (final t in list) {
+        items.add(
+          DropdownMenuItem<String>(
+            value: t.templateId,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (IconRegistry.byKey(t.iconKey) != null) ...[
+                  Icon(IconRegistry.byKey(t.iconKey), size: 20),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(t.name, overflow: TextOverflow.ellipsis),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+    return items;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = _buildGroupedItems(theme);
+    final value = selectedTemplateId != null &&
+            presets.any((t) => t.templateId == selectedTemplateId)
+        ? selectedTemplateId
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          labelText,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.5),
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              items: items,
+              onChanged: enabled
+                  ? (v) {
+                      if (v != null && !v.startsWith('__header_')) {
+                        onSelected?.call(v);
+                      }
+                    }
+                  : null,
+              isExpanded: true,
+              isDense: false,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _MeasurementOption {
   const _MeasurementOption({
     required this.type,
@@ -1399,5 +2260,6 @@ class _MeasurementOption {
 enum CreationSource {
   presetHabit,
   presetEvent,
+  presetAction,
   custom,
 }

@@ -20,7 +20,7 @@ class MainShell extends StatefulWidget {
     this.openAddMenuOnStart = false,
   });
 
-  /// Если true — сразу после первого кадра открывает меню добавления (привычка/событие).
+  /// Если true — сразу после первого кадра открывает меню добавления (действие).
   final bool openAddMenuOnStart;
 
   @override
@@ -109,42 +109,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Future<void> _openAddMenu() async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.track_changes_outlined),
-                title: const Text('Привычка'),
-                subtitle: const Text('Повторяющееся действие с целью'),
-                onTap: () => Navigator.pop(ctx, 'habit'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.event_outlined),
-                title: const Text('Событие'),
-                subtitle: const Text('Разовое событие за день'),
-                onTap: () => Navigator.pop(ctx, 'event'),
-              ),
-            ],
-          ),
-        ),
-    );
-    if (choice == null || !mounted) return;
-    if (choice == 'event') {
-      await _openAddHabit(isEventMode: true);
-    } else {
-      await _openAddHabit(isEventMode: false);
-    }
-  }
-
-  Future<void> _openAddHabit({bool isEventMode = false}) async {
     final habit = await showAddHabitWizard(
       context,
       existingHabits: _habits,
       initialDate: _selectedDate,
-      isEventMode: isEventMode,
     );
     if (habit != null && mounted) {
       setState(() => _habits = [habit, ..._habits]);

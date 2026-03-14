@@ -25,13 +25,16 @@ class CalendarIndicatorsService {
 
   /// Возвращает цвета для индикаторов в указанную дату.
   /// Если в кэше ещё нет — считает и сохраняет.
+  /// Порядок маркеров фиксирован по id, не зависит от сортировки списка карточек.
   List<Color> dotsFor(DateTime date) {
     final key = _dateOnly(date);
     final existing = _cache[key];
     if (existing != null) return existing;
 
+    final sorted = List<Habit>.from(_habits)
+      ..sort((a, b) => a.id.compareTo(b.id));
     final result = <Color>[];
-    for (final h in _habits) {
+    for (final h in sorted) {
       if (!h.isScheduledForDate(key)) continue;
       result.add(h.color);
     }
