@@ -1,7 +1,7 @@
 {
   "version": 1,
   "limits": {
-    "free": { "maxHabits": 5, "maxEvents": 5 },
+    "free": { "maxHabits": 6, "maxEvents": 6 },
     "premium": { "maxHabits": 999, "maxEvents": 999 }
   },
   "items": [

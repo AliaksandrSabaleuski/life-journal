@@ -20,6 +20,8 @@
   "tabCalendar": "Календарь",
   "tabStats": "Статистика",
   "tabAssistant": "Помощник",
+  "assistantInDevelopmentTitle": "В разработке",
+  "assistantInDevelopmentBody": "Функционал помощника в разработке. Выпуск состоится в ближайших обновлениях.",
   "newBlockTitle": "Новое",
   "motivationalText": "Ключи к более продуктивному образу жизни в ваших руках. Начните новую привычку сегодня!",
   "calendarViewMonth": "Месяц",

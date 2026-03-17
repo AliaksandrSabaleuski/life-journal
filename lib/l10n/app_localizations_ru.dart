@@ -72,6 +72,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tabAssistant => 'Помощник';
 
   @override
+  String get assistantInDevelopmentTitle => 'В разработке';
+
+  @override
+  String get assistantInDevelopmentBody =>
+      'Функционал помощника в разработке. Выпуск состоится в ближайших обновлениях.';
+
+  @override
   String get newBlockTitle => 'Новое';
 
   @override

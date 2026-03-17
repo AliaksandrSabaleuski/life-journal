@@ -7,6 +7,7 @@ import '../../../../core/catalog/habit_template.dart';
 import '../../../../core/catalog/habits_catalog.dart';
 import '../../../../core/catalog/icon_registry.dart';
 import '../../../../core/models/habit.dart';
+import '../../../../core/services/subscription_service.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Акцент макета: тёмный magenta-red.
@@ -694,6 +695,24 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
     }
   }
 
+  Future<void> _checkLimitAndPop(Habit habit) async {
+    final canAdd = await SubscriptionService.canAdd(
+      widget.existingHabits,
+      isEvent: habit.isEvent,
+    );
+    if (!canAdd && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            SubscriptionService.getLimitReachedMessage(habit.isEvent),
+          ),
+        ),
+      );
+      return;
+    }
+    if (mounted) Navigator.of(context).pop(habit);
+  }
+
   void _saveFromPreset() {
     final templates = _templatesForCurrentSource();
     if (templates.isEmpty) return;
@@ -719,7 +738,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       templateId: template.templateId,
     );
 
-    Navigator.of(context).pop(habit);
+    _checkLimitAndPop(habit);
   }
 
   HabitTemplate _resolveCurrentTemplate(List<HabitTemplate> templates) {
@@ -868,7 +887,7 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
       isEvent: isEventFlag,
     );
 
-    Navigator.of(context).pop(habit);
+    _checkLimitAndPop(habit);
   }
 
   bool get _canGoNext {

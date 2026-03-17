@@ -5,8 +5,10 @@ import '../../../../core/models/habit.dart';
 import '../../../../core/models/habit_log.dart';
 import '../../../../core/repositories/habit_logs_repository.dart';
 import '../../../../core/repositories/habits_repository.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/subscription_service.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../subscription/presentation/subscription_screen.dart';
 import 'main_menu_content.dart';
 import '../../calendar/presentation/calendar_screen.dart';
 import '../../stats/presentation/stats_screen.dart';
@@ -109,6 +111,17 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Future<void> _openAddMenu() async {
+    final canAddH = await SubscriptionService.canAddHabit(_habits);
+    final canAddE = await SubscriptionService.canAddEvent(_habits);
+    if (!canAddH && !canAddE) {
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously - mounted check above
+      _showSubscriptionDialog(
+        message: SubscriptionService.getLimitReachedMessage(false),
+      );
+      return;
+    }
+
     final habit = await showAddHabitWizard(
       context,
       existingHabits: _habits,
@@ -159,6 +172,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final newHabits = [...reordered, ...inactive, ...otherHabits];
     if (mounted) setState(() => _habits = newHabits);
     await _habitsRepository.reorderHabits(newHabits);
+  }
+
+  void _showSubscriptionDialog({String? message}) {
+    SubscriptionScreen.show(context, limitMessage: message);
   }
 
   Future<void> _onLog(HabitLog log) async {
@@ -287,21 +304,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           IconButton(
             icon: const Icon(Icons.card_giftcard_outlined),
             tooltip: l.subscriptionTitle,
-            onPressed: () {
-              showDialog<void>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text(l.subscriptionTitle),
-                  content: Text(l.subscriptionBody),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: Text(l.closeButton),
-                    ),
-                  ],
-                ),
-              );
-            },
+            onPressed: () => _showSubscriptionDialog(),
           ),
         ],
       ),
@@ -351,7 +354,26 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               ),
               Expanded(
                 child: InkWell(
-                  onTap: () => setState(() => _currentIndex = 2),
+                  onTap: () {
+                    showDialog<void>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        icon: Icon(
+                          Icons.construction_outlined,
+                          color: Theme.of(ctx).colorScheme.primary,
+                          size: 32,
+                        ),
+                        title: Text(l.assistantInDevelopmentTitle),
+                        content: Text(l.assistantInDevelopmentBody),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: Text(l.closeButton),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

@@ -214,6 +214,18 @@ abstract class AppLocalizations {
   /// **'Помощник'**
   String get tabAssistant;
 
+  /// No description provided for @assistantInDevelopmentTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'В разработке'**
+  String get assistantInDevelopmentTitle;
+
+  /// No description provided for @assistantInDevelopmentBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Функционал помощника в разработке. Выпуск состоится в ближайших обновлениях.'**
+  String get assistantInDevelopmentBody;
+
   /// No description provided for @newBlockTitle.
   ///
   /// In ru, this message translates to:

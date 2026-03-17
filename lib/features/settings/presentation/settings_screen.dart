@@ -5,9 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../l10n/app_localizations.dart';
 import '../../../../core/services/notification_service.dart';
-import '../../../../core/services/theme_service.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../subscription/presentation/subscription_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -154,35 +154,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          SwitchListTile(
-            title: const Text('Тёмная тема'),
-            subtitle: const Text('Включить тёмное оформление приложения'),
-            value: ThemeService.isDarkMode,
-            onChanged: (value) {
-              ThemeService.setDarkMode(value);
-            },
-          ),
-          const SizedBox(height: 8),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.card_membership_outlined),
             title: const Text('Управление подпиской'),
-            subtitle: const Text('Скоро здесь появится экран подписки'),
-            onTap: () {
-              showDialog<void>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text(l.subscriptionTitle),
-                  content: Text(l.subscriptionBody),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: Text(l.closeButton),
-                    ),
-                  ],
-                ),
-              );
-            },
+            subtitle: const Text('Статус, лимиты и переход на Премиум'),
+            onTap: () => SubscriptionScreen.show(context),
           ),
           ListTile(
             leading: const Icon(Icons.lightbulb_outline),
