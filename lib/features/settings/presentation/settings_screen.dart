@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../subscription/presentation/subscription_screen.dart';
@@ -33,6 +34,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.logScreenView(screenName: 'settings');
+    AnalyticsService.instance.logSettingsOpened();
     _loadPrefs();
   }
 
@@ -170,8 +173,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.share_outlined),
             title: const Text('Рассказать друзьям'),
             onTap: () {
+              AnalyticsService.instance.logShareTapped();
               Share.share(
-                'Я веду дневник привычек в приложении «Дневник привычек». Попробуй и ты!',
+                'Я веду дневник привычек в приложении «Habit Run». Попробуй и ты!',
               );
             },
           ),
@@ -254,12 +258,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.description_outlined),
             title: const Text('Условия пользования'),
-            onTap: () => _openUrl(Uri.parse('https://example.com/terms')),
+            onTap: () => _openUrl(Uri.parse(
+              'https://docs.google.com/document/d/1kzfe6FwYZZPCzmZlmNBBQy-0mg2y_C2PdtGoP7UNQ3w/view?usp=sharing',
+            )),
           ),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Политика конфиденциальности'),
-            onTap: () => _openUrl(Uri.parse('https://example.com/privacy')),
+            onTap: () => _openUrl(Uri.parse(
+              'https://docs.google.com/document/d/1jaLmnQvmo2GXfMC5_L6wCLwshuF2eGD8QdlfhQzPJjw/view?usp=sharing',
+            )),
           ),
         ],
       ),

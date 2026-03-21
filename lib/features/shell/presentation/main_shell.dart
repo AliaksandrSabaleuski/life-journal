@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/services/analytics_service.dart';
 import '../../../../core/models/habit.dart';
 import '../../../../core/models/habit_log.dart';
 import '../../../../core/repositories/habit_logs_repository.dart';
@@ -46,6 +47,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AnalyticsService.instance.logScreenView(screenName: 'main');
     _loadHabits();
   }
 
@@ -131,6 +133,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       setState(() => _habits = [habit, ..._habits]);
       await _habitsRepository.addHabit(habit);
       await NotificationService.instance.resyncHabitReminder(habit);
+      AnalyticsService.instance.logHabitAdded(habitType: habit.isEvent ? 'event' : 'habit');
     }
   }
 

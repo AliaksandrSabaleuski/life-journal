@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/services/analytics_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/onboarding_service.dart';
 import '../../../core/catalog/habits_catalog.dart';
@@ -72,6 +73,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await NotificationService.instance.requestPermission();
       await _createBaseHabits();
       await OnboardingService.markCompleted();
+      AnalyticsService.instance.logOnboardingCompleted();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(

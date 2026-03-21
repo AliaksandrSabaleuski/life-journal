@@ -1,6 +1,6 @@
 {
   "@@locale": "ru",
-  "appTitle": "Дневник привычек",
+  "appTitle": "Habit Run",
   "newEventTitle": "Новое событие за сегодня",
   "newEventHint": "Что важного произошло?",
   "cancelButton": "Отмена",

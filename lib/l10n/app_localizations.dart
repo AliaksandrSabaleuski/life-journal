@@ -97,7 +97,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In ru, this message translates to:
-  /// **'Дневник привычек'**
+  /// **'Habit Run'**
   String get appTitle;
 
   /// No description provided for @newEventTitle.

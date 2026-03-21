@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/services/analytics_service.dart';
+import '../../../../core/services/iap_service.dart';
 import '../../../../core/services/subscription_service.dart';
 import 'subscription_success_screen.dart';
 
@@ -41,6 +43,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isAnnualSelected = true; // «Выгоднее» — годовой выбран по умолчанию
 
   static const _purpleStart = Color(0xFF6B4EAA);
+
+  VoidCallback? _premiumListener;
+
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.logSubscriptionScreenViewed();
+    _premiumListener = () {
+      if (SubscriptionService.isPremium && mounted) {
+        setState(() {});
+      }
+    };
+    SubscriptionService.isPremiumNotifier.addListener(_premiumListener!);
+  }
+
+  @override
+  void dispose() {
+    if (_premiumListener != null) {
+      SubscriptionService.isPremiumNotifier.removeListener(_premiumListener!);
+    }
+    super.dispose();
+  }
+
   static const _purpleEnd = Color(0xFF9B7EDE);
   static const _bgDark = Color(0xFF1A1A2E);
   static const _cardDark = Color(0xFF252538);
@@ -92,7 +117,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           child: Column(
                             children: [
                               Text(
-                                'Получите доступ к Дневнику привычек без ограничений',
+                                'Получите доступ к Habit Run без ограничений',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   fontSize: 17,
@@ -333,9 +358,36 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _onContinue() async {
+    final planName = _planNameForSelected();
+    AnalyticsService.instance.logSubscriptionStarted(plan: planName);
+
+    final iap = IapService.instance;
+    if (iap.isAvailable) {
+      final result = await iap.purchase(planName);
+      switch (result) {
+        case IapPurchaseResult.started:
+          // Purchase UI opened. When done, _onPurchaseUpdate will set premium
+          // and listener will trigger setState → build shows thanks.
+          return;
+        case IapPurchaseResult.productNotFound:
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Продукты подписки ещё не настроены. Попробуйте позже.')),
+          );
+          return;
+        case IapPurchaseResult.unavailable:
+        case IapPurchaseResult.failed:
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Покупка недоступна. Проверьте подключение к Google Play.')),
+          );
+          return;
+      }
+    }
+
+    // Fallback: внутреннее тестирование без настроенных продуктов
     await SubscriptionService.upgradeToPremium();
     if (!mounted) return;
-    final planName = _planNameForSelected();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => SubscriptionSuccessScreen(planName: planName),
@@ -385,7 +437,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       child: Column(
                         children: [
                           const Text(
-                            'У вас доступ к Дневнику привычек без ограничений!',
+                            'У вас доступ к Habit Run без ограничений!',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 22,
