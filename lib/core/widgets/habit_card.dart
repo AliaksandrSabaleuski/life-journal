@@ -142,17 +142,25 @@ class _HabitCardState extends State<HabitCard> {
     // Визуальное состояние карточки: активная / успешная / проваленная.
     final bool? completedFlag = todayLog?.isCompleted;
 
-    Color cardColor = theme.colorScheme.surfaceContainerHigh;
+    final baseCardColor = Colors.white.withValues(alpha: 0.72);
+    Color cardColor = baseCardColor;
     BorderSide borderSide = BorderSide.none;
+    final shadowColor = Colors.black.withValues(alpha: 0.06);
 
     if (completedFlag == true) {
-      // Успешно выполнено: карточка затемнена.
-      cardColor = cardColor.withValues(alpha: 0.85);
-      borderSide = BorderSide(color: Colors.green.shade400.withValues(alpha: 0.7), width: 1.5);
+      // Успешно выполнено: чуть спокойнее, но в той же гамме.
+      cardColor = baseCardColor.withValues(alpha: 0.64);
+      borderSide = BorderSide(
+        color: theme.colorScheme.primary.withValues(alpha: 0.18),
+        width: 1.2,
+      );
     } else if (completedFlag == false) {
       // Провалено: день закрыт как fail (в т.ч. автозакрытие после окончания дня).
-      cardColor = cardColor.withValues(alpha: 0.96);
-      borderSide = BorderSide(color: Colors.red.shade400.withValues(alpha: 0.7), width: 1.5);
+      cardColor = baseCardColor.withValues(alpha: 0.68);
+      borderSide = BorderSide(
+        color: theme.colorScheme.error.withValues(alpha: 0.22),
+        width: 1.2,
+      );
     }
 
     // На тёмной теме тёмные цвета (brown и т.п.) сливаются с фоном — осветляем иконку,
@@ -163,16 +171,25 @@ class _HabitCardState extends State<HabitCard> {
         : habit.color;
 
     return Material(
-      color: cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: borderSide,
-      ),
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.fromBorderSide(borderSide),
+            boxShadow: [
+              BoxShadow(
+                color: shadowColor,
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -196,9 +213,9 @@ class _HabitCardState extends State<HabitCard> {
                     : CustomPaint(
                         painter: _HabitRingPainter(
                           progress: circularProgress,
-                          color: habit.color,
-                          trackColor: habit.color.withValues(alpha: 0.18),
-                          strokeWidth: 4,
+                          color: habit.color.withValues(alpha: 0.95),
+                          trackColor: habit.color.withValues(alpha: 0.12),
+                          strokeWidth: 4.5,
                         ),
                         child: Center(
                           child: Icon(
@@ -224,8 +241,9 @@ class _HabitCardState extends State<HabitCard> {
                           Text(
                             habit.name,
                             style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: iconColor,
+                              fontWeight: FontWeight.w800,
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.86),
                             ),
                           ),
                           const SizedBox(height: 1),
@@ -242,9 +260,11 @@ class _HabitCardState extends State<HabitCard> {
                                     : 'Не выполнено',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: (todayLog?.isCompleted == true)
-                                      ? Colors.green.shade700
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w500,
+                                      ? theme.colorScheme.primary
+                                          .withValues(alpha: 0.85)
+                                      : theme.colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                       ),
@@ -261,13 +281,15 @@ class _HabitCardState extends State<HabitCard> {
                         ? Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.2),
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.14),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               Icons.check_circle,
                               size: 28,
-                              color: Colors.green.shade600,
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.9),
                             ),
                           )
                         : habit.type == HabitType.timer
@@ -276,7 +298,7 @@ class _HabitCardState extends State<HabitCard> {
                                 iconSize: 28,
                                 icon: Icon(
                                   _timerRunning ? Icons.pause : Icons.play_arrow,
-                                  color: habit.color,
+                                  color: theme.colorScheme.primary,
                                 ),
                                 tooltip: _timerRunning
                                     ? 'Пауза'
@@ -306,7 +328,7 @@ class _HabitCardState extends State<HabitCard> {
                                   onLog!(log);
                                 },
                                 iconSize: 28,
-                                icon: const Icon(Icons.add),
+                                icon: Icon(Icons.add, color: theme.colorScheme.primary),
                                 tooltip: 'Добавить',
                               ),
                   ),
@@ -343,12 +365,12 @@ class _HabitCardState extends State<HabitCard> {
                             ? Icons.check_circle
                             : Icons.check_circle_outline,
                         color: todayLog?.isCompleted == true
-                            ? Colors.green.shade600
+                            ? theme.colorScheme.primary
                             : theme.colorScheme.onSurfaceVariant,
                       ),
                       style: IconButton.styleFrom(
                         backgroundColor: todayLog?.isCompleted == true
-                            ? Colors.green.withValues(alpha: 0.2)
+                            ? theme.colorScheme.primary.withValues(alpha: 0.14)
                             : null,
                       ),
                       tooltip: todayLog?.isCompleted == true

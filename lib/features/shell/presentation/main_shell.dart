@@ -246,44 +246,48 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     );
 
     final isMainMenu = _currentIndex == 0;
-    final now = DateTime.now();
-    final monthYear = DateFormat.yMMMM().format(now);
+    const coffee = Color(0xFF6B5A4E);
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: isMainMenu
-              ? const Icon(Icons.settings_outlined)
-              : const Icon(Icons.arrow_back),
-          tooltip: isMainMenu ? l.settingsTooltip : l.closeButton,
-          onPressed: () {
-            if (isMainMenu) {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const SettingsScreen(),
-                ),
-              );
-            } else {
-              setState(() => _currentIndex = 0);
-            }
-          },
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: _TopIconButton(
+            icon: isMainMenu ? Icons.settings_outlined : Icons.arrow_back,
+            tooltip: isMainMenu ? l.settingsTooltip : l.closeButton,
+            onPressed: () {
+              if (isMainMenu) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                );
+              } else {
+                setState(() => _currentIndex = 0);
+              }
+            },
+          ),
         ),
         title: Text(
           isMainMenu
-              ? monthYear
+              ? _formatMainTitle(_selectedDate)
               : (_currentIndex == 1 ? l.tabStats : l.tabAssistant),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: coffee.withValues(alpha: 0.92),
+                fontWeight: FontWeight.w700,
+              ),
         ),
         centerTitle: true,
         actions: [
           if (isMainMenu && !_isTodayVisibleInStrip)
-            IconButton(
-              icon: const Icon(Icons.today_outlined),
+            _TopIconButton(
+              icon: Icons.today_outlined,
               tooltip: l.backToTodayTooltip,
               onPressed: () => setState(() => _recenterCalendarTrigger++),
             ),
           if (isMainMenu)
-            IconButton(
-              icon: const Icon(Icons.calendar_month_outlined),
+            _TopIconButton(
+              icon: Icons.calendar_month_outlined,
               tooltip: l.tabCalendar,
               onPressed: () {
                 Navigator.of(context).push(
@@ -304,105 +308,311 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 });
               },
             ),
-          IconButton(
-            icon: const Icon(Icons.card_giftcard_outlined),
-            tooltip: l.subscriptionTitle,
-            onPressed: () => _showSubscriptionDialog(),
-          ),
+          if (isMainMenu)
+            _TopIconButton(
+              icon: Icons.card_giftcard_outlined,
+              tooltip: l.subscriptionTitle,
+              onPressed: () => _showSubscriptionDialog(),
+            )
+          else
+            // На других вкладках оставим визуально "тихо", без лишних экшенов.
+            const SizedBox.shrink(),
+          const SizedBox(width: 10),
         ],
       ),
-      body: body,
-      bottomNavigationBar: SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFF7EFE7),
+              Color(0xFFF6EEE5),
+              Color(0xFFF7F1EA),
+            ],
+          ),
+        ),
+        child: body,
+      ),
+      bottomNavigationBar: _WarmBottomNavBar(
+        currentIndex: _currentIndex,
+        tabStatsLabel: l.tabStats,
+        tabAssistantLabel: l.tabAssistant,
+        onStats: () => setState(() => _currentIndex = 1),
+        onAssistant: () {
+          showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              icon: Icon(
+                Icons.construction_outlined,
+                color: Theme.of(ctx).colorScheme.primary,
+                size: 32,
+              ),
+              title: Text(l.assistantInDevelopmentTitle),
+              content: Text(l.assistantInDevelopmentBody),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(l.closeButton),
+                ),
+              ],
+            ),
+          );
+        },
+        onAdd: _openAddMenu,
+      ),
+    );
+  }
+
+  String _formatMainTitle(DateTime selected) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(selected.year, selected.month, selected.day);
+    final diff = d.difference(today).inDays;
+    if (diff == 0) return 'Сегодня';
+    if (diff == -1) return 'Вчера';
+    if (diff == 1) return 'Завтра';
+
+    const months = <String>[
+      'Январь',
+      'Февраль',
+      'Март',
+      'Апрель',
+      'Май',
+      'Июнь',
+      'Июль',
+      'Август',
+      'Сентябрь',
+      'Октябрь',
+      'Ноябрь',
+      'Декабрь',
+    ];
+    final m = (d.month >= 1 && d.month <= 12) ? months[d.month - 1] : '';
+    return '${d.day} $m';
+  }
+}
+
+class _TopIconButton extends StatelessWidget {
+  const _TopIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    // Тёплый "кофейный" тон под общий визуал.
+    const coffee = Color(0xFF6B5A4E);
+    final fg = coffee.withValues(alpha: 0.92);
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: InkResponse(
+          onTap: onPressed,
+          radius: 22,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(icon, color: fg, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WarmBottomNavBar extends StatelessWidget {
+  const _WarmBottomNavBar({
+    required this.currentIndex,
+    required this.tabStatsLabel,
+    required this.tabAssistantLabel,
+    required this.onStats,
+    required this.onAdd,
+    required this.onAssistant,
+  });
+
+  final int currentIndex;
+  final String tabStatsLabel;
+  final String tabAssistantLabel;
+  final VoidCallback onStats;
+  final VoidCallback onAdd;
+  final VoidCallback onAssistant;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pad = MediaQuery.paddingOf(context).bottom;
+    const coffee = Color(0xFF6B5A4E);
+    final activeColor = coffee.withValues(alpha: 0.92);
+
+    Widget navItem({
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+    }) {
+      final color = activeColor;
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: SizedBox(
           height: 56,
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () => setState(() => _currentIndex = 1),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _currentIndex == 1
-                            ? Icons.bar_chart
-                            : Icons.bar_chart_outlined,
-                        color: _currentIndex == 1
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
-                      ),
-                      Text(
-                        l.tabStats,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _currentIndex == 1
-                              ? Theme.of(context).colorScheme.primary
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: IconButton(
-                  onPressed: _openAddMenu,
-                  icon: const Icon(Icons.add),
-                  iconSize: 32,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: InkWell(
-                  onTap: () {
-                    showDialog<void>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        icon: Icon(
-                          Icons.construction_outlined,
-                          color: Theme.of(ctx).colorScheme.primary,
-                          size: 32,
-                        ),
-                        title: Text(l.assistantInDevelopmentTitle),
-                        content: Text(l.assistantInDevelopmentBody),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: Text(l.closeButton),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _currentIndex == 2
-                            ? Icons.smart_toy
-                            : Icons.smart_toy_outlined,
-                        color: _currentIndex == 2
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
-                      ),
-                      Text(
-                        l.tabAssistant,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _currentIndex == 2
-                              ? Theme.of(context).colorScheme.primary
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
+              Icon(icon, color: color),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
+        ),
+      );
+    }
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + (pad > 0 ? 0 : 6)),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            // Закруглённая подложка ("пилюля") под навигацией.
+            Container(
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.62),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: navItem(
+                      icon: Icons.bar_chart,
+                      label: tabStatsLabel,
+                      onTap: onStats,
+                    ),
+                  ),
+                  const SizedBox(width: 64), // место под центральную "+"
+                  Expanded(
+                    child: navItem(
+                      icon: Icons.smart_toy,
+                      label: tabAssistantLabel,
+                      onTap: onAssistant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Центральная "+" кнопка — над пилюлей
+            Positioned(
+              bottom: 18,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 28,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
+                ),
+                child: InkResponse(
+                  onTap: onAdd,
+                  radius: 34,
+                  child: Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color.lerp(
+                            Colors.white,
+                            theme.colorScheme.primary,
+                            0.25,
+                          )!,
+                          theme.colorScheme.primary,
+                          Color.lerp(
+                            const Color(0xFF3B2A22),
+                            theme.colorScheme.primary,
+                            0.75,
+                          )!,
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        width: 3,
+                      ),
+                      boxShadow: [
+                        // Нижняя тень
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.14),
+                          blurRadius: 26,
+                          offset: const Offset(0, 14),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Спекулярный блик сверху для "объёма"
+                        Positioned(
+                          top: 12,
+                          left: 16,
+                          child: Container(
+                            width: 20,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.12),
+                                  Colors.white.withValues(alpha: 0.0),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.add,
+                          size: 34,
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

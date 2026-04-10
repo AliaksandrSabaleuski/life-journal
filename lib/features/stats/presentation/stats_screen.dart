@@ -240,9 +240,6 @@ class _StatsScreenState extends State<StatsScreen> {
             active.length;
 
     return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -446,9 +443,6 @@ class _CircleStat extends StatelessWidget {
     final theme = Theme.of(context);
     final p = percent.isNaN ? 0.0 : percent.clamp(0.0, 100.0).toDouble();
     return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Column(

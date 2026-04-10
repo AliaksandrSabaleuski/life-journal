@@ -111,7 +111,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             vertical: 14,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.7),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -119,10 +122,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               Text(
                                 'Получите доступ к Habit Run без ограничений',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -131,7 +134,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade400,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -431,18 +436,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         vertical: 20,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         children: [
-                          const Text(
+                          Text(
                             'У вас доступ к Habit Run без ограничений!',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -451,7 +459,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 15,
-                              color: Colors.grey.shade300,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                               height: 1.4,
                             ),
                           ),

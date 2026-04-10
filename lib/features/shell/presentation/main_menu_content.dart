@@ -68,17 +68,21 @@ class MainMenuContent extends StatelessWidget {
       return aDone ? 1 : -1;
     });
 
-    final bottomPadding = 80.0 + MediaQuery.paddingOf(context).bottom;
+    // Чуть больше воздуха под нижнюю "пилюлю" и центральную "+"
+    final bottomPadding = 106.0 + MediaQuery.paddingOf(context).bottom;
     final result = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _CalendarStripWithRecenter(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+          child: _CalendarStripWithRecenter(
           isVisible: isMainMenuVisible,
           recenterTrigger: recenterCalendarTrigger,
           initialSelectedDate: selectedDate,
           habits: allHabits,
           onDateSelected: onSelectedDateChanged,
           onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
+          ),
         ),
         Expanded(
           child: ScrollConfiguration(
@@ -112,15 +116,12 @@ class MainMenuContent extends StatelessWidget {
 
     if (active.isEmpty && inactive.isEmpty) {
       return [
-        const SizedBox(height: 24),
+        const SizedBox(height: 30),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            l.noEventsForDay,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          child: _EmptyHabitsCard(
+            title: 'Нет привычек',
+            subtitle: 'Нажми + чтобы добавить первую\nпривычку.',
           ),
         ),
       ];
@@ -168,6 +169,79 @@ class MainMenuContent extends StatelessWidget {
 
 }
 
+class _EmptyHabitsCard extends StatelessWidget {
+  const _EmptyHabitsCard({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.rocket_launch_rounded,
+                    size: 86,
+                    color: theme.colorScheme.primary.withValues(alpha: 0.85),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  height: 1.35,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 const _dayCellWidth = 52.0;
 
 /// Обёртка календарной полосы (кнопка центрирования — в хедере, слева от календаря).
@@ -188,12 +262,35 @@ class _CalendarStripWithRecenter extends StatelessWidget {
   final void Function(DateTime date)? onDateSelected;
   final void Function(bool visible)? onTodayVisibilityChanged;
 
-  static const double _stripHeight = 100.0;
-
   @override
   Widget build(BuildContext context) {
+    // Адаптивная высота под разные устройства и textScale.
+    // Стрип содержит: label (день недели) + gap + кружок дня + gap + точки + вертикальные паддинги контейнера.
+    const double verticalPadding = 8 * 2;
+    // Максимальный размер "плашки дня" — с кольцом выделения.
+    const double circleSize = 44;
+    const double dotsHeight = 8;
+    const double gap1 = 4;
+    const double gap2 = 3;
+
+    final theme = Theme.of(context);
+    final textScaler = MediaQuery.textScalerOf(context);
+    final weekdayFontSize = theme.textTheme.labelSmall?.fontSize ?? 11;
+    final weekdayLineHeight = theme.textTheme.labelSmall?.height ?? 1.2;
+    final weekdayTextHeight = textScaler.scale(weekdayFontSize) * weekdayLineHeight;
+
+    // Немного запаса на разные шрифты/рендеринг.
+    final computedHeight = (verticalPadding +
+            weekdayTextHeight +
+            gap1 +
+            circleSize +
+            gap2 +
+            dotsHeight +
+            6)
+        .clamp(104.0, 140.0);
+
     return SizedBox(
-      height: _stripHeight,
+      height: computedHeight,
       child: _CalendarStrip(
         isVisible: isVisible,
         recenterTrigger: recenterTrigger,
@@ -440,37 +537,46 @@ class _CalendarStripState extends State<_CalendarStrip> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Базовая подложка дня — тёплый серо-бежевый как в референсе.
+        final cardBg = const Color(0xFFF3EFE9);
+
         return Padding(
-          padding: EdgeInsets.fromLTRB(paddingLeft, 8, paddingRight, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 80,
-                child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(context).copyWith(
-                    dragDevices: const {
-                      PointerDeviceKind.touch,
-                      PointerDeviceKind.mouse,
-                      PointerDeviceKind.trackpad,
-                    },
-                  ),
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    scrollDirection: Axis.horizontal,
-                    itemExtent: _dayCellWidth,
-                    itemCount: _totalDays,
-                    itemBuilder: (context, index) {
+          // Внешние отступы задаются снаружи (в MainMenuContent).
+          // Здесь держим только safe-area по бокам, иначе ломаем динамическую высоту и ловим overflow.
+          padding: EdgeInsets.fromLTRB(paddingLeft, 0, paddingRight, 0),
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: const {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+            child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              itemExtent: _dayCellWidth,
+              itemCount: _totalDays,
+              itemBuilder: (context, index) {
                       final date = _stripStartDate.add(Duration(days: index));
                       final isToday = _isSameDay(date, _today);
                       final isSelected = _isSameDay(date, _selectedDate);
-                      final weekdayShort = weekdayShortFormat.format(date);
-                      final bgColor =
-                          isToday ? theme.colorScheme.primaryContainer : null;
-                      final textColor = isToday
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurface;
+                      final rawWeekdayShort = weekdayShortFormat.format(date);
+                      final weekdayShort = rawWeekdayShort.isEmpty
+                          ? rawWeekdayShort
+                          : rawWeekdayShort[0].toUpperCase() +
+                              rawWeekdayShort.substring(1).toLowerCase();
+                      const coffee = Color(0xFF6B5A4E);
+                      const accent = Color(0xFFBD6E35); // желаемый акцент для селектора
+                      final headerCoffee = coffee.withValues(alpha: 0.92);
+                      final lineColor = coffee.withValues(alpha: 0.20);
+                      final baseBorder = coffee.withValues(alpha: 0.30);
+                      final selectedBorder = accent.withValues(alpha: 0.98);
+
+                      final bgColor = isToday
+                          ? headerCoffee.withValues(alpha: 0.10)
+                          : Colors.transparent;
+                      final textColor = headerCoffee;
                       final dots = _indicatorColorsFor(date, theme);
 
                       return InkWell(
@@ -497,65 +603,183 @@ class _CalendarStripState extends State<_CalendarStrip> {
                             Text(
                               weekdayShort,
                               style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
+                                    color: headerCoffee,
+                                    fontWeight: FontWeight.w600,
                                   ),
                             ),
                             const SizedBox(height: 4),
                             Stack(
                               alignment: Alignment.center,
                               children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: bgColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '${date.day}',
-                                    style:
-                                        theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: isToday || isSelected
-                                          ? FontWeight.w600
-                                          : null,
-                                      color: textColor,
-                                    ),
+                                SizedBox(
+                                  width: _dayCellWidth,
+                                  height: 54,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // Соединитель между соседними баблами (между кругами).
+                                      if (index < _totalDays - 1)
+                                        Builder(
+                                          builder: (context) {
+                                            const baseDiameter = 38.0;
+                                            const gapToBubble = 2.0;
+                                            // Увеличиваем именно "сегодня", а не выбранный день.
+                                            final scale = isToday ? 1.2 : 1.0;
+                                            final bubbleDiameter = baseDiameter * scale;
+                                            final centerX = _dayCellWidth / 2;
+                                            final y = 54 / 2;
+                                            final left = centerX + (bubbleDiameter / 2) + gapToBubble;
+                                            final width = (_dayCellWidth - left).clamp(0.0, _dayCellWidth);
+                                            if (width <= 0.5) return const SizedBox.shrink();
+                                            return Positioned(
+                                              top: y,
+                                              left: left,
+                                              child: SizedBox(
+                                                width: width,
+                                                height: 1,
+                                                child: DecoratedBox(
+                                                  decoration: BoxDecoration(
+                                                    color: lineColor,
+                                                    borderRadius: BorderRadius.circular(1),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+
+                                      // Сам "бабл" дня. Выбранный день увеличиваем на 20%.
+                                      Transform.scale(
+                                        scale: isToday ? 1.2 : 1.0,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Builder(
+                                              builder: (context) {
+                                                // Для "сегодня" делаем тёплый кофейный тинт, а не серый альфа-слой.
+                                                final baseFill = bgColor == Colors.transparent
+                                                    ? cardBg
+                                                    : bgColor;
+                                                final fill = isToday
+                                                    ? Color.lerp(
+                                                        cardBg,
+                                                        headerCoffee,
+                                                        0.22,
+                                                      )!
+                                                    : baseFill;
+                                                final topHighlight = Color.lerp(
+                                                  Colors.white,
+                                                  fill,
+                                                  0.10,
+                                                )!;
+                                                final bottomShade = Color.lerp(
+                                                  const Color(0xFFB9ADA2),
+                                                  fill,
+                                                  0.65,
+                                                )!;
+
+                                                return Container(
+                                                  width: 38,
+                                                  height: 38,
+                                                  alignment: Alignment.center,
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      begin: Alignment.topLeft,
+                                                      end: Alignment.bottomRight,
+                                                      colors: [
+                                                        topHighlight,
+                                                        fill,
+                                                        bottomShade,
+                                                      ],
+                                                      stops: const [0.0, 0.55, 1.0],
+                                                    ),
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      // Белая обводка как в референсе.
+                                                      color: Colors.white.withValues(alpha: 0.85),
+                                                      width: 1,
+                                                    ),
+                                                    boxShadow: [
+                                                      // Верхний блик
+                                                      BoxShadow(
+                                                        color: Colors.white.withValues(alpha: 0.65),
+                                                        blurRadius: 8,
+                                                        offset: const Offset(-2, -3),
+                                                      ),
+                                                      // Нижняя тень
+                                                      BoxShadow(
+                                                        color: Colors.black.withValues(alpha: 0.08),
+                                                        blurRadius: 12,
+                                                        offset: const Offset(0, 8),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Text(
+                                                    '${date.day}',
+                                                    style: theme.textTheme.titleSmall?.copyWith(
+                                                      // Размер/жирность цифры не меняем при выборе дня.
+                                                      // Акцент можно оставлять только для "сегодня".
+                                                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w600,
+                                                      color: textColor,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            if (isSelected)
+                                              Container(
+                                                width: 42,
+                                                height: 42,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.transparent,
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: selectedBorder.withValues(
+                                                        alpha: 0.22,
+                                                      ),
+                                                      blurRadius: 5,
+                                                      spreadRadius: 0.0,
+                                                    ),
+                                                  ],
+                                                  border: Border.all(
+                                                    color: selectedBorder,
+                                                    width: 2.6,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                if (isSelected || isToday)
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: theme.colorScheme.primary
-                                            .withValues(alpha: 0.9),
-                                        width: 3,
-                                      ),
-                                    ),
-                                  ),
                               ],
                             ),
                             const SizedBox(height: 3),
                             SizedBox(
-                              height: 8,
+                              height: 6,
                               child: Center(
                                 child: dots.isNotEmpty
-                                    ? Wrap(
-                                        spacing: 2,
-                                        runSpacing: 2,
-                                        alignment: WrapAlignment.center,
+                                    ? Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: dots
+                                            .take(6)
                                             .map(
-                                              (c) => Container(
-                                                width: 4,
-                                                height: 4,
-                                                decoration: BoxDecoration(
-                                                  color: c,
-                                                  borderRadius: BorderRadius.circular(2),
+                                              (c) => Padding(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 1,
+                                                ),
+                                                child: Container(
+                                                  width: 3,
+                                                  height: 3,
+                                                  decoration: BoxDecoration(
+                                                    color: c.withValues(alpha: 0.75),
+                                                    borderRadius:
+                                                        BorderRadius.circular(1.5),
+                                                  ),
                                                 ),
                                               ),
                                             )
@@ -568,10 +792,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                         ),
                       );
                     },
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },

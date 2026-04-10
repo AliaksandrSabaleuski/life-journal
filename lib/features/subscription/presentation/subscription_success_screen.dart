@@ -39,7 +39,10 @@ class SubscriptionSuccessScreen extends StatelessWidget {
                         vertical: 28,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -56,11 +59,11 @@ class SubscriptionSuccessScreen extends StatelessWidget {
                           const SizedBox(height: 32),
                           _buildCheckmarkCircle(),
                           const SizedBox(height: 32),
-                          const Text(
+                          Text(
                             'Подписка оформлена на',
                             style: TextStyle(
                               fontSize: 18,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -69,7 +72,9 @@ class SubscriptionSuccessScreen extends StatelessWidget {
                             planText,
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.grey.shade400,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(height: 28),
@@ -78,7 +83,9 @@ class SubscriptionSuccessScreen extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 15,
-                              color: Colors.grey.shade400,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                               height: 1.5,
                             ),
                           ),
@@ -88,7 +95,9 @@ class SubscriptionSuccessScreen extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 15,
-                              color: Colors.grey.shade400,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -154,14 +163,14 @@ class SubscriptionSuccessScreen extends StatelessWidget {
                 width: 2,
               ),
             ),
-            child: const Text(
+            child: Text(
               'ДОСТИГАЙТЕ СВОИХ ЦЕЛЕЙ',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
