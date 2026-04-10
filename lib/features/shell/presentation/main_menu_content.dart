@@ -5,7 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/models/habit.dart';
 import '../../../../core/models/habit_log.dart';
-import '../../../../core/widgets/habit_card.dart';
+import '../../../../core/widgets/active_habit_card.dart';
+import '../../../../core/widgets/bool_habit_card.dart';
+import '../../../../core/widgets/habit_counter_card.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'add_habit_wizard.dart';
 import 'edit_habit_dialog.dart';
@@ -60,13 +63,34 @@ class MainMenuContent extends StatelessWidget {
     final active = habits.where((h) => h.isActive).toList();
     final inactive = habits.where((h) => !h.isActive).toList();
 
-    // Сортировка: невыполненные сверху, выполненные внизу (порядок внутри групп сохраняется)
-    active.sort((a, b) {
-      final aDone = todayLogs[a.id]?.isCompleted == true;
-      final bDone = todayLogs[b.id]?.isCompleted == true;
-      if (aDone == bDone) return 0;
-      return aDone ? 1 : -1;
-    });
+    bool isBoolType(Habit h) =>
+        h.type == HabitType.ritual || h.type == HabitType.temptation;
+
+    void sortForToday(List<Habit> list) {
+      // Делает порядок детерминированным (dart sort не stable).
+      final originalIndexById = <String, int>{
+        for (final e in list.asMap().entries) e.value.id: e.key,
+      };
+
+      // Сортировка:
+      // 1) невыполненные сверху, выполненные снизу (isCompleted == true)
+      // 2) внутри группы: булевые сверху, каунтер/таймер ниже
+      // 3) иначе сохраняем исходный порядок
+      list.sort((a, b) {
+        final aDone = todayLogs[a.id]?.isCompleted == true;
+        final bDone = todayLogs[b.id]?.isCompleted == true;
+        if (aDone != bDone) return aDone ? 1 : -1;
+
+        final aBool = isBoolType(a);
+        final bBool = isBoolType(b);
+        if (aBool != bBool) return aBool ? -1 : 1;
+
+        return (originalIndexById[a.id] ?? 0) - (originalIndexById[b.id] ?? 0);
+      });
+    }
+
+    sortForToday(active);
+    sortForToday(inactive);
 
     // Чуть больше воздуха под нижнюю "пилюлю" и центральную "+"
     final bottomPadding = 106.0 + MediaQuery.paddingOf(context).bottom;
@@ -74,7 +98,7 @@ class MainMenuContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+          padding: const EdgeInsets.fromLTRB(28, 6, 28, 10),
           child: _CalendarStripWithRecenter(
           isVisible: isMainMenuVisible,
           recenterTrigger: recenterCalendarTrigger,
@@ -137,7 +161,7 @@ class MainMenuContent extends StatelessWidget {
         onReorder: onReorderActive,
       ),
       if (inactive.isNotEmpty) ...[
-        const Divider(height: 1),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(
@@ -151,16 +175,152 @@ class MainMenuContent extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: inactive.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (ctx, index) {
             final habit = inactive[index];
-            return HabitCard(
-              habit: habit,
-              todayLog: todayLogs[habit.id],
-              logDate: selectedDate,
-              onTap: onHabitTap != null ? () => onHabitTap!(habit) : null,
-              onLog: onLog != null ? (log) => onLog!(log) : null,
-            );
+            final todayLog = todayLogs[habit.id];
+            final onTap =
+                onHabitTap != null ? () => onHabitTap!(habit) : null;
+
+            if (habit.type == HabitType.counter) {
+              final goal = habit.goal.value?.round() ?? 1;
+              final current = (todayLog?.value ?? 0).round();
+              return HabitCounterCard(
+                title: habit.name,
+                unit: habit.unit ?? 'раз',
+                current: current,
+                goal: goal,
+                isCompleted: todayLog?.isCompleted == true,
+                isSkipped: todayLog?.isCompleted == false,
+                accent: Theme.of(ctx).colorScheme.primary,
+                onSetValue: onLog == null
+                    ? null
+                    : (value) {
+                        final reachedGoal = goal > 0 && value >= goal;
+                        onLog!(
+                          HabitLog(
+                            id: todayLog?.id ??
+                                '${habit.id}_${selectedDate.millisecondsSinceEpoch}',
+                            habitId: habit.id,
+                            date: DateTime(
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              12,
+                              0,
+                            ),
+                            value: value.toDouble(),
+                            isCompleted:
+                                reachedGoal ? true : todayLog?.isCompleted,
+                          ),
+                        );
+                      },
+                onAdd: onLog == null
+                    ? null
+                    : () {
+                        final newValue = current + 1;
+                        final reachedGoal = goal > 0 && newValue >= goal;
+                        onLog!(
+                          HabitLog(
+                            id: todayLog?.id ??
+                                '${habit.id}_${selectedDate.millisecondsSinceEpoch}',
+                            habitId: habit.id,
+                            date: DateTime(
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              12,
+                              0,
+                            ),
+                            value: newValue.toDouble(),
+                            isCompleted:
+                                reachedGoal ? true : todayLog?.isCompleted,
+                          ),
+                        );
+                      },
+              );
+            }
+
+            if (habit.type == HabitType.timer) {
+              final goalMinutes = habit.goal.value?.round() ?? 15;
+              final initialSeconds = ((todayLog?.value ?? 0.0) * 60).round();
+              return GestureDetector(
+                onTap: onTap,
+                child: ActiveHabitCard(
+                  title: habit.name,
+                  unit: habit.unit ?? 'мин',
+                  goalMinutes: goalMinutes,
+                  accent: Theme.of(ctx).colorScheme.primary,
+                  initialSeconds: initialSeconds,
+                  isCompleted: todayLog?.isCompleted == true,
+                  onSave: onLog == null
+                      ? null
+                      : (duration) {
+                          final minutes = duration.inSeconds / 60.0;
+                          final reachedGoal =
+                              goalMinutes > 0 && minutes >= goalMinutes;
+                          onLog!(
+                            HabitLog(
+                              id: todayLog?.id ??
+                                  '${habit.id}_${selectedDate.millisecondsSinceEpoch}',
+                              habitId: habit.id,
+                              date: DateTime(
+                                selectedDate.year,
+                                selectedDate.month,
+                                selectedDate.day,
+                                12,
+                                0,
+                              ),
+                              value: minutes,
+                              isCompleted: reachedGoal
+                                  ? true
+                                  : todayLog?.isCompleted,
+                            ),
+                          );
+                        },
+                ),
+              );
+            }
+
+            if (habit.type == HabitType.ritual ||
+                habit.type == HabitType.temptation) {
+              final BoolHabitState state = todayLog?.isCompleted == true
+                  ? BoolHabitState.done
+                  : (todayLog?.isCompleted == false
+                      ? BoolHabitState.skipped
+                      : BoolHabitState.notDone);
+              return GestureDetector(
+                onTap: onTap,
+                child: BoolHabitCard(
+                  title: habit.name,
+                  state: state,
+                  onToggle: onLog == null
+                      ? null
+                      : () {
+                          final bool? next =
+                              state == BoolHabitState.done ? null : true;
+                          onLog!(
+                            HabitLog(
+                              id: todayLog?.id ??
+                                  '${habit.id}_${selectedDate.millisecondsSinceEpoch}',
+                              habitId: habit.id,
+                              date: DateTime(
+                                selectedDate.year,
+                                selectedDate.month,
+                                selectedDate.day,
+                                12,
+                                0,
+                              ),
+                              isCompleted: next,
+                            ),
+                          );
+                        },
+                ),
+              );
+            }
+
+            // Других типов нет.
+            return const SizedBox.shrink();
           },
         ),
       ],
@@ -353,6 +513,22 @@ class _ReorderableList extends StatefulWidget {
 class _ReorderableListState extends State<_ReorderableList> {
   late List<Habit> _items;
 
+  HabitLog _buildLog({
+    required Habit habit,
+    required DateTime day,
+    required double value,
+    bool? isCompleted,
+  }) {
+    return HabitLog(
+      id: widget.todayLogs[habit.id]?.id ??
+          '${habit.id}_${day.millisecondsSinceEpoch}',
+      habitId: habit.id,
+      date: DateTime(day.year, day.month, day.day, 12, 0),
+      value: value,
+      isCompleted: isCompleted,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -385,14 +561,115 @@ class _ReorderableListState extends State<_ReorderableList> {
       },
       itemBuilder: (context, index) {
         final habit = _items[index];
-        final card = HabitCard(
-          habit: habit,
-          todayLog: widget.todayLogs[habit.id],
-          logDate: widget.logDate,
-          onTap:
-              widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null,
-          onLog: widget.onLog != null ? (log) => widget.onLog!(log) : null,
-        );
+        final todayLog = widget.todayLogs[habit.id];
+        final VoidCallback? onTap =
+            widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null;
+
+        Widget card;
+        if (habit.type == HabitType.counter) {
+          final goal = habit.goal.value?.round() ?? 1;
+          final current = (todayLog?.value ?? 0).round();
+          card = HabitCounterCard(
+            title: habit.name,
+            unit: habit.unit ?? 'раз',
+            current: current,
+            goal: goal,
+            isCompleted: todayLog?.isCompleted == true,
+            isSkipped: todayLog?.isCompleted == false,
+            accent: Theme.of(context).colorScheme.primary,
+            onSetValue: widget.onLog == null
+                ? null
+                : (value) {
+                    final reachedGoal = goal > 0 && value >= goal;
+                    final log = _buildLog(
+                      habit: habit,
+                      day: widget.logDate,
+                      value: value.toDouble(),
+                      // Ручной ввод может "развыполнить" привычку.
+                      // Если значение ниже цели — сбрасываем completed в null.
+                      isCompleted: reachedGoal ? true : null,
+                    );
+                    widget.onLog!(log);
+                  },
+            onAdd: widget.onLog == null
+                ? null
+                : () {
+                    final newValue = current + 1;
+                    final reachedGoal = goal > 0 && newValue >= goal;
+                    final log = _buildLog(
+                      habit: habit,
+                      day: widget.logDate,
+                      value: newValue.toDouble(),
+                      isCompleted: reachedGoal ? true : todayLog?.isCompleted,
+                    );
+                    widget.onLog!(log);
+                  },
+          );
+        } else if (habit.type == HabitType.timer) {
+          final goalMinutes = habit.goal.value?.round() ?? 15;
+          final initialSeconds = ((todayLog?.value ?? 0.0) * 60).round();
+          card = GestureDetector(
+            onTap: onTap,
+            child: ActiveHabitCard(
+              title: habit.name,
+              unit: habit.unit ?? 'мин',
+              goalMinutes: goalMinutes,
+              accent: Theme.of(context).colorScheme.primary,
+              initialSeconds: initialSeconds,
+              isCompleted: todayLog?.isCompleted == true,
+              onSave: widget.onLog == null
+                  ? null
+                  : (duration) {
+                      final minutes = duration.inSeconds / 60.0;
+                      final reachedGoal =
+                          goalMinutes > 0 && minutes >= goalMinutes;
+                      final log = _buildLog(
+                        habit: habit,
+                        day: widget.logDate,
+                        value: minutes,
+                        // Ручное сохранение таймера тоже может "развыполнить".
+                        isCompleted: reachedGoal ? true : null,
+                      );
+                      widget.onLog!(log);
+                    },
+            ),
+          );
+        } else {
+          // Boolean habits & events: ritual / temptation
+          final done = todayLog?.isCompleted == true;
+          card = GestureDetector(
+            onTap: onTap,
+            child: BoolHabitCard(
+              title: habit.name,
+              state: todayLog?.isCompleted == true
+                  ? BoolHabitState.done
+                  : (todayLog?.isCompleted == false
+                      ? BoolHabitState.skipped
+                      : BoolHabitState.notDone),
+              onToggle: widget.onLog == null
+                  ? null
+                  : () {
+                      final bool? next = done ? null : true;
+                      widget.onLog!(
+                        HabitLog(
+                          id: todayLog?.id ??
+                              '${habit.id}_${widget.logDate.millisecondsSinceEpoch}',
+                          habitId: habit.id,
+                          date: DateTime(
+                            widget.logDate.year,
+                            widget.logDate.month,
+                            widget.logDate.day,
+                            12,
+                            0,
+                          ),
+                          isCompleted: next,
+                        ),
+                      );
+                    },
+            ),
+          );
+        }
+
         return Column(
           key: ValueKey(habit.id),
           mainAxisSize: MainAxisSize.min,
@@ -403,7 +680,8 @@ class _ReorderableListState extends State<_ReorderableList> {
                     child: card,
                   )
                 : card,
-            if (index < _items.length - 1) const SizedBox(height: 6),
+            // Вертикальный отступ держим за счёт margin карточек.
+            if (index < _items.length - 1) const SizedBox(height: 0),
           ],
         );
       },
@@ -531,9 +809,10 @@ class _CalendarStripState extends State<_CalendarStrip> {
     final weekdayShortFormat = DateFormat('E', locale.toString());
     final theme = Theme.of(context);
     final padding = MediaQuery.paddingOf(context);
-    const sidePadding = 16.0;
-    final paddingLeft = sidePadding + padding.left;
-    final paddingRight = sidePadding + padding.right;
+    // Боковые отступы (16) задаются снаружи в MainMenuContent.
+    // Здесь оставляем только safe-area, чтобы края совпадали с карточками.
+    final paddingLeft = padding.left;
+    final paddingRight = padding.right;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -567,11 +846,11 @@ class _CalendarStripState extends State<_CalendarStrip> {
                           : rawWeekdayShort[0].toUpperCase() +
                               rawWeekdayShort.substring(1).toLowerCase();
                       const coffee = Color(0xFF6B5A4E);
-                      const accent = Color(0xFFBD6E35); // желаемый акцент для селектора
+                      final accent = theme.colorScheme.primary;
                       final headerCoffee = coffee.withValues(alpha: 0.92);
                       final lineColor = coffee.withValues(alpha: 0.20);
                       final baseBorder = coffee.withValues(alpha: 0.30);
-                      final selectedBorder = accent.withValues(alpha: 0.98);
+                      final selectedBorder = accent;
 
                       final bgColor = isToday
                           ? headerCoffee.withValues(alpha: 0.10)

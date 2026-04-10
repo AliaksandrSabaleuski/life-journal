@@ -5,8 +5,11 @@ class AppTheme {
 
   static ThemeData get light {
     // Тёплая палитра под референс: бежевый фон + карамельный акцент.
-    const seed = Color(0xFFBD6E35); // дефолтный акцент (селектор/кнопки/+)
+    const seed = Color(0xFFFF7A00); // дефолтный акцент (выполнение/селектор/кнопки/+)
     final scheme = ColorScheme.fromSeed(seedColor: seed).copyWith(
+      // Фиксируем primary ровно в брендовый оранжевый (без "тонирования" от seed).
+      primary: seed,
+      onPrimary: Colors.white,
       secondary: const Color(0xFFE91E8C),
     );
 

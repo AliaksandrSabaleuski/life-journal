@@ -322,14 +322,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF7EFE7),
-              Color(0xFFF6EEE5),
-              Color(0xFFF7F1EA),
-            ],
+          image: DecorationImage(
+            image: AssetImage('assets/images/Mainback.png'),
+            fit: BoxFit.cover,
           ),
         ),
         child: body,
@@ -556,13 +551,13 @@ class _WarmBottomNavBar extends StatelessWidget {
                           Color.lerp(
                             Colors.white,
                             theme.colorScheme.primary,
-                            0.25,
+                            0.35,
                           )!,
                           theme.colorScheme.primary,
                           Color.lerp(
-                            const Color(0xFF3B2A22),
                             theme.colorScheme.primary,
-                            0.75,
+                            Colors.black,
+                            0.10,
                           )!,
                         ],
                         stops: const [0.0, 0.55, 1.0],

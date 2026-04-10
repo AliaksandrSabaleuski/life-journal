@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import 'time_input_dialog.dart';
 
 /// Карточка привычки: отображение и отметка в зависимости от [HabitType].
 class HabitCard extends StatefulWidget {
@@ -97,6 +98,41 @@ class _HabitCardState extends State<HabitCard> {
     onLog?.call(HabitLog(
       id: todayLog?.id ??
           '${habit.id}_${widget.logDate.millisecondsSinceEpoch}',
+      habitId: habit.id,
+      date: DateTime(
+        widget.logDate.year,
+        widget.logDate.month,
+        widget.logDate.day,
+        12,
+        0,
+      ),
+      value: savedMinutes,
+      isCompleted: goalMinutes > 0 && savedMinutes >= goalMinutes
+          ? true
+          : todayLog?.isCompleted,
+    ));
+    setState(() {});
+  }
+
+  Future<void> _setManualTimerMinutes(BuildContext context) async {
+    final initialMinutes = (_timerRunning
+            ? (_elapsedSeconds / 60.0)
+            : (todayLog?.value ?? 0.0))
+        .round()
+        .clamp(0, 9999);
+    final result = await showTimeInputDialog(context, initial: initialMinutes);
+    if (!mounted) return;
+    if (result == null) return;
+
+    // Останавливаем таймер, если он был запущен, и сохраняем введённое значение.
+    _timer?.cancel();
+    _timer = null;
+    _elapsedSeconds = result * 60;
+
+    final goalMinutes = _goalValue;
+    final savedMinutes = result.toDouble();
+    onLog?.call(HabitLog(
+      id: todayLog?.id ?? '${habit.id}_${widget.logDate.millisecondsSinceEpoch}',
       habitId: habit.id,
       date: DateTime(
         widget.logDate.year,
@@ -253,7 +289,15 @@ class _HabitCardState extends State<HabitCard> {
                         padding: const EdgeInsets.only(bottom: 14),
                         child: habit.type == HabitType.timer ||
                                 habit.type == HabitType.counter
-                            ? _buildProgressSubtitle(theme)
+                            ? (habit.type == HabitType.timer
+                                ? GestureDetector(
+                                    onTap: onLog == null
+                                        ? null
+                                        : () => _setManualTimerMinutes(context),
+                                    behavior: HitTestBehavior.opaque,
+                                    child: _buildProgressSubtitle(theme),
+                                  )
+                                : _buildProgressSubtitle(theme))
                             : Text(
                                 (todayLog?.isCompleted == true)
                                     ? 'Выполнено'
