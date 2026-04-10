@@ -15,6 +15,7 @@ class ActiveHabitCard extends StatefulWidget {
     this.initialSeconds = 0,
     this.isCompleted = false,
     this.customColor,
+    this.readOnly = false,
     this.onSave,
   });
 
@@ -26,6 +27,8 @@ class ActiveHabitCard extends StatefulWidget {
   final bool isCompleted;
   /// Если задан и не равен 0x00000000 — тонирует фон карточки.
   final Color? customColor;
+  /// Если true — отключает интерактивность (play/pause/stop).
+  final bool readOnly;
   final ValueChanged<Duration>? onSave;
 
   @override
@@ -245,7 +248,7 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
                   children: [
                     Positioned.fill(
                       child: InkResponse(
-                        onTap: _toggleTimer,
+                        onTap: widget.readOnly ? null : _toggleTimer,
                         radius: 22,
                         child: Container(
                           decoration: BoxDecoration(
@@ -265,7 +268,7 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
                         right: -6,
                         bottom: -6,
                         child: InkResponse(
-                          onTap: _stopTimer,
+                          onTap: widget.readOnly ? null : _stopTimer,
                           radius: 16,
                           child: Container(
                             width: 22,

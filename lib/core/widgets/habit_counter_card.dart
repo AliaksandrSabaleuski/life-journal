@@ -138,8 +138,7 @@ class HabitCounterCard extends StatelessWidget {
                       TextSpan(
                         children: [
                           TextSpan(
-                            text:
-                                '${clampedCurrent.toString().padLeft(2, '0')} / ${safeGoal.toString().padLeft(2, '0')} $unit',
+                            text: '$clampedCurrent / $safeGoal $unit',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,

@@ -9,7 +9,9 @@ import '../../../../core/models/habit.dart';
 import '../../../../core/widgets/active_habit_card.dart';
 import '../../../../core/widgets/bool_habit_card.dart';
 import '../../../../core/widgets/habit_counter_card.dart';
+import '../../../../core/widgets/underline_pill.dart';
 import 'add_habit_wizard.dart';
+import 'add_custom_habit_screen.dart';
 
 Future<Habit?> showAddHabitScreen(
   BuildContext context, {
@@ -257,15 +259,9 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   }
 
   Future<void> _openCustomFlow() async {
-    final habit = await Navigator.of(context).push<Habit?>(
-      MaterialPageRoute(
-        builder: (_) => AddHabitWizard(
-          initialCreationSource: 'custom',
-          startStep: 1,
-          initialDate: widget.initialDate,
-          existingHabits: widget.existingHabits,
-        ),
-      ),
+    final habit = await showAddCustomHabitScreen(
+      context,
+      initialDate: widget.initialDate,
     );
     if (!mounted) return;
     if (habit != null) Navigator.of(context).pop(habit);
@@ -507,7 +503,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                 children: [
                   const Text('Повторимость'),
                   const SizedBox(width: 12),
-                  _UnderlinePill(
+                  UnderlinePill(
                     text: 'Ежедневно',
                     selected: _daily,
                     accent: accent,
@@ -519,7 +515,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                     }),
                   ),
                   const SizedBox(width: 8),
-                  _UnderlinePill(
+                  UnderlinePill(
                     text: 'Выбрать дни',
                     selected: !_daily,
                     accent: accent,
@@ -784,74 +780,4 @@ class _CategoryPill extends StatelessWidget {
   }
 }
 
-class _UnderlinePill extends StatelessWidget {
-  const _UnderlinePill({
-    required this.text,
-    required this.selected,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final String text;
-  final bool selected;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const bg = Color(0xFFF3EFE9);
-    const fg = Color(0xFF5A3E2B);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: accent.withValues(alpha: 0.22),
-                  width: 1,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  text,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  softWrap: false,
-                ),
-              ),
-            ),
-            if (selected)
-              Positioned(
-                left: 14,
-                right: 14,
-                bottom: -6,
-                child: Container(
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
