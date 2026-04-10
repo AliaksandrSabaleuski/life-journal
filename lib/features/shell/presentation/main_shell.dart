@@ -15,6 +15,7 @@ import '../../calendar/presentation/calendar_screen.dart';
 import '../../stats/presentation/stats_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../../assistant/presentation/assistant_screen.dart';
+import 'add_habit_screen.dart';
 
 /// Оболочка приложения: AppBar (настройки, поиск, подписка) + контент по вкладке + нижняя навигация.
 class MainShell extends StatefulWidget {
@@ -124,7 +125,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       return;
     }
 
-    final habit = await showAddHabitWizard(
+    final habit = await showAddHabitScreen(
       context,
       existingHabits: _habits,
       initialDate: _selectedDate,

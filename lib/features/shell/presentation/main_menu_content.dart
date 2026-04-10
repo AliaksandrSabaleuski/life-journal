@@ -193,6 +193,7 @@ class MainMenuContent extends StatelessWidget {
                 isCompleted: todayLog?.isCompleted == true,
                 isSkipped: todayLog?.isCompleted == false,
                 accent: Theme.of(ctx).colorScheme.primary,
+                customColor: habit.color.value == 0 ? null : habit.color,
                 onSetValue: onLog == null
                     ? null
                     : (value) {
@@ -253,6 +254,7 @@ class MainMenuContent extends StatelessWidget {
                   accent: Theme.of(ctx).colorScheme.primary,
                   initialSeconds: initialSeconds,
                   isCompleted: todayLog?.isCompleted == true,
+                  customColor: habit.color.value == 0 ? null : habit.color,
                   onSave: onLog == null
                       ? null
                       : (duration) {
@@ -294,6 +296,7 @@ class MainMenuContent extends StatelessWidget {
                 child: BoolHabitCard(
                   title: habit.name,
                   state: state,
+                  customColor: habit.color.value == 0 ? null : habit.color,
                   onToggle: onLog == null
                       ? null
                       : () {
@@ -577,6 +580,7 @@ class _ReorderableListState extends State<_ReorderableList> {
             isCompleted: todayLog?.isCompleted == true,
             isSkipped: todayLog?.isCompleted == false,
             accent: Theme.of(context).colorScheme.primary,
+            customColor: habit.color.value == 0 ? null : habit.color,
             onSetValue: widget.onLog == null
                 ? null
                 : (value) {
@@ -617,6 +621,7 @@ class _ReorderableListState extends State<_ReorderableList> {
               accent: Theme.of(context).colorScheme.primary,
               initialSeconds: initialSeconds,
               isCompleted: todayLog?.isCompleted == true,
+              customColor: habit.color.value == 0 ? null : habit.color,
               onSave: widget.onLog == null
                   ? null
                   : (duration) {
@@ -646,6 +651,7 @@ class _ReorderableListState extends State<_ReorderableList> {
                   : (todayLog?.isCompleted == false
                       ? BoolHabitState.skipped
                       : BoolHabitState.notDone),
+              customColor: habit.color.value == 0 ? null : habit.color,
               onToggle: widget.onLog == null
                   ? null
                   : () {

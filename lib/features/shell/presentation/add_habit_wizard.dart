@@ -1895,14 +1895,7 @@ class _DirectionCard extends StatelessWidget {
 
 /// Категория шаблона для группировки в выборе.
 String _templateCategory(HabitTemplate t) {
-  switch (t.measurement) {
-    case HabitMeasurement.binary:
-      return 'Однократные действия';
-    case HabitMeasurement.timed:
-      return 'Время';
-    case HabitMeasurement.counted:
-      return 'Лимит';
-  }
+  return t.category ?? 'Привычки';
 }
 
 class _GradientButton extends StatelessWidget {
@@ -2167,14 +2160,34 @@ class _TemplatePicker extends StatelessWidget {
 
   List<DropdownMenuItem<String>> _buildGroupedItems(ThemeData theme) {
     final grouped = <String, List<HabitTemplate>>{};
+    final originalIndexById = <String, int>{
+      for (final e in presets.asMap().entries) e.value.templateId: e.key,
+    };
     for (final t in presets) {
       grouped.putIfAbsent(_templateCategory(t), () => []).add(t);
     }
-    const categoryOrder = ['Однократные действия', 'Время', 'Лимит'];
+    const categoryOrder = [
+      'Здоровье',
+      'Жизнь',
+      'Развлечение',
+      'Спорт',
+      'Привычки',
+    ];
 
     final items = <DropdownMenuItem<String>>[];
-    for (final cat in categoryOrder) {
-      final list = grouped[cat] ?? [];
+    final orderedCats = <String>[
+      ...categoryOrder.where(grouped.containsKey),
+      ...grouped.keys.where((k) => !categoryOrder.contains(k)),
+    ];
+    for (final cat in orderedCats) {
+      final list = (grouped[cat] ?? const <HabitTemplate>[]).toList()
+        ..sort((a, b) {
+          final ao = a.order ?? 1 << 30;
+          final bo = b.order ?? 1 << 30;
+          if (ao != bo) return ao - bo;
+          return (originalIndexById[a.templateId] ?? 0) -
+              (originalIndexById[b.templateId] ?? 0);
+        });
       if (list.isEmpty) continue;
       items.add(
         DropdownMenuItem<String>(

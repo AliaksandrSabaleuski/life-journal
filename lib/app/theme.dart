@@ -24,9 +24,76 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       brightness: Brightness.light,
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['Segoe UI'],
+    );
+
+    const titleBrown = Color(0xFF5A3E2B);
+    const bodyDark = Color(0xFF4A4A4A);
+
+    final textTheme = base.textTheme.copyWith(
+      // Заголовки — Inter Bold 20px
+      titleLarge: base.textTheme.titleLarge?.copyWith(
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        height: 1.4,
+        color: titleBrown,
+      ),
+      // Подзаголовки и метки — Inter Medium 16px
+      titleMedium: base.textTheme.titleMedium?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        height: 1.4,
+        color: titleBrown,
+      ),
+      titleSmall: base.textTheme.titleSmall?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        height: 1.4,
+        color: titleBrown,
+      ),
+      // Текст карточек и кнопок — Inter Regular 14px
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        height: 1.4,
+        color: bodyDark,
+      ),
+      bodyLarge: base.textTheme.bodyLarge?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        height: 1.4,
+        color: bodyDark,
+      ),
+      labelLarge: base.textTheme.labelLarge?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        height: 1.4,
+        color: bodyDark,
+      ),
+      // Мелкие подписи — Inter Light 12px
+      bodySmall: base.textTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w300,
+        height: 1.4,
+        color: bodyDark,
+      ),
+      labelSmall: base.textTheme.labelSmall?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w300,
+        height: 1.4,
+        color: bodyDark,
+      ),
+      labelMedium: base.textTheme.labelMedium?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w300,
+        height: 1.4,
+        color: bodyDark,
+      ),
     );
 
     return base.copyWith(
+      textTheme: textTheme,
       visualDensity: VisualDensity.standard,
       scaffoldBackgroundColor: const Color(0xFFF6EEE5),
       dividerColor: scheme.outlineVariant.withValues(alpha: 0.7),
@@ -39,10 +106,7 @@ class AppTheme {
         iconTheme: IconThemeData(
           color: scheme.onSurface.withValues(alpha: 0.70),
         ),
-        titleTextStyle: base.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: scheme.onSurface.withValues(alpha: 0.78),
-        ),
+        titleTextStyle: textTheme.titleLarge,
       ),
       cardTheme: const CardThemeData().copyWith(
         elevation: 0,
@@ -54,21 +118,16 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         shape: radius16,
         backgroundColor: scheme.surfaceContainerHigh,
-        titleTextStyle: base.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: scheme.onSurface,
-        ),
-        contentTextStyle: base.textTheme.bodyMedium?.copyWith(
+        titleTextStyle: textTheme.titleLarge,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
           color: scheme.onSurfaceVariant,
-          height: 1.35,
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface.withValues(alpha: 0.96),
-        contentTextStyle: base.textTheme.bodyMedium?.copyWith(
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
           color: scheme.onInverseSurface,
-          fontWeight: FontWeight.w600,
         ),
         shape: radius12,
         elevation: 0,
@@ -77,26 +136,20 @@ class AppTheme {
         style: FilledButton.styleFrom(
           shape: radius12,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          textStyle: base.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          textStyle: textTheme.bodyMedium,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: radius12,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          textStyle: base.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          textStyle: textTheme.bodyMedium,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: radius12,
-          textStyle: base.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          textStyle: textTheme.bodyMedium,
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -123,10 +176,7 @@ class AppTheme {
             width: 2,
           ),
         ),
-        labelStyle: base.textTheme.bodyMedium?.copyWith(
-          color: scheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
@@ -144,7 +194,7 @@ class AppTheme {
         style: ButtonStyle(
           shape: WidgetStateProperty.all(radius12),
           textStyle: WidgetStateProperty.all(
-            base.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+            textTheme.bodyMedium,
           ),
         ),
       ),
@@ -153,14 +203,8 @@ class AppTheme {
         selectedColor: scheme.primary,
         secondarySelectedColor: scheme.primary,
         backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-        labelStyle: base.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: scheme.onSurface,
-        ),
-        secondaryLabelStyle: base.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: scheme.onPrimary,
-        ),
+        labelStyle: textTheme.bodySmall?.copyWith(color: scheme.onSurface),
+        secondaryLabelStyle: textTheme.bodySmall?.copyWith(color: scheme.onPrimary),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surfaceContainerHigh,

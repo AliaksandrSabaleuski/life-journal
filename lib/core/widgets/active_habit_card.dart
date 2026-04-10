@@ -14,6 +14,7 @@ class ActiveHabitCard extends StatefulWidget {
     this.accent = const Color(0xFFFF7A00),
     this.initialSeconds = 0,
     this.isCompleted = false,
+    this.customColor,
     this.onSave,
   });
 
@@ -23,6 +24,8 @@ class ActiveHabitCard extends StatefulWidget {
   final Color accent;
   final int initialSeconds;
   final bool isCompleted;
+  /// Если задан и не равен 0x00000000 — тонирует фон карточки.
+  final Color? customColor;
   final ValueChanged<Duration>? onSave;
 
   @override
@@ -33,6 +36,11 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
   bool isRunning = false;
   Duration elapsed = Duration.zero;
   Timer? timer;
+
+  Color _tint(Color base, Color tint) {
+    final opaque = Color(tint.value | 0xFF000000);
+    return Color.lerp(base, opaque, 0.18)!;
+  }
 
   @override
   void initState() {
@@ -98,6 +106,9 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
     final cardBg = widget.isCompleted
         ? const Color(0xFFEDE6DE) // чуть темнее, чем базовый
         : const Color(0xFFF3EFE9);
+    final effectiveBg = (widget.customColor != null && widget.customColor!.value != 0)
+        ? _tint(cardBg, widget.customColor!)
+        : cardBg;
     final contentOpacity = widget.isCompleted ? 0.78 : 1.0;
 
     return Container(
@@ -112,7 +123,7 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
       constraints: BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
       decoration: BoxDecoration(
         // В точности как подложки дней в календаре.
-        color: cardBg,
+        color: effectiveBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.85),
@@ -152,76 +163,74 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: SizedBox(
-              height: 48,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF5A3E2B),
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF5A3E2B),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_formatTime(elapsed)} / ${widget.goalMinutes.toString().padLeft(2, '0')} ${widget.unit}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF8A6A54),
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_formatTime(elapsed)} / ${widget.goalMinutes.toString().padLeft(2, '0')} ${widget.unit}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF8A6A54),
                   ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            height: 6,
-                            color: const Color(0xFFE9D9CC),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: FractionallySizedBox(
-                                widthFactor: progress,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color.lerp(
-                                          Colors.white,
-                                          widget.accent,
-                                          0.35,
-                                        )!,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          height: 6,
+                          color: const Color(0xFFE9D9CC),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor: progress,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color.lerp(
+                                        Colors.white,
                                         widget.accent,
-                                      ],
-                                    ),
+                                        0.35,
+                                      )!,
+                                      widget.accent,
+                                    ],
                                   ),
-                                  child: const SizedBox.expand(),
                                 ),
+                                child: const SizedBox.expand(),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '$percent%',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF5A3E2B),
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '$percent%',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF5A3E2B),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),

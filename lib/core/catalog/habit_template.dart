@@ -54,6 +54,8 @@ class HabitTemplate {
     required this.templateId,
     required this.kind,
     required this.name,
+    required this.category,
+    this.order,
     required this.direction,
     required this.measurement,
     required this.goal,
@@ -69,6 +71,11 @@ class HabitTemplate {
   final String templateId;
   final TemplateKind kind;
   final String name;
+  /// Категория для группировки в UI добавления преднастроенных.
+  /// У кастомных привычек категории нет (они не из каталога).
+  final String? category;
+  /// Порядок показа внутри категории (меньше = выше).
+  final int? order;
   final HabitDirection direction;
   final HabitMeasurement measurement;
   final HabitTemplateGoal goal;
@@ -145,6 +152,8 @@ class HabitTemplate {
       templateId: json['templateId'] as String,
       kind: kind,
       name: json['name'] as String,
+      category: json['category'] as String?,
+      order: (json['order'] as num?)?.toInt(),
       direction: parseDirection(json['direction'] as String),
       measurement: parseMeasurement(json['measurement'] as String),
       goal: HabitTemplateGoal.fromJson(

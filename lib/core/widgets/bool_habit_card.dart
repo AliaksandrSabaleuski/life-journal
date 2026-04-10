@@ -12,11 +12,19 @@ class BoolHabitCard extends StatelessWidget {
     required this.title,
     required this.state,
     this.onToggle,
+    this.customColor,
   });
 
   final String title;
   final BoolHabitState state;
   final VoidCallback? onToggle;
+  /// Если задан и не равен 0x00000000 — тонирует фон карточки.
+  final Color? customColor;
+
+  Color _tint(Color base, Color tint) {
+    final opaque = Color(tint.value | 0xFF000000);
+    return Color.lerp(base, opaque, 0.18)!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +44,9 @@ class BoolHabitCard extends StatelessWidget {
       BoolHabitState.done => const Color(0xFFEDE6DE),
       BoolHabitState.skipped => const Color(0xFFE6DED7),
     };
+    final effectiveBg = (customColor != null && customColor!.value != 0)
+        ? _tint(cardBg, customColor!)
+        : cardBg;
     final double contentOpacity = (isDone || isSkipped) ? 0.78 : 1.0;
 
     final String statusText = switch (state) {
@@ -62,7 +73,7 @@ class BoolHabitCard extends StatelessWidget {
       ),
       constraints: BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
       decoration: BoxDecoration(
-        color: cardBg,
+        color: effectiveBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.85),

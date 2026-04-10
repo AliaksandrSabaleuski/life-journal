@@ -16,6 +16,7 @@ class HabitCounterCard extends StatelessWidget {
     this.isSkipped = false,
     this.onAdd,
     this.onSetValue,
+    this.customColor,
     this.accent = const Color(0xFFFF7A00),
   });
 
@@ -27,7 +28,14 @@ class HabitCounterCard extends StatelessWidget {
   final bool isSkipped;
   final VoidCallback? onAdd;
   final ValueChanged<int>? onSetValue;
+  /// Если задан и не равен 0x00000000 — тонирует фон карточки.
+  final Color? customColor;
   final Color accent;
+
+  Color _tint(Color base, Color tint) {
+    final opaque = Color(tint.value | 0xFF000000);
+    return Color.lerp(base, opaque, 0.18)!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +46,9 @@ class HabitCounterCard extends StatelessWidget {
     final cardBg = isSkipped
         ? const Color(0xFFE6DED7) // пропущено
         : (isCompleted ? const Color(0xFFEDE6DE) : const Color(0xFFF3EFE9));
+    final effectiveBg = (customColor != null && customColor!.value != 0)
+        ? _tint(cardBg, customColor!)
+        : cardBg;
     final contentOpacity = (isCompleted || isSkipped) ? 0.78 : 1.0;
 
     return Container(
@@ -52,7 +63,7 @@ class HabitCounterCard extends StatelessWidget {
       constraints: BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
       decoration: BoxDecoration(
         // В точности как подложки дней в календаре.
-        color: cardBg,
+        color: effectiveBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.85),
