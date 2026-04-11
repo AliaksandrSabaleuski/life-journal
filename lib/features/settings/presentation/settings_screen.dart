@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../app/locale_controller.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../subscription/presentation/subscription_screen.dart';
 
@@ -228,6 +230,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+          if (kDebugMode) ...[
+            const SizedBox(height: 16),
+            const Divider(),
+            ListTile(
+              leading: Icon(
+                Icons.translate_rounded,
+                color: theme.colorScheme.primary,
+              ),
+              title: const Text('Debug: язык UI'),
+              subtitle: ValueListenableBuilder<Locale?>(
+                valueListenable: AppLocaleController.locale,
+                builder: (context, loc, _) {
+                  if (loc == null) {
+                    return const Text(
+                      'Не задан — как в блоке «Язык приложения» / система.',
+                    );
+                  }
+                  return Text(
+                    loc.languageCode == 'en'
+                        ? 'Принудительно: English'
+                        : 'Принудительно: Русский',
+                  );
+                },
+              ),
+              trailing: FilledButton.tonal(
+                onPressed: () {
+                  AppLocaleController.toggleRuEn();
+                  final loc = AppLocaleController.locale.value;
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Locale: ${loc?.languageCode ?? '?'}'),
+                    ),
+                  );
+                },
+                child: const Text('RU ⇄ EN'),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  AppLocaleController.locale.value = null;
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Debug locale сброшен'),
+                    ),
+                  );
+                },
+                child: const Text('Сбросить debug-локаль'),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.red),

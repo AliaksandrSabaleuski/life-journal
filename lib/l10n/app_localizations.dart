@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_en.dart';
 import 'app_localizations_ru.dart';
 
 // ignore_for_file: type=lint
@@ -92,12 +93,15 @@ abstract class AppLocalizations {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('ru')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('ru'),
+  ];
 
   /// No description provided for @appTitle.
   ///
   /// In ru, this message translates to:
-  /// **'Habit Run'**
+  /// **'About Me: Habit tracker'**
   String get appTitle;
 
   /// No description provided for @newEventTitle.
@@ -217,14 +221,20 @@ abstract class AppLocalizations {
   /// No description provided for @assistantInDevelopmentTitle.
   ///
   /// In ru, this message translates to:
-  /// **'В разработке'**
+  /// **'Помощник в разработке'**
   String get assistantInDevelopmentTitle;
 
   /// No description provided for @assistantInDevelopmentBody.
   ///
   /// In ru, this message translates to:
-  /// **'Функционал помощника в разработке. Выпуск состоится в ближайших обновлениях.'**
+  /// **'Эта функция появится в одном из ближайших обновлений. Мы уже работаем над ней!'**
   String get assistantInDevelopmentBody;
+
+  /// No description provided for @assistantGotItButton.
+  ///
+  /// In ru, this message translates to:
+  /// **'Понятно'**
+  String get assistantGotItButton;
 
   /// No description provided for @newBlockTitle.
   ///
@@ -327,6 +337,234 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Выберите, какую привычку хотите добавить'**
   String get chooseHabitTypeHint;
+
+  /// No description provided for @addHabitTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить привычку'**
+  String get addHabitTitle;
+
+  /// No description provided for @createHabitButton.
+  ///
+  /// In ru, this message translates to:
+  /// **'Создать привычку'**
+  String get createHabitButton;
+
+  /// No description provided for @previewTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Предпросмотр'**
+  String get previewTitle;
+
+  /// No description provided for @cardColorLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Цвет карточки'**
+  String get cardColorLabel;
+
+  /// No description provided for @repeatabilityLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Повторимость'**
+  String get repeatabilityLabel;
+
+  /// No description provided for @repeatDaily.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ежедневно'**
+  String get repeatDaily;
+
+  /// No description provided for @repeatPickDays.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выбрать дни'**
+  String get repeatPickDays;
+
+  /// No description provided for @createYourOwn.
+  ///
+  /// In ru, this message translates to:
+  /// **'Создать свою'**
+  String get createYourOwn;
+
+  /// No description provided for @customTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Своя привычка'**
+  String get customTitle;
+
+  /// No description provided for @limitTime.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лимит времени'**
+  String get limitTime;
+
+  /// No description provided for @limitCount.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лимит количества'**
+  String get limitCount;
+
+  /// No description provided for @customHabitNameLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Название привычки'**
+  String get customHabitNameLabel;
+
+  /// No description provided for @minutesPerDay.
+  ///
+  /// In ru, this message translates to:
+  /// **'Минут в день'**
+  String get minutesPerDay;
+
+  /// No description provided for @amountPerDay.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сколько в день'**
+  String get amountPerDay;
+
+  /// No description provided for @unitShort.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ед.'**
+  String get unitShort;
+
+  /// No description provided for @minShort.
+  ///
+  /// In ru, this message translates to:
+  /// **'мин'**
+  String get minShort;
+
+  /// No description provided for @pickDaysTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выбрать дни'**
+  String get pickDaysTitle;
+
+  /// No description provided for @okButton.
+  ///
+  /// In ru, this message translates to:
+  /// **'OK'**
+  String get okButton;
+
+  /// No description provided for @editHabitTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Редактировать привычку'**
+  String get editHabitTitle;
+
+  /// No description provided for @editHabitNameLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Название'**
+  String get editHabitNameLabel;
+
+  /// No description provided for @editHabitNameHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Название должно быть коротким и конкретным'**
+  String get editHabitNameHint;
+
+  /// No description provided for @editHabitCardColor.
+  ///
+  /// In ru, this message translates to:
+  /// **'Цвет карточки'**
+  String get editHabitCardColor;
+
+  /// No description provided for @editHabitTypePrefix.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тип:'**
+  String get editHabitTypePrefix;
+
+  /// No description provided for @editHabitExecutionKind.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выполнение'**
+  String get editHabitExecutionKind;
+
+  /// No description provided for @editHabitGoalRow.
+  ///
+  /// In ru, this message translates to:
+  /// **'Цель:'**
+  String get editHabitGoalRow;
+
+  /// No description provided for @editHabitUnitRow.
+  ///
+  /// In ru, this message translates to:
+  /// **'Единица:'**
+  String get editHabitUnitRow;
+
+  /// No description provided for @editHabitBinaryDetail.
+  ///
+  /// In ru, this message translates to:
+  /// **'Цель — отметить выполнение за день (без числового лимита).'**
+  String get editHabitBinaryDetail;
+
+  /// No description provided for @editHabitTimeGoalHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сколько времени в день'**
+  String get editHabitTimeGoalHint;
+
+  /// No description provided for @editHabitCountGoalHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сколько раз (или единиц) в день'**
+  String get editHabitCountGoalHint;
+
+  /// No description provided for @unitMinutesLong.
+  ///
+  /// In ru, this message translates to:
+  /// **'минуты'**
+  String get unitMinutesLong;
+
+  /// No description provided for @unitHoursLong.
+  ///
+  /// In ru, this message translates to:
+  /// **'часы'**
+  String get unitHoursLong;
+
+  /// No description provided for @editDeleteHabitConfirmTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить привычку?'**
+  String get editDeleteHabitConfirmTitle;
+
+  /// No description provided for @editDeleteHabitConfirmBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Привычка будет скрыта из списка активных и перейдёт в раздел неактивных.'**
+  String get editDeleteHabitConfirmBody;
+
+  /// No description provided for @deleteButton.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить'**
+  String get deleteButton;
+
+  /// No description provided for @editHabitOneTimeTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Одноразовое событие'**
+  String get editHabitOneTimeTitle;
+
+  /// No description provided for @editHabitOneTimeSubtitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Один день в календаре, без повторов'**
+  String get editHabitOneTimeSubtitle;
+
+  /// No description provided for @habitPeriodStart.
+  ///
+  /// In ru, this message translates to:
+  /// **'Дата начала'**
+  String get habitPeriodStart;
+
+  /// No description provided for @habitPeriodEnd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Дата окончания'**
+  String get habitPeriodEnd;
 }
 
 class _AppLocalizationsDelegate
@@ -340,7 +578,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['ru'].contains(locale.languageCode);
+      <String>['en', 'ru'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -349,6 +587,8 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'en':
+      return AppLocalizationsEn();
     case 'ru':
       return AppLocalizationsRu();
   }

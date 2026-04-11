@@ -57,7 +57,66 @@ class HabitsPersistence {
       'endDate': h.endDate?.toIso8601String(),
       'isEvent': h.isEvent,
       'templateId': h.templateId,
+      'rulesEffectiveFrom': h.rulesEffectiveFrom?.toIso8601String(),
+      'priorRules': h.priorRules != null ? _priorRulesToMap(h.priorRules!) : null,
     };
+  }
+
+  static Map<String, dynamic> _priorRulesToMap(HabitPriorRules r) {
+    return {
+      'name': r.name,
+      'direction': r.direction.index,
+      'measurement': r.measurement.index,
+      'goal': {'kind': r.goal.kind.index, 'value': r.goal.value},
+      'color': r.color.value,
+      'unit': r.unit,
+      'repeatDays': r.repeatDays,
+      'icon': r.icon != null
+          ? {'codePoint': r.icon!.codePoint, 'fontFamily': r.icon!.fontFamily}
+          : null,
+    };
+  }
+
+  static HabitPriorRules? _priorRulesFromMap(Map<String, dynamic>? m) {
+    if (m == null) return null;
+    final goalMap = m['goal'] as Map<String, dynamic>?;
+    HabitGoal goal = const HabitGoal.noGoal();
+    if (goalMap != null) {
+      final kindIdx = goalMap['kind'] as int? ?? 0;
+      final val = goalMap['value'] as num?;
+      final kind = kindIdx >= 2 ? HabitGoalKind.target : HabitGoalKind.values[kindIdx];
+      goal = switch (kind) {
+        HabitGoalKind.noGoal => const HabitGoal.noGoal(),
+        HabitGoalKind.target => HabitGoal.target(val?.toDouble() ?? 1.0),
+      };
+    }
+    IconData? icon;
+    final iconMap = m['icon'] as Map<String, dynamic>?;
+    if (iconMap != null) {
+      final codePoint = iconMap['codePoint'] as int?;
+      if (codePoint != null) {
+        icon = IconData(
+          codePoint,
+          fontFamily: iconMap['fontFamily'] as String? ?? 'MaterialIcons',
+        );
+      }
+    }
+    final repeatDaysRaw = m['repeatDays'];
+    List<int> repeatDays = const [];
+    if (repeatDaysRaw is List) {
+      repeatDays = repeatDaysRaw.map((e) => (e as num).toInt()).toList();
+    }
+    final colorVal = m['color'] as int? ?? 0xFF607D8B;
+    return HabitPriorRules(
+      name: m['name'] as String? ?? '',
+      direction: HabitDirection.values[m['direction'] as int? ?? 0],
+      measurement: HabitMeasurement.values[m['measurement'] as int? ?? 0],
+      goal: goal,
+      color: Color(colorVal),
+      unit: m['unit'] as String?,
+      repeatDays: repeatDays,
+      icon: icon,
+    );
   }
 
   static Habit _habitFromMap(Map<String, dynamic> m) {
@@ -130,6 +189,16 @@ class HabitsPersistence {
       repeatDays = repeatDaysRaw.map((e) => (e as num).toInt()).toList();
     }
 
+    DateTime? rulesEffectiveFrom;
+    final ref = m['rulesEffectiveFrom'] as String?;
+    if (ref != null) rulesEffectiveFrom = DateTime.tryParse(ref);
+
+    HabitPriorRules? priorRules;
+    final pr = m['priorRules'];
+    if (pr is Map<String, dynamic>) {
+      priorRules = _priorRulesFromMap(pr);
+    }
+
     return Habit(
       id: m['id'] as String? ?? '',
       name: m['name'] as String? ?? '',
@@ -148,6 +217,8 @@ class HabitsPersistence {
       endDate: endDate,
       isEvent: m['isEvent'] as bool? ?? false,
       templateId: m['templateId'] as String?,
+      rulesEffectiveFrom: rulesEffectiveFrom,
+      priorRules: priorRules,
     );
   }
 }

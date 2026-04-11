@@ -74,6 +74,7 @@ flutter:
   assets:
     - assets/catalog/habits_catalog.json
     - assets/icons/habit.png
+    - assets/icons/assistant.png
     - assets/images/Mainback.png
     - assets/images/HabitBack.png
     - assets/images/subscription_bg.png

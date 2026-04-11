@@ -16,6 +16,7 @@ import '../../stats/presentation/stats_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../../assistant/presentation/assistant_screen.dart';
 import 'add_habit_screen.dart';
+import 'edit_habit_screen.dart';
 
 /// Оболочка приложения: AppBar (настройки, поиск, подписка) + контент по вкладке + нижняя навигация.
 class MainShell extends StatefulWidget {
@@ -99,6 +100,18 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
+  bool _isSameCalendarDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  bool get _canEditHabitsForSelectedDate {
+    final n = DateTime.now();
+    final today = DateTime(n.year, n.month, n.day);
+    final selected =
+        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    // Прошлые дни только просмотр; сегодня и будущее — можно менять шаблон привычки.
+    return !selected.isBefore(today);
+  }
+
   Future<void> _loadLogsForSelectedDate() async {
     // Перед загрузкой логов гарантируем, что все прошедшие дни закрыты.
     // Это важно, когда пользователь листает календарь назад.
@@ -138,6 +151,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
+  bool _isOneTimeHabit(Habit h) {
+    if (h.repeatDays.isNotEmpty) return false;
+    final s = h.startDate;
+    final e = h.endDate;
+    if (s == null || e == null) return false;
+    return _isSameCalendarDay(s, e);
+  }
+
   Future<void> _openEditHabit(Habit habit) async {
     final updated = await showEditHabitDialog(
       context,
@@ -149,13 +170,25 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         _habits = _habits.map((h) => h.id == updated.id ? updated : h).toList();
       });
       await _habitsRepository.updateHabit(updated);
+      if (_isOneTimeHabit(updated)) {
+        final anchor = DateTime(
+          updated.startDate!.year,
+          updated.startDate!.month,
+          updated.startDate!.day,
+        );
+        await _logsRepository.removeLogsForHabitAfterDate(updated.id, anchor);
+        await _loadLogsForSelectedDate();
+      }
       await NotificationService.instance.resyncHabitReminder(updated);
     }
   }
 
   Future<void> _onReorderActive(int oldIndex, int newIndex) async {
-    final dayHabits =
-        _habits.where((h) => h.isScheduledForDate(_selectedDate)).toList();
+    final dayHabits = _habits
+        .where(
+          (h) => h.forDate(_selectedDate).isScheduledForDate(_selectedDate),
+        )
+        .toList();
     var active = dayHabits.where((h) => h.isActive).toList();
     // Та же сортировка, что и в MainMenuContent: невыполненные сверху
     active = List.from(active)
@@ -207,8 +240,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       });
     }
 
-    final dayHabits =
-        _habits.where((h) => h.isScheduledForDate(_selectedDate)).toList();
+    final dayHabits = _habits
+        .where(
+          (h) => h.forDate(_selectedDate).isScheduledForDate(_selectedDate),
+        )
+        .toList();
 
     final body = IndexedStack(
       index: _currentIndex,
@@ -234,7 +270,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             }
           },
           onAddPressed: _openAddMenu,
-          onHabitTap: _openEditHabit,
+          onHabitTap:
+              _canEditHabitsForSelectedDate ? _openEditHabit : null,
           onLog: _onLog,
           onReorderActive: _onReorderActive,
         ),
@@ -338,21 +375,115 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         onAssistant: () {
           showDialog<void>(
             context: context,
-            builder: (ctx) => AlertDialog(
-              icon: Icon(
-                Icons.construction_outlined,
-                color: Theme.of(ctx).colorScheme.primary,
-                size: 32,
-              ),
-              title: Text(l.assistantInDevelopmentTitle),
-              content: Text(l.assistantInDevelopmentBody),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(l.closeButton),
+            builder: (dialogContext) {
+              final theme = Theme.of(dialogContext);
+              final loc = AppLocalizations.of(dialogContext)!;
+              // Один шаг: слева / сверху / снизу контента и зазор иконка → текст.
+              const g = 20.0;
+              const iconSlotH = 208.0;
+              const coffeeTitle = Color(0xFF5A3E2B);
+              const coffeeBody = Color(0xFF8A6A54);
+              return AlertDialog(
+                backgroundColor: const Color(0xFFF7F2EC),
+                surfaceTintColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
+                content: Padding(
+                  padding: const EdgeInsets.fromLTRB(g, g, g, g),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 112,
+                        height: iconSlotH,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3EFE9),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        child: Transform.translate(
+                          offset: const Offset(0, 4),
+                          child: OverflowBox(
+                            alignment: Alignment.center,
+                            minWidth: 0,
+                            minHeight: 0,
+                            maxWidth: double.infinity,
+                            maxHeight: double.infinity,
+                            child: Image.asset(
+                              'assets/icons/assistant.png',
+                              width: 264,
+                              height: 264,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: g),
+                      Expanded(
+                        child: SizedBox(
+                          height: iconSlotH,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                loc.assistantInDevelopmentTitle,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: coffeeTitle,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  physics: const ClampingScrollPhysics(),
+                                  child: Text(
+                                    loc.assistantInDevelopmentBody,
+                                    textAlign: TextAlign.start,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: coffeeBody,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Center(
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 28,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                  ),
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(),
+                                  child: Text(loc.assistantGotItButton),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
         onAdd: _openAddMenu,

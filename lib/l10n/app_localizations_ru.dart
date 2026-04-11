@@ -9,7 +9,7 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
-  String get appTitle => 'Habit Run';
+  String get appTitle => 'About Me: Habit tracker';
 
   @override
   String get newEventTitle => 'Новое событие за сегодня';
@@ -72,11 +72,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tabAssistant => 'Помощник';
 
   @override
-  String get assistantInDevelopmentTitle => 'В разработке';
+  String get assistantInDevelopmentTitle => 'Помощник в разработке';
 
   @override
   String get assistantInDevelopmentBody =>
-      'Функционал помощника в разработке. Выпуск состоится в ближайших обновлениях.';
+      'Эта функция появится в одном из ближайших обновлений. Мы уже работаем над ней!';
+
+  @override
+  String get assistantGotItButton => 'Понятно';
 
   @override
   String get newBlockTitle => 'Новое';
@@ -129,4 +132,120 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chooseHabitTypeHint => 'Выберите, какую привычку хотите добавить';
+
+  @override
+  String get addHabitTitle => 'Добавить привычку';
+
+  @override
+  String get createHabitButton => 'Создать привычку';
+
+  @override
+  String get previewTitle => 'Предпросмотр';
+
+  @override
+  String get cardColorLabel => 'Цвет карточки';
+
+  @override
+  String get repeatabilityLabel => 'Повторимость';
+
+  @override
+  String get repeatDaily => 'Ежедневно';
+
+  @override
+  String get repeatPickDays => 'Выбрать дни';
+
+  @override
+  String get createYourOwn => 'Создать свою';
+
+  @override
+  String get customTitle => 'Своя привычка';
+
+  @override
+  String get limitTime => 'Лимит времени';
+
+  @override
+  String get limitCount => 'Лимит количества';
+
+  @override
+  String get customHabitNameLabel => 'Название привычки';
+
+  @override
+  String get minutesPerDay => 'Минут в день';
+
+  @override
+  String get amountPerDay => 'Сколько в день';
+
+  @override
+  String get unitShort => 'Ед.';
+
+  @override
+  String get minShort => 'мин';
+
+  @override
+  String get pickDaysTitle => 'Выбрать дни';
+
+  @override
+  String get okButton => 'OK';
+
+  @override
+  String get editHabitTitle => 'Редактировать привычку';
+
+  @override
+  String get editHabitNameLabel => 'Название';
+
+  @override
+  String get editHabitNameHint => 'Название должно быть коротким и конкретным';
+
+  @override
+  String get editHabitCardColor => 'Цвет карточки';
+
+  @override
+  String get editHabitTypePrefix => 'Тип:';
+
+  @override
+  String get editHabitExecutionKind => 'Выполнение';
+
+  @override
+  String get editHabitGoalRow => 'Цель:';
+
+  @override
+  String get editHabitUnitRow => 'Единица:';
+
+  @override
+  String get editHabitBinaryDetail =>
+      'Цель — отметить выполнение за день (без числового лимита).';
+
+  @override
+  String get editHabitTimeGoalHint => 'Сколько времени в день';
+
+  @override
+  String get editHabitCountGoalHint => 'Сколько раз (или единиц) в день';
+
+  @override
+  String get unitMinutesLong => 'минуты';
+
+  @override
+  String get unitHoursLong => 'часы';
+
+  @override
+  String get editDeleteHabitConfirmTitle => 'Удалить привычку?';
+
+  @override
+  String get editDeleteHabitConfirmBody =>
+      'Привычка будет скрыта из списка активных и перейдёт в раздел неактивных.';
+
+  @override
+  String get deleteButton => 'Удалить';
+
+  @override
+  String get editHabitOneTimeTitle => 'Одноразовое событие';
+
+  @override
+  String get editHabitOneTimeSubtitle => 'Один день в календаре, без повторов';
+
+  @override
+  String get habitPeriodStart => 'Дата начала';
+
+  @override
+  String get habitPeriodEnd => 'Дата окончания';
 }

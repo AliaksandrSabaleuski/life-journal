@@ -27,6 +27,54 @@ enum HabitGoalKind {
   target,  // число для counter/timer
 }
 
+/// Снимок полей привычки для дней до [Habit.rulesEffectiveFrom].
+class HabitPriorRules {
+  const HabitPriorRules({
+    required this.name,
+    required this.direction,
+    required this.measurement,
+    required this.goal,
+    required this.color,
+    this.unit,
+    this.repeatDays = const [],
+    this.icon,
+  });
+
+  final String name;
+  final HabitDirection direction;
+  final HabitMeasurement measurement;
+  final HabitGoal goal;
+  final Color color;
+  final String? unit;
+  final List<int> repeatDays;
+  final IconData? icon;
+
+  static HabitPriorRules fromHabit(Habit h) => HabitPriorRules(
+        name: h.name,
+        direction: h.direction,
+        measurement: h.measurement,
+        goal: h.goal,
+        color: h.color,
+        unit: h.unit,
+        repeatDays: List<int>.from(h.repeatDays),
+        icon: h.icon,
+      );
+
+  /// Подставляет сохранённые поля в [base], не трогая id, даты, версионирование.
+  Habit applyTo(Habit base) {
+    return base.copyWith(
+      name: name,
+      direction: direction,
+      measurement: measurement,
+      goal: goal,
+      color: color,
+      unit: unit,
+      repeatDays: repeatDays,
+      icon: icon,
+    );
+  }
+}
+
 class HabitGoal {
   const HabitGoal.noGoal() : kind = HabitGoalKind.noGoal, value = null;
   const HabitGoal.target(this.value) : kind = HabitGoalKind.target;
@@ -55,6 +103,8 @@ class Habit {
     this.endDate,
     this.isEvent = false,
     this.templateId,
+    this.rulesEffectiveFrom,
+    this.priorRules,
   });
 
   final String id;
@@ -83,6 +133,13 @@ class Habit {
   /// ID шаблона каталога, если привычка создана из преднастроенного.
   final String? templateId;
 
+  /// С какого календарного дня действуют текущие поля (цель, название, …).
+  /// Для дней **строго раньше** этой даты отображается [priorRules].
+  final DateTime? rulesEffectiveFrom;
+
+  /// Параметры для дней до [rulesEffectiveFrom] (включительно «вчера» относительно неё).
+  final HabitPriorRules? priorRules;
+
   /// Финальный тип привычки по направлению и измерению.
   /// Для bad + counted/timed лимиты убраны — приводим к temptation (binary-like).
   HabitType get type {
@@ -99,6 +156,17 @@ class Habit {
   }
 
   bool get isGoodHabit => direction == HabitDirection.good;
+
+  /// Параметры привычки, актуальные для календарного дня [day] (с учётом версий).
+  Habit forDate(DateTime day) {
+    final p = priorRules;
+    final from = rulesEffectiveFrom;
+    if (p == null || from == null) return this;
+    final d = DateTime(day.year, day.month, day.day);
+    final boundary = DateTime(from.year, from.month, from.day);
+    if (!d.isBefore(boundary)) return this;
+    return p.applyTo(this);
+  }
 
   /// Нужен ли шаг «Цель» при создании (для counted/timed).
   bool get needsGoalValue =>
@@ -122,6 +190,10 @@ class Habit {
     DateTime? endDate,
     bool? isEvent,
     String? templateId,
+    DateTime? rulesEffectiveFrom,
+    HabitPriorRules? priorRules,
+    bool clearRulesEffectiveFrom = false,
+    bool clearPriorRules = false,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -141,6 +213,10 @@ class Habit {
       endDate: endDate ?? this.endDate,
       isEvent: isEvent ?? this.isEvent,
       templateId: templateId ?? this.templateId,
+      rulesEffectiveFrom: clearRulesEffectiveFrom
+          ? null
+          : (rulesEffectiveFrom ?? this.rulesEffectiveFrom),
+      priorRules: clearPriorRules ? null : (priorRules ?? this.priorRules),
     );
   }
 

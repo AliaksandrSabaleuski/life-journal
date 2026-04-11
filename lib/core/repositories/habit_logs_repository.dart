@@ -98,7 +98,8 @@ class HabitLogsRepository {
       // События тоже сюда попадают (они в этом прототипе — те же Habit).
       var d = start;
       while (!d.isAfter(yesterday)) {
-        if (!habit.isScheduledForDate(d)) {
+        final hForDay = habit.forDate(d);
+        if (!hForDay.isScheduledForDate(d)) {
           d = d.add(const Duration(days: 1));
           continue;
         }
@@ -111,11 +112,11 @@ class HabitLogsRepository {
           continue;
         }
 
-        final goal = _goalValue(habit);
+        final goal = _goalValue(hForDay);
         final value = existing?.value;
         bool achieved;
 
-        if (habit.measurement == HabitMeasurement.binary) {
+        if (hForDay.measurement == HabitMeasurement.binary) {
           achieved = existing?.isCompleted == true;
         } else {
           final v = value ?? 0.0;
@@ -134,6 +135,20 @@ class HabitLogsRepository {
         d = d.add(const Duration(days: 1));
       }
     }
+    await _persist();
+  }
+
+  /// Удаляет логи привычки на все календарные дни **строго после** [afterDay].
+  /// Дни ≤ [afterDay] не изменяются (историю и день «якоря» не трогаем).
+  Future<void> removeLogsForHabitAfterDate(
+    String habitId,
+    DateTime afterDay,
+  ) async {
+    await _ensureLoaded();
+    final boundary = _dateOnly(afterDay);
+    _logs.removeWhere(
+      (l) => l.habitId == habitId && l.dateOnly.isAfter(boundary),
+    );
     await _persist();
   }
 

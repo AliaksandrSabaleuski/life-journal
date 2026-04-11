@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../l10n/app_localizations.dart';
+import 'locale_controller.dart';
 import 'theme.dart';
 import '../features/shell/presentation/main_shell.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
@@ -17,30 +18,34 @@ class JournalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Habit Run',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.light,
-      themeMode: ThemeMode.light,
-      localizationsDelegates: const [
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: AppLocaleController.locale,
+      builder: (context, debugLocale, _) {
+        return MaterialApp(
+          title: 'Habit Run',
+          theme: AppTheme.light,
+          darkTheme: AppTheme.light,
+          themeMode: ThemeMode.light,
+          locale: debugLocale,
+          localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('ru'),
-      ],
-      localeResolutionCallback: (locale, supportedLocales) {
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          localeResolutionCallback: (locale, supportedLocales) {
             if (locale == null) return const Locale('ru');
             for (final supported in supportedLocales) {
               if (supported.languageCode == locale.languageCode) {
                 return supported;
               }
             }
-        return const Locale('ru');
+            return const Locale('ru');
+          },
+          home: onboardingCompleted ? const MainShell() : const OnboardingScreen(),
+        );
       },
-      home: onboardingCompleted ? const MainShell() : const OnboardingScreen(),
     );
   }
 }

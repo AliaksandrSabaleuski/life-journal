@@ -17,6 +17,8 @@ class ActiveHabitCard extends StatefulWidget {
     this.customColor,
     this.readOnly = false,
     this.onSave,
+    /// Тап по заголовку/прогрессу (не по кнопкам таймера) — открыть редактор.
+    this.onOpenEdit,
   });
 
   final String title;
@@ -30,6 +32,7 @@ class ActiveHabitCard extends StatefulWidget {
   /// Если true — отключает интерактивность (play/pause/stop).
   final bool readOnly;
   final ValueChanged<Duration>? onSave;
+  final VoidCallback? onOpenEdit;
 
   @override
   State<ActiveHabitCard> createState() => _ActiveHabitCardState();
@@ -95,6 +98,100 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
     return "${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
   }
 
+  Widget _timerLeadingIcon() {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.transparent,
+      ),
+      child: Transform.translate(
+        offset: const Offset(0, 4),
+        child: OverflowBox(
+          alignment: Alignment.center,
+          minWidth: 0,
+          minHeight: 0,
+          maxWidth: double.infinity,
+          maxHeight: double.infinity,
+          child: HabitAppIcon(size: 134.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimerMiddle(double progress, int percent) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          widget.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF5A3E2B),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${_formatTime(elapsed)} / ${widget.goalMinutes.toString().padLeft(2, '0')} ${widget.unit}',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF8A6A54),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 6,
+                  color: const Color(0xFFE9D9CC),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: progress,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.lerp(
+                                Colors.white,
+                                widget.accent,
+                                0.35,
+                              )!,
+                              widget.accent,
+                            ],
+                          ),
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '$percent%',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF5A3E2B),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     timer?.cancel();
@@ -145,96 +242,32 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.transparent,
-            ),
-            child: Transform.translate(
-              offset: const Offset(0, 4),
-              child: OverflowBox(
-                alignment: Alignment.center,
-                minWidth: 0,
-                minHeight: 0,
-                maxWidth: double.infinity,
-                maxHeight: double.infinity,
-                child: HabitAppIcon(size: 134.4),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5A3E2B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_formatTime(elapsed)} / ${widget.goalMinutes.toString().padLeft(2, '0')} ${widget.unit}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF8A6A54),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: Container(
-                          height: 6,
-                          color: const Color(0xFFE9D9CC),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: FractionallySizedBox(
-                              widthFactor: progress,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Color.lerp(
-                                        Colors.white,
-                                        widget.accent,
-                                        0.35,
-                                      )!,
-                                      widget.accent,
-                                    ],
-                                  ),
-                                ),
-                                child: const SizedBox.expand(),
-                              ),
-                            ),
-                          ),
+            child: widget.onOpenEdit == null
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _timerLeadingIcon(),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTimerMiddle(progress, percent),
+                      ),
+                    ],
+                  )
+                : GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: widget.onOpenEdit,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _timerLeadingIcon(),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTimerMiddle(progress, percent),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '$percent%',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF5A3E2B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
           ),
           const SizedBox(width: 12),
           SizedBox(
