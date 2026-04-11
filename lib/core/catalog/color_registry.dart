@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 class ColorRegistry {
   static Color byKey(String key) {
     return switch (key) {
+      // Совпадает с кастомным «без цвета» в UI (карточки не тонируются).
+      'none' => const Color(0x00000000),
       'lightBlueAccent' => Colors.lightBlueAccent,
       'greenAccent' => Colors.greenAccent,
       'lightBlue' => Colors.lightBlue,

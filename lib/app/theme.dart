@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   AppTheme._();
+
+  /// Заголовки: мягкий коричневый (#5C3A1E), Inter Black (w900).
+  static const Color headlineBrown = Color(0xFF5C3A1E);
+
+  /// Описания: тёплый серо‑коричневый, Inter Regular (w400), увеличенный межстрочный.
+  static const Color bodyWarmBrown = Color(0xFF7A6A5A);
 
   static ThemeData get light {
     // Тёплая палитра под референс: бежевый фон + карамельный акцент.
@@ -24,71 +31,98 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       brightness: Brightness.light,
-      fontFamily: 'Inter',
-      fontFamilyFallback: const ['Segoe UI'],
     );
 
-    const titleBrown = Color(0xFF5A3E2B);
-    const bodyDark = Color(0xFF4A4A4A);
-
-    final textTheme = base.textTheme.copyWith(
-      // Заголовки — Inter Bold 20px
-      titleLarge: base.textTheme.titleLarge?.copyWith(
+    final textTheme = GoogleFonts.interTextTheme(base.textTheme).copyWith(
+      displayLarge: GoogleFonts.inter(
+        fontSize: 57,
+        fontWeight: FontWeight.w900,
+        height: 1.2,
+        color: headlineBrown,
+      ),
+      displayMedium: GoogleFonts.inter(
+        fontSize: 45,
+        fontWeight: FontWeight.w900,
+        height: 1.2,
+        color: headlineBrown,
+      ),
+      displaySmall: GoogleFonts.inter(
+        fontSize: 36,
+        fontWeight: FontWeight.w900,
+        height: 1.25,
+        color: headlineBrown,
+      ),
+      headlineLarge: GoogleFonts.inter(
+        fontSize: 32,
+        fontWeight: FontWeight.w900,
+        height: 1.25,
+        color: headlineBrown,
+      ),
+      headlineMedium: GoogleFonts.inter(
+        fontSize: 28,
+        fontWeight: FontWeight.w900,
+        height: 1.25,
+        color: headlineBrown,
+      ),
+      headlineSmall: GoogleFonts.inter(
+        fontSize: 24,
+        fontWeight: FontWeight.w900,
+        height: 1.3,
+        color: headlineBrown,
+      ),
+      titleLarge: GoogleFonts.inter(
         fontSize: 20,
-        fontWeight: FontWeight.w700,
-        height: 1.4,
-        color: titleBrown,
+        fontWeight: FontWeight.w900,
+        height: 1.35,
+        color: headlineBrown,
       ),
-      // Подзаголовки и метки — Inter Medium 16px
-      titleMedium: base.textTheme.titleMedium?.copyWith(
+      titleMedium: GoogleFonts.inter(
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+        height: 1.35,
+        color: headlineBrown,
+      ),
+      titleSmall: GoogleFonts.inter(
         fontSize: 16,
-        fontWeight: FontWeight.w500,
-        height: 1.4,
-        color: titleBrown,
+        fontWeight: FontWeight.w900,
+        height: 1.35,
+        color: headlineBrown,
       ),
-      titleSmall: base.textTheme.titleSmall?.copyWith(
+      bodyLarge: GoogleFonts.inter(
         fontSize: 16,
+        fontWeight: FontWeight.w400,
+        height: 1.5,
+        color: bodyWarmBrown,
+      ),
+      bodyMedium: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        height: 1.5,
+        color: bodyWarmBrown,
+      ),
+      bodySmall: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        height: 1.45,
+        color: bodyWarmBrown,
+      ),
+      labelLarge: GoogleFonts.inter(
+        fontSize: 14,
         fontWeight: FontWeight.w500,
-        height: 1.4,
-        color: titleBrown,
+        height: 1.45,
+        color: bodyWarmBrown,
       ),
-      // Текст карточек и кнопок — Inter Regular 14px
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        height: 1.4,
-        color: bodyDark,
-      ),
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        height: 1.4,
-        color: bodyDark,
-      ),
-      labelLarge: base.textTheme.labelLarge?.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        height: 1.4,
-        color: bodyDark,
-      ),
-      // Мелкие подписи — Inter Light 12px
-      bodySmall: base.textTheme.bodySmall?.copyWith(
+      labelMedium: GoogleFonts.inter(
         fontSize: 12,
-        fontWeight: FontWeight.w300,
-        height: 1.4,
-        color: bodyDark,
+        fontWeight: FontWeight.w500,
+        height: 1.45,
+        color: bodyWarmBrown,
       ),
-      labelSmall: base.textTheme.labelSmall?.copyWith(
-        fontSize: 12,
-        fontWeight: FontWeight.w300,
-        height: 1.4,
-        color: bodyDark,
-      ),
-      labelMedium: base.textTheme.labelMedium?.copyWith(
-        fontSize: 12,
-        fontWeight: FontWeight.w300,
-        height: 1.4,
-        color: bodyDark,
+      labelSmall: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w400,
+        height: 1.45,
+        color: bodyWarmBrown,
       ),
     );
 
@@ -136,20 +170,38 @@ class AppTheme {
         style: FilledButton.styleFrom(
           shape: radius12,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          textStyle: textTheme.bodyMedium,
+          foregroundColor: scheme.onPrimary,
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+            color: scheme.onPrimary,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: radius12,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          textStyle: textTheme.bodyMedium,
+          foregroundColor: scheme.primary,
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+            color: scheme.primary,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: radius12,
-          textStyle: textTheme.bodyMedium,
+          foregroundColor: scheme.primary,
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+            color: scheme.primary,
+          ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(

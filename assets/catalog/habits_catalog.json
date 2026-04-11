@@ -15,7 +15,7 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
@@ -32,12 +32,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_sleep_early",
@@ -49,12 +49,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_vitamins",
@@ -66,12 +66,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_cold_shower",
@@ -83,12 +83,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_medicine",
@@ -100,12 +100,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_sick",
@@ -117,12 +117,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_no_sweets",
@@ -134,12 +134,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_fruits",
@@ -151,12 +151,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_veggies",
@@ -168,12 +168,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_breakfast",
@@ -185,12 +185,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_lunch",
@@ -202,12 +202,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_dinner",
@@ -219,12 +219,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "health_sleep_timer",
@@ -236,12 +236,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 8 },
       "unit": "часов",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_learning_timer",
@@ -253,7 +253,7 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 30 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
@@ -270,12 +270,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 30 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_meditation_timer",
@@ -287,12 +287,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 30 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_reading_timer",
@@ -304,12 +304,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 30 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_cleanup_timer",
@@ -321,12 +321,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 15 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_day_off",
@@ -338,12 +338,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_work_day",
@@ -355,12 +355,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_tooth_brush_counter",
@@ -372,12 +372,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 2 },
       "unit": "раз",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_rejoice",
@@ -389,12 +389,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_laugh",
@@ -406,12 +406,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_good_day",
@@ -423,12 +423,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_bad_day",
@@ -440,12 +440,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_stress",
@@ -457,12 +457,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_cry",
@@ -474,12 +474,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_save_money",
@@ -491,12 +491,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_delivery",
@@ -508,12 +508,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_grocery",
@@ -525,12 +525,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "life_online_shopping",
@@ -542,12 +542,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_movie_counter",
@@ -559,12 +559,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 1 },
       "unit": "фильм",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_hobby_timer",
@@ -576,12 +576,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 30 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_guitar_timer",
@@ -593,12 +593,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 15 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_write_article_counter",
@@ -610,12 +610,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 1 },
       "unit": "статья",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_video_counter",
@@ -627,12 +627,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 1 },
       "unit": "видео",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_meet",
@@ -644,12 +644,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_date",
@@ -661,12 +661,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_get_flowers",
@@ -678,12 +678,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_give_flowers",
@@ -695,12 +695,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_hugs_counter",
@@ -712,12 +712,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 5 },
       "unit": "раз",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_magic",
@@ -729,12 +729,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_shopping",
@@ -746,12 +746,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_talk",
@@ -763,12 +763,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_call_family",
@@ -780,12 +780,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_get_gift",
@@ -797,12 +797,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "fun_give_gift",
@@ -814,12 +814,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "sport_warmup",
@@ -831,7 +831,7 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
@@ -848,12 +848,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "sport_cycling",
@@ -865,12 +865,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "sport_swimming",
@@ -882,12 +882,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "sport_athletics",
@@ -899,12 +899,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "sport_yoga",
@@ -916,12 +916,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_alcohol",
@@ -933,7 +933,7 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
@@ -950,7 +950,7 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
@@ -967,12 +967,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 60 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_caps_game",
@@ -984,12 +984,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_scroll_feed_timer",
@@ -1001,12 +1001,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 30 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_tv_timer",
@@ -1018,12 +1018,12 @@
       "measurement": "timed",
       "goal": { "kind": "target", "value": 60 },
       "unit": "минут",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_gambling",
@@ -1035,12 +1035,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_forbidden",
@@ -1052,12 +1052,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_swear",
@@ -1069,12 +1069,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_complain",
@@ -1086,12 +1086,12 @@
       "measurement": "binary",
       "goal": { "kind": "noGoal" },
       "unit": null,
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_tea_counter",
@@ -1103,12 +1103,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 2 },
       "unit": "кружек",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_coffee_counter",
@@ -1120,12 +1120,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 2 },
       "unit": "кружка",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     },
     {
       "templateId": "habits_smoking_counter",
@@ -1137,12 +1137,12 @@
       "measurement": "counted",
       "goal": { "kind": "target", "value": 10 },
       "unit": "раз",
-      "color": "greenAccent",
+      "color": "none",
       "icon": null,
       "repeatDays": [1, 2, 3, 4, 5, 6, 7],
       "defaultReminder": null,
       "durationDays": 365,
-      "isBase": true
+      "isBase": false
     }
   ]
 }

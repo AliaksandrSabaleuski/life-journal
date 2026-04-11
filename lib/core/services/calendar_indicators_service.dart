@@ -2,6 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../models/habit.dart';
 
+/// Тёплый серый для точек «без своего цвета» (как нейтральный текст в карточках).
+const Color kDefaultHabitIndicatorColor = Color(0xFF8C7A6B);
+
+/// Цвет точки на календаре: при `none` (прозрачный ARGB 0) — [kDefaultHabitIndicatorColor].
+Color effectiveHabitIndicatorColor(Color habitColor) {
+  if (habitColor.a == 0) {
+    return kDefaultHabitIndicatorColor;
+  }
+  return habitColor;
+}
+
 /// Сервис, который кэширует цвета индикаторов по датам для календаря.
 class CalendarIndicatorsService {
   CalendarIndicatorsService(this._habits);
@@ -35,8 +46,9 @@ class CalendarIndicatorsService {
       ..sort((a, b) => a.id.compareTo(b.id));
     final result = <Color>[];
     for (final h in sorted) {
-      if (!h.isScheduledForDate(key)) continue;
-      result.add(h.color);
+      final hd = h.forDate(key);
+      if (!hd.isScheduledForDate(key)) continue;
+      result.add(effectiveHabitIndicatorColor(hd.color));
     }
     _cache[key] = result;
     return result;

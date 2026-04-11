@@ -13,6 +13,8 @@ class BoolHabitCard extends StatelessWidget {
     required this.state,
     this.onToggle,
     this.customColor,
+    /// Текст под заголовком; круг отметки скрыт (онбординг и т.п.).
+    this.previewSubtitle,
   });
 
   final String title;
@@ -20,6 +22,7 @@ class BoolHabitCard extends StatelessWidget {
   final VoidCallback? onToggle;
   /// Если задан и не равен 0x00000000 — тонирует фон карточки.
   final Color? customColor;
+  final String? previewSubtitle;
 
   Color _tint(Color base, Color tint) {
     final opaque = Color(tint.value | 0xFF000000);
@@ -28,22 +31,24 @@ class BoolHabitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const titleColor = Color(0xFF5A3E2B);
+    final theme = Theme.of(context);
     const notDoneColor = Color(0xFF8C7A6B);
     const doneColor = Color(0xFF3C8C4A);
     const skippedColor = Color(0xFFC56B5E);
     const accent = Color(0xFFFF7A00);
 
-    final bool isDone = state == BoolHabitState.done;
-    final bool isSkipped = state == BoolHabitState.skipped;
-    final bool isNotDone = state == BoolHabitState.notDone;
+    final bool isPreview = previewSubtitle != null;
+    final bool isDone = !isPreview && state == BoolHabitState.done;
+    final bool isSkipped = !isPreview && state == BoolHabitState.skipped;
 
     // В точности как подложки дней в календаре (и чуть темнее для состояний).
-    final Color cardBg = switch (state) {
-      BoolHabitState.notDone => const Color(0xFFF3EFE9),
-      BoolHabitState.done => const Color(0xFFEDE6DE),
-      BoolHabitState.skipped => const Color(0xFFE6DED7),
-    };
+    final Color cardBg = isPreview
+        ? const Color(0xFFF3EFE9)
+        : switch (state) {
+            BoolHabitState.notDone => const Color(0xFFF3EFE9),
+            BoolHabitState.done => const Color(0xFFEDE6DE),
+            BoolHabitState.skipped => const Color(0xFFE6DED7),
+          };
     final effectiveBg = (customColor != null && customColor!.value != 0)
         ? _tint(cardBg, customColor!)
         : cardBg;
@@ -61,20 +66,25 @@ class BoolHabitCard extends StatelessWidget {
       BoolHabitState.skipped => skippedColor,
     };
 
+    final previewMargin = EdgeInsets.symmetric(
+      vertical: isPreview ? 3 : AppResponsive.gap(context, base: 4),
+      horizontal: isPreview ? 0 : AppResponsive.sidePadding(context),
+    );
+    final previewPadding = EdgeInsets.symmetric(
+      horizontal: isPreview ? 12 : AppResponsive.gap(context, base: 16),
+      vertical: isPreview ? 6 : AppResponsive.gap(context, base: 8),
+    );
+    final previewMinHeight =
+        isPreview ? 0.0 : AppResponsive.minCardHeight(context);
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
-      margin: EdgeInsets.symmetric(
-        vertical: AppResponsive.gap(context, base: 4),
-        horizontal: AppResponsive.sidePadding(context),
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: AppResponsive.gap(context, base: 16),
-        vertical: AppResponsive.gap(context, base: 8),
-      ),
-      constraints: BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
+      margin: previewMargin,
+      padding: previewPadding,
+      constraints: BoxConstraints(minHeight: previewMinHeight),
       decoration: BoxDecoration(
         color: effectiveBg,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isPreview ? 14 : 16),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.85),
           width: 1,
@@ -94,75 +104,72 @@ class BoolHabitCard extends StatelessWidget {
           children: [
           Opacity(
             opacity: isDone ? 0.6 : 1.0,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.transparent,
-              ),
-              child: Align(
-                // Визуальное центрирование ассета (у него "тяжёлый" верх),
-                // поэтому сдвигаем чуть вниз.
-                alignment: const Alignment(0, 0.25),
-                child: Transform.translate(
-                  offset: const Offset(0, 4),
-                  child: OverflowBox(
-                    alignment: Alignment.center,
-                    minWidth: 0,
-                    minHeight: 0,
-                    maxWidth: double.infinity,
-                    maxHeight: double.infinity,
-                    child: HabitAppIcon(size: 134.4),
-                  ),
-                ),
-              ),
+            child: const HabitCardLeadingSlot(
+              child: HabitAppIcon(size: 134.4),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: SizedBox(
+            child: isPreview
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        previewSubtitle!,
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ],
+                  )
+                : SizedBox(
+                    height: 48,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: isDone
+                                ? notDoneColor
+                                : theme.textTheme.titleSmall?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.normal,
+                            color: statusColor,
+                          ),
+                        ),
+                        const Spacer(),
+                      ],
+                    ),
+                  ),
+          ),
+          if (!isPreview) ...[
+            const SizedBox(width: 16),
+            SizedBox(
               height: 48,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: titleColor,
-                    ).copyWith(
-                      color: isDone ? notDoneColor : titleColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                      color: statusColor,
-                    ),
-                  ),
-                  const Spacer(),
-                ],
+              child: Center(
+                child: _StatusIndicator(
+                  state: state,
+                  accent: accent,
+                  onToggle: onToggle,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
-          SizedBox(
-            height: 48,
-            child: Center(
-              child: _StatusIndicator(
-                state: state,
-                accent: accent,
-                onToggle: onToggle,
-              ),
-            ),
-          ),
+          ],
           ],
         ),
       ),

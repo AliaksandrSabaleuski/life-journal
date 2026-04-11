@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/models/habit.dart';
 import '../../../../core/models/habit_log.dart';
+import '../../../../core/services/calendar_indicators_service.dart';
 import '../../../../core/widgets/active_habit_card.dart';
 import '../../../../core/widgets/bool_habit_card.dart';
 import '../../../../core/widgets/habit_counter_card.dart';
@@ -146,7 +147,6 @@ class MainMenuContent extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: _EmptyHabitsCard(
             title: 'Нет привычек',
-            subtitle: 'Нажми + чтобы добавить первую\nпривычку.',
           ),
         ),
       ];
@@ -334,17 +334,14 @@ class MainMenuContent extends StatelessWidget {
 }
 
 class _EmptyHabitsCard extends StatelessWidget {
-  const _EmptyHabitsCard({
-    required this.title,
-    required this.subtitle,
-  });
+  const _EmptyHabitsCard({required this.title});
 
   final String title;
-  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const coffee = Color(0xFF6B5A4E);
 
     return Center(
       child: ConstrainedBox(
@@ -383,19 +380,10 @@ class _EmptyHabitsCard extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  height: 1.35,
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: coffee.withValues(alpha: 0.92),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -723,7 +711,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
       if (!h.isActive) continue;
       final hd = h.forDate(date);
       if (!hd.isScheduledForDate(date)) continue;
-      result.add(hd.color);
+      result.add(effectiveHabitIndicatorColor(hd.color));
       if (result.length == 6) break;
     }
     return result;

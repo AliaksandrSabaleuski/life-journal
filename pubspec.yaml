@@ -45,6 +45,7 @@ dependencies:
   timezone: ^0.10.1
   gameanalytics_sdk: ^1.3.0
   in_app_purchase: ^3.2.0
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -74,8 +75,10 @@ flutter:
   assets:
     - assets/catalog/habits_catalog.json
     - assets/icons/habit.png
+    - assets/icons/onboardingicon.png
     - assets/icons/assistant.png
     - assets/images/Mainback.png
+    - assets/images/FirstLaunchBack.png
     - assets/images/HabitBack.png
     - assets/images/subscription_bg.png
     - assets/images/subscription_passed_bg.png

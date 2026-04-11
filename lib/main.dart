@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app/app.dart';
+import 'core/config/dev_overrides.dart';
 import 'core/config/ga_keys.dart';
 import 'core/services/analytics_service.dart';
 import 'core/services/iap_service.dart';
@@ -19,6 +20,8 @@ Future<void> main() async {
   await NotificationService.instance.init();
   await SubscriptionService.init();
   await IapService.instance.init();
-  final completed = await OnboardingService.isCompleted();
+  final completed = DevOverrides.forceFirstLaunch
+      ? false
+      : await OnboardingService.isCompleted();
   runApp(JournalApp(onboardingCompleted: completed));
 }
