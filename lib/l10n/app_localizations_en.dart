@@ -248,4 +248,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get habitPeriodEnd => 'End date';
+
+  @override
+  String get statsPeriodWeek => 'Week';
+
+  @override
+  String get statsPeriodMonth => 'Month';
+
+  @override
+  String get statsPeriodYear => 'Year';
+
+  @override
+  String get statsTotalCompletedLabel => 'Total completed';
+
+  @override
+  String statsGoalsCount(int count) {
+    return '$count goals';
+  }
+
+  @override
+  String get statsBestStreakLabel => 'Best streak';
+
+  @override
+  String statsStreakDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String get statsMotivationFooter => 'Keep it up!';
+
+  @override
+  String get statsFilterTooltip => 'Filter';
+
+  @override
+  String get statsFilterAll => 'All';
+
+  @override
+  String get statsFilterHabitsOnly => 'Habits only';
+
+  @override
+  String get statsFilterEventsOnly => 'Events only';
+
+  @override
+  String get statsScrollDownTooltip => 'Scroll down';
+
+  @override
+  String statsHabitProgressLine(
+    Object name,
+    int completed,
+    int total,
+    Object streak,
+  ) {
+    return '$name — $completed of $total days | streak: $streak';
+  }
+
+  @override
+  String get statsHabitTableHabit => 'Habit';
+
+  @override
+  String get statsHabitTableCount => 'Days';
+
+  @override
+  String get statsHabitTableStreak => 'Streak';
+
+  @override
+  String get statsEmptyTitle => 'No data yet';
+
+  @override
+  String get statsEmptyBody =>
+      'Add habits and log days — stats will show up here.';
 }

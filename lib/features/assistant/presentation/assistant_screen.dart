@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../l10n/app_localizations.dart';
+import '../../shell/shell_content_insets.dart';
 
 /// Экран помощника. Пока заглушка.
 class AssistantScreen extends StatelessWidget {
@@ -9,10 +10,16 @@ class AssistantScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Center(
-      child: Text(
-        l.tabAssistant,
-        style: Theme.of(context).textTheme.titleLarge,
+    return Padding(
+      padding: EdgeInsets.only(
+        top: ShellContentInsets.top(context),
+        bottom: ShellContentInsets.bottom(context),
+      ),
+      child: Center(
+        child: Text(
+          l.tabAssistant,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
       ),
     );
   }

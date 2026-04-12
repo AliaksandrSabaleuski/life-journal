@@ -12,6 +12,7 @@ import '../../../../core/widgets/habit_counter_card.dart';
 import '../../../../core/ui/app_icons.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'add_habit_wizard.dart';
+import '../shell_content_insets.dart';
 
 /// Контент главной вкладки: календарная полоса + все записи (привычки и события) в одном списке.
 class MainMenuContent extends StatelessWidget {
@@ -94,9 +95,10 @@ class MainMenuContent extends StatelessWidget {
     sortForToday(active);
     sortForToday(inactive);
 
-    // Чуть больше воздуха под нижнюю "пилюлю" и центральную "+"
-    final bottomPadding = 106.0 + MediaQuery.paddingOf(context).bottom;
-    final result = Column(
+    final bottomPadding = ShellContentInsets.bottom(context) + 12;
+    final result = Padding(
+      padding: EdgeInsets.only(top: ShellContentInsets.top(context)),
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
@@ -122,6 +124,7 @@ class MainMenuContent extends StatelessWidget {
           ),
         ),
       ],
+    ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ms = DateTime.now().difference(t0).inMilliseconds;

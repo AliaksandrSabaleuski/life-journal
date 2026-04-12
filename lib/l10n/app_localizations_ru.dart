@@ -248,4 +248,73 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get habitPeriodEnd => 'Дата окончания';
+
+  @override
+  String get statsPeriodWeek => 'Неделя';
+
+  @override
+  String get statsPeriodMonth => 'Месяц';
+
+  @override
+  String get statsPeriodYear => 'Год';
+
+  @override
+  String get statsTotalCompletedLabel => 'Выполнено всего';
+
+  @override
+  String statsGoalsCount(int count) {
+    return '$count целей';
+  }
+
+  @override
+  String get statsBestStreakLabel => 'Лучшая серия';
+
+  @override
+  String statsStreakDays(int count) {
+    return '$count дн.';
+  }
+
+  @override
+  String get statsMotivationFooter => 'Продолжай в том же духе!';
+
+  @override
+  String get statsFilterTooltip => 'Фильтр';
+
+  @override
+  String get statsFilterAll => 'Все';
+
+  @override
+  String get statsFilterHabitsOnly => 'Только привычки';
+
+  @override
+  String get statsFilterEventsOnly => 'Только события';
+
+  @override
+  String get statsScrollDownTooltip => 'Вниз';
+
+  @override
+  String statsHabitProgressLine(
+    Object name,
+    int completed,
+    int total,
+    Object streak,
+  ) {
+    return '$name — $completed из $total дней | серия: $streak';
+  }
+
+  @override
+  String get statsHabitTableHabit => 'Привычка';
+
+  @override
+  String get statsHabitTableCount => 'Дни';
+
+  @override
+  String get statsHabitTableStreak => 'Серия';
+
+  @override
+  String get statsEmptyTitle => 'Пока нет данных';
+
+  @override
+  String get statsEmptyBody =>
+      'Добавь привычки и отмечай дни — здесь появится статистика.';
 }

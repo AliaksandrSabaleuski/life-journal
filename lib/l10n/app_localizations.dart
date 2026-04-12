@@ -565,6 +565,125 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Дата окончания'**
   String get habitPeriodEnd;
+
+  /// No description provided for @statsPeriodWeek.
+  ///
+  /// In ru, this message translates to:
+  /// **'Неделя'**
+  String get statsPeriodWeek;
+
+  /// No description provided for @statsPeriodMonth.
+  ///
+  /// In ru, this message translates to:
+  /// **'Месяц'**
+  String get statsPeriodMonth;
+
+  /// No description provided for @statsPeriodYear.
+  ///
+  /// In ru, this message translates to:
+  /// **'Год'**
+  String get statsPeriodYear;
+
+  /// No description provided for @statsTotalCompletedLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выполнено всего'**
+  String get statsTotalCompletedLabel;
+
+  /// No description provided for @statsGoalsCount.
+  ///
+  /// In ru, this message translates to:
+  /// **'{count} целей'**
+  String statsGoalsCount(int count);
+
+  /// No description provided for @statsBestStreakLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лучшая серия'**
+  String get statsBestStreakLabel;
+
+  /// No description provided for @statsStreakDays.
+  ///
+  /// In ru, this message translates to:
+  /// **'{count} дн.'**
+  String statsStreakDays(int count);
+
+  /// No description provided for @statsMotivationFooter.
+  ///
+  /// In ru, this message translates to:
+  /// **'Продолжай в том же духе!'**
+  String get statsMotivationFooter;
+
+  /// No description provided for @statsFilterTooltip.
+  ///
+  /// In ru, this message translates to:
+  /// **'Фильтр'**
+  String get statsFilterTooltip;
+
+  /// No description provided for @statsFilterAll.
+  ///
+  /// In ru, this message translates to:
+  /// **'Все'**
+  String get statsFilterAll;
+
+  /// No description provided for @statsFilterHabitsOnly.
+  ///
+  /// In ru, this message translates to:
+  /// **'Только привычки'**
+  String get statsFilterHabitsOnly;
+
+  /// No description provided for @statsFilterEventsOnly.
+  ///
+  /// In ru, this message translates to:
+  /// **'Только события'**
+  String get statsFilterEventsOnly;
+
+  /// No description provided for @statsScrollDownTooltip.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вниз'**
+  String get statsScrollDownTooltip;
+
+  /// No description provided for @statsHabitProgressLine.
+  ///
+  /// In ru, this message translates to:
+  /// **'{name} — {completed} из {total} дней | серия: {streak}'**
+  String statsHabitProgressLine(
+    Object name,
+    int completed,
+    int total,
+    Object streak,
+  );
+
+  /// No description provided for @statsHabitTableHabit.
+  ///
+  /// In ru, this message translates to:
+  /// **'Привычка'**
+  String get statsHabitTableHabit;
+
+  /// No description provided for @statsHabitTableCount.
+  ///
+  /// In ru, this message translates to:
+  /// **'Дни'**
+  String get statsHabitTableCount;
+
+  /// No description provided for @statsHabitTableStreak.
+  ///
+  /// In ru, this message translates to:
+  /// **'Серия'**
+  String get statsHabitTableStreak;
+
+  /// No description provided for @statsEmptyTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пока нет данных'**
+  String get statsEmptyTitle;
+
+  /// No description provided for @statsEmptyBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавь привычки и отмечай дни — здесь появится статистика.'**
+  String get statsEmptyBody;
 }
 
 class _AppLocalizationsDelegate

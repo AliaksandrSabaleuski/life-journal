@@ -9,6 +9,7 @@ import '../../../../core/models/habit.dart';
 import '../../../../core/widgets/active_habit_card.dart';
 import '../../../../core/widgets/bool_habit_card.dart';
 import '../../../../core/widgets/habit_counter_card.dart';
+import '../../../../core/widgets/category_pill.dart';
 import '../../../../core/widgets/underline_pill.dart';
 import 'add_habit_wizard.dart';
 import 'add_custom_habit_screen.dart';
@@ -653,7 +654,7 @@ class _AdaptiveCategoryBar extends StatelessWidget {
 
         final pills = categories
             .map(
-              (c) => _CategoryPill(
+              (c) => CategoryPill(
                 text: c,
                 selected: c == selected,
                 accent: accent,
@@ -701,83 +702,3 @@ class _AdaptiveCategoryBar extends StatelessWidget {
     );
   }
 }
-
-class _CategoryPill extends StatelessWidget {
-  const _CategoryPill({
-    required this.text,
-    required this.selected,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final String text;
-  final bool selected;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bg = const Color(0xFFF3EFE9);
-    final fg = const Color(0xFF5A3E2B);
-    final border = accent.withValues(alpha: 0.22);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              height: 34,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: border, width: 1),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: accent.withValues(alpha: 0.18),
-                          blurRadius: 14,
-                          offset: const Offset(0, 10),
-                        ),
-                      ]
-                    : const [],
-              ),
-              child: Center(
-                child: Text(
-                  text,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  softWrap: false,
-                ),
-              ),
-            ),
-            if (selected)
-              Positioned(
-                left: 14,
-                right: 14,
-                bottom: -6,
-                child: Container(
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-

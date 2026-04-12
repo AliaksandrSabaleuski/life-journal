@@ -11,4 +11,16 @@ abstract final class DevOverrides {
 
   static bool get forceFirstLaunch =>
       forceFirstLaunchInCode || _forceFirstLaunchFromEnv;
+
+  /// Демо-привычки и логи за прошлые дни (только debug, см. [main]).
+  /// Или без правки файла: `--dart-define=STATS_DEMO_SEED=true`.
+  static const bool statsDemoSeedInCode = true;
+
+  static const bool _statsDemoSeedFromEnv = bool.fromEnvironment(
+    'STATS_DEMO_SEED',
+    defaultValue: false,
+  );
+
+  static bool get injectStatsDemoSeed =>
+      statsDemoSeedInCode || _statsDemoSeedFromEnv;
 }

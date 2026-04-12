@@ -77,5 +77,42 @@
   "editHabitOneTimeTitle": "One-off event",
   "editHabitOneTimeSubtitle": "Single calendar day, no repeat",
   "habitPeriodStart": "Start date",
-  "habitPeriodEnd": "End date"
+  "habitPeriodEnd": "End date",
+  "statsPeriodWeek": "Week",
+  "statsPeriodMonth": "Month",
+  "statsPeriodYear": "Year",
+  "statsTotalCompletedLabel": "Total completed",
+  "statsGoalsCount": "{count} goals",
+  "@statsGoalsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statsBestStreakLabel": "Best streak",
+  "statsStreakDays": "{count} days",
+  "@statsStreakDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statsMotivationFooter": "Keep it up!",
+  "statsFilterTooltip": "Filter",
+  "statsFilterAll": "All",
+  "statsFilterHabitsOnly": "Habits only",
+  "statsFilterEventsOnly": "Events only",
+  "statsScrollDownTooltip": "Scroll down",
+  "statsHabitProgressLine": "{name} — {completed} of {total} days | streak: {streak}",
+  "@statsHabitProgressLine": {
+    "placeholders": {
+      "name": {},
+      "completed": {"type": "int"},
+      "total": {"type": "int"},
+      "streak": {}
+    }
+  },
+  "statsHabitTableHabit": "Habit",
+  "statsHabitTableCount": "Days",
+  "statsHabitTableStreak": "Streak",
+  "statsEmptyTitle": "No data yet",
+  "statsEmptyBody": "Add habits and log days — stats will show up here."
 }

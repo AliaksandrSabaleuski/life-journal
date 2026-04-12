@@ -77,5 +77,42 @@
   "editHabitOneTimeTitle": "Одноразовое событие",
   "editHabitOneTimeSubtitle": "Один день в календаре, без повторов",
   "habitPeriodStart": "Дата начала",
-  "habitPeriodEnd": "Дата окончания"
+  "habitPeriodEnd": "Дата окончания",
+  "statsPeriodWeek": "Неделя",
+  "statsPeriodMonth": "Месяц",
+  "statsPeriodYear": "Год",
+  "statsTotalCompletedLabel": "Выполнено всего",
+  "statsGoalsCount": "{count} целей",
+  "@statsGoalsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statsBestStreakLabel": "Лучшая серия",
+  "statsStreakDays": "{count} дн.",
+  "@statsStreakDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statsMotivationFooter": "Продолжай в том же духе!",
+  "statsFilterTooltip": "Фильтр",
+  "statsFilterAll": "Все",
+  "statsFilterHabitsOnly": "Только привычки",
+  "statsFilterEventsOnly": "Только события",
+  "statsScrollDownTooltip": "Вниз",
+  "statsHabitProgressLine": "{name} — {completed} из {total} дней | серия: {streak}",
+  "@statsHabitProgressLine": {
+    "placeholders": {
+      "name": {},
+      "completed": {"type": "int"},
+      "total": {"type": "int"},
+      "streak": {}
+    }
+  },
+  "statsHabitTableHabit": "Привычка",
+  "statsHabitTableCount": "Дни",
+  "statsHabitTableStreak": "Серия",
+  "statsEmptyTitle": "Пока нет данных",
+  "statsEmptyBody": "Добавь привычки и отмечай дни — здесь появится статистика."
 }

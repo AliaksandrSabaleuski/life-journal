@@ -77,6 +77,9 @@ flutter:
     - assets/icons/habit.png
     - assets/icons/onboardingicon.png
     - assets/icons/assistant.png
+    - assets/icons/CheckMark.png
+    - assets/icons/Streakicon.png
+    - assets/icons/planticon.png
     - assets/images/Mainback.png
     - assets/images/FirstLaunchBack.png
     - assets/images/HabitBack.png

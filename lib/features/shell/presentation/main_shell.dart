@@ -34,6 +34,8 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  StatsPeriod _statsPeriod = StatsPeriod.week;
+  int _statsMotivationNonce = 0;
   int _recenterCalendarTrigger = 0;
   DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   bool _isTodayVisibleInStrip = true;
@@ -246,48 +248,66 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         )
         .toList();
 
+    // IndexedStack = Stack: без явного expand дети с Column+Expanded не получают
+    // конечную высоту — ломается вся оболочка (в т.ч. главная вкладка).
     final body = IndexedStack(
       index: _currentIndex,
       children: [
-        MainMenuContent(
-          allHabits: _habits,
-          habits: dayHabits,
-          todayLogs: _dayLogs,
-          isLoading: !_habitsLoaded,
-          isMainMenuVisible: _currentIndex == 0,
-          recenterCalendarTrigger: _recenterCalendarTrigger,
-          selectedDate: _selectedDate,
-          onSelectedDateChanged: (date) {
-            if (!mounted) return;
-            setState(() {
-              _selectedDate = DateTime(date.year, date.month, date.day);
-            });
-            _loadLogsForSelectedDate();
-          },
-          onTodayVisibilityInStripChanged: (visible) {
-            if (mounted && _isTodayVisibleInStrip != visible) {
-              setState(() => _isTodayVisibleInStrip = visible);
-            }
-          },
-          onAddPressed: _openAddMenu,
-          onHabitTap:
-              _canEditHabitsForSelectedDate ? _openEditHabit : null,
-          onLog: _onLog,
-          onReorderActive: _onReorderActive,
+        SizedBox.expand(
+          child: MainMenuContent(
+            allHabits: _habits,
+            habits: dayHabits,
+            todayLogs: _dayLogs,
+            isLoading: !_habitsLoaded,
+            isMainMenuVisible: _currentIndex == 0,
+            recenterCalendarTrigger: _recenterCalendarTrigger,
+            selectedDate: _selectedDate,
+            onSelectedDateChanged: (date) {
+              if (!mounted) return;
+              setState(() {
+                _selectedDate = DateTime(date.year, date.month, date.day);
+              });
+              _loadLogsForSelectedDate();
+            },
+            onTodayVisibilityInStripChanged: (visible) {
+              if (mounted && _isTodayVisibleInStrip != visible) {
+                setState(() => _isTodayVisibleInStrip = visible);
+              }
+            },
+            onAddPressed: _openAddMenu,
+            onHabitTap:
+                _canEditHabitsForSelectedDate ? _openEditHabit : null,
+            onLog: _onLog,
+            onReorderActive: _onReorderActive,
+          ),
         ),
-        StatsScreen(
-          habitsRepository: _habitsRepository,
-          logsRepository: _logsRepository,
+        SizedBox.expand(
+          child: StatsScreen(
+            habitsRepository: _habitsRepository,
+            logsRepository: _logsRepository,
+            motivationNonce: _statsMotivationNonce,
+            period: _statsPeriod,
+          ),
         ),
-        const AssistantScreen(),
+        const SizedBox.expand(
+          child: AssistantScreen(),
+        ),
       ],
     );
 
     final isMainMenu = _currentIndex == 0;
     const coffee = Color(0xFF6B5A4E);
 
+    const appBarFill = Color(0xFFF7F2EC);
+
     return Scaffold(
+      extendBody: true,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: appBarFill,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
         leading: Padding(
           padding: const EdgeInsets.only(left: 10),
           child: _TopIconButton(
@@ -316,6 +336,18 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               ),
         ),
         centerTitle: true,
+        bottom: _currentIndex == 1
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(kStatsPeriodAppBarHeight),
+                child: ColoredBox(
+                  color: appBarFill,
+                  child: StatsPeriodTabBar(
+                    period: _statsPeriod,
+                    onChanged: (p) => setState(() => _statsPeriod = p),
+                  ),
+                ),
+              )
+            : null,
         actions: [
           if (isMainMenu && !_isTodayVisibleInStrip)
             _TopIconButton(
@@ -371,7 +403,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         currentIndex: _currentIndex,
         tabStatsLabel: l.tabStats,
         tabAssistantLabel: l.tabAssistant,
-        onStats: () => setState(() => _currentIndex = 1),
+        onStats: () => setState(() {
+          if (_currentIndex != 1) _statsMotivationNonce++;
+          _currentIndex = 1;
+        }),
         onAssistant: () {
           showDialog<void>(
             context: context,
@@ -608,22 +643,29 @@ class _WarmBottomNavBar extends StatelessWidget {
       );
     }
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + (pad > 0 ? 0 : 6)),
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.bottomCenter,
-          children: [
-            // Закруглённая подложка ("пилюля") под навигацией.
+    const barChrome = Color(0xFFF7F2EC);
+
+    return Material(
+      color: barChrome,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + (pad > 0 ? 0 : 6)),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.bottomCenter,
+            children: [
+            // Пилюля поверх глухой полосы на всю ширину слота bottomNavigationBar.
             Container(
               height: 64,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.62),
+                color: barChrome,
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.65),
+                  color: Colors.white.withValues(alpha: 0.85),
                   width: 1,
                 ),
                 boxShadow: [
@@ -739,7 +781,8 @@ class _WarmBottomNavBar extends StatelessWidget {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

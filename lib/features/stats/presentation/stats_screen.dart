@@ -1,34 +1,126 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../data/stats_motivation_phrases.dart';
+import '../../../../core/widgets/category_pill.dart';
+import '../../../../core/ui/app_icons.dart';
+import '../../../../core/ui/responsive.dart';
 import '../../../../core/models/habit.dart';
 import '../../../../core/models/habit_log.dart';
+import '../../../../core/logic/habit_streak.dart';
 import '../../../../core/repositories/habit_logs_repository.dart';
 import '../../../../core/repositories/habits_repository.dart';
+import '../../../../l10n/app_localizations.dart';
 import 'habit_detail_stats_screen.dart';
+import 'stats_habit_colors.dart';
+import '../../shell/shell_content_insets.dart';
 
-enum StatsPeriod { week, month, allTime }
+enum StatsPeriod { week, month, year }
+
+/// Высота [StatsPeriodTabBar] в AppBar (с нижним отступом).
+const double kStatsPeriodAppBarHeight = 52;
+
+/// Вкладки Week / Month / Year — часть хрома, не скролла.
+class StatsPeriodTabBar extends StatelessWidget {
+  const StatsPeriodTabBar({
+    super.key,
+    required this.period,
+    required this.onChanged,
+  });
+
+  final StatsPeriod period;
+  final ValueChanged<StatsPeriod> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final accent = Theme.of(context).colorScheme.primary;
+    Widget pill(String label, StatsPeriod value) {
+      return Expanded(
+        child: CategoryPill(
+          text: label,
+          selected: period == value,
+          accent: accent,
+          expandWidth: true,
+          onTap: () => onChanged(value),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(
+        children: [
+          pill(l.statsPeriodWeek, StatsPeriod.week),
+          const SizedBox(width: 8),
+          pill(l.statsPeriodMonth, StatsPeriod.month),
+          const SizedBox(width: 8),
+          pill(l.statsPeriodYear, StatsPeriod.year),
+        ],
+      ),
+    );
+  }
+}
+
+/// Как у карточек на главной (bool/timer/counter) — только оболочка.
+BoxDecoration _habitCardShellDecoration() {
+  return BoxDecoration(
+    color: const Color(0xFFF3EFE9),
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(
+      color: Colors.white.withValues(alpha: 0.85),
+      width: 1,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.05),
+        blurRadius: 6,
+        offset: const Offset(0, 3),
+      ),
+    ],
+  );
+}
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({
     super.key,
     required this.habitsRepository,
     required this.logsRepository,
+    required this.motivationNonce,
+    required this.period,
   });
 
   final HabitsRepository habitsRepository;
   final HabitLogsRepository logsRepository;
+
+  /// Увеличивается при каждом переходе на вкладку «Статистика» — новая фраза.
+  final int motivationNonce;
+
+  final StatsPeriod period;
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
 }
 
 class _StatsScreenState extends State<StatsScreen> {
-  StatsPeriod _period = StatsPeriod.week;
   bool _loading = true;
   List<Habit> _habits = [];
   List<HabitLog> _logs = [];
+  static const Color _coffeeDark = Color(0xFF4A3728);
+  static const Color _accentOrange = Color(0xFFB5651D);
+
+  static const _assetCheckMark = 'assets/icons/CheckMark.png';
+  static const _assetStreakIcon = 'assets/icons/Streakicon.png';
+  /// Логический размер PNG в метриках статистики (84×1.3×0.9).
+  static const double _statsMetricIconSize = 98.28;
+
+  static const double _habitStatSwatchSize = 18.2;
+  static const double _habitStatCountColWidth = 64;
+  static const double _habitStatStreakColWidth = 72;
+
+  String _motivationPhrase = '';
 
   @override
   void initState() {
@@ -36,14 +128,37 @@ class _StatsScreenState extends State<StatsScreen> {
     _load();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Первая подпись до первого кадра (вкл. hot restart на вкладке статистики).
+    if (_motivationPhrase.isEmpty) {
+      _motivationPhrase =
+          StatsMotivationPhrases.pick(Localizations.localeOf(context));
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant StatsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.period != widget.period) {
+      _load();
+    }
+    if (oldWidget.motivationNonce != widget.motivationNonce) {
+      setState(() {
+        _motivationPhrase =
+            StatsMotivationPhrases.pick(Localizations.localeOf(context));
+      });
+    }
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     final habits = await widget.habitsRepository.getHabits();
-    // В этом прототипе репозиторий хранит только логи за сессию,
-    // поэтому просто берём все.
+    if (!mounted) return;
+    final range = _currentRange();
     final logs = <HabitLog>[];
     for (final h in habits) {
-      final range = _currentRange();
       final hLogs = await widget.logsRepository.getLogsForHabitInRange(
         h.id,
         range.$1,
@@ -62,7 +177,7 @@ class _StatsScreenState extends State<StatsScreen> {
   (DateTime, DateTime) _currentRange() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    switch (_period) {
+    switch (widget.period) {
       case StatsPeriod.week:
         final start = today.subtract(Duration(days: today.weekday - 1));
         return (start, start.add(const Duration(days: 6)));
@@ -70,30 +185,35 @@ class _StatsScreenState extends State<StatsScreen> {
         final start = DateTime(today.year, today.month, 1);
         final end = DateTime(today.year, today.month + 1, 0);
         return (start, end);
-      case StatsPeriod.allTime:
-        // Для in‑memory хранилища просто берём +- большой диапазон.
-        final start = today.subtract(const Duration(days: 365 * 5));
-        final end = today.add(const Duration(days: 365 * 5));
+      case StatsPeriod.year:
+        final start = DateTime(today.year, 1, 1);
+        final end = DateTime(today.year, 12, 31);
         return (start, end);
     }
   }
 
+  List<Habit> _activeHabits() {
+    return _habits.where((h) => h.isActive).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     final range = _currentRange();
-    final habits = _habits.where((h) => !h.isEvent).toList();
-    final events = _habits.where((h) => h.isEvent).toList();
+    final filtered = _activeHabits();
 
     HabitStats computeHabitStats(Habit h) {
-      final logs = _logs.where((l) => l.habitId == h.id).toList();
+      final habitLogs = _logs.where((log) => log.habitId == h.id).toList();
+      final rangeStart = DateTime(range.$1.year, range.$1.month, range.$1.day);
+      final rangeEnd = DateTime(range.$2.year, range.$2.month, range.$2.day);
       final totalDays = _countPlannedDays(h, range.$1, range.$2);
-      final completedDays = logs.where((l) => l.isCompleted == true).length;
+      final completedDays =
+          habitLogs.where((log) => log.isCompleted == true).length;
       final percent = totalDays > 0
           ? (completedDays / totalDays * 100).clamp(0, 100).toDouble()
           : null;
@@ -102,208 +222,312 @@ class _StatsScreenState extends State<StatsScreen> {
         totalPlannedDays: totalDays,
         completedDays: completedDays,
         percent: percent,
+        longestStreakInPeriod:
+            HabitStreak.longestInRange(h, habitLogs, rangeStart, rangeEnd),
       );
     }
 
-    final habitStats = habits.map(computeHabitStats).toList()
-      ..sort((a, b) => (b.percent ?? 0).compareTo(a.percent ?? 0));
-    final eventStats = events.map(computeHabitStats).toList()
+    final habitStats = filtered.map(computeHabitStats).toList()
       ..sort((a, b) => (b.percent ?? 0).compareTo(a.percent ?? 0));
 
-    final allStats = [...habitStats, ...eventStats];
-    final overallPercent = allStats.isEmpty
+    final withPlan = habitStats.where((s) => s.totalPlannedDays > 0).toList();
+    final totalGoalsDone =
+        withPlan.fold<int>(0, (sum, s) => sum + s.completedDays);
+    final bestStreak = withPlan.isEmpty
+        ? 0
+        : withPlan.map((s) => s.longestStreakInPeriod).reduce(math.max);
+
+    final overallPercent = withPlan.isEmpty
         ? 0.0
-        : allStats
+        : withPlan
                 .map((s) => s.percent ?? 0)
                 .fold<double>(0, (a, b) => a + b) /
-            allStats.length;
+            withPlan.length;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+    final statsColorById =
+        statsDefaultColorByHabitId(withPlan.map((s) => s.habit));
+    final ringSegments = withPlan
+        .map(
+          (s) => _StatsRingSegmentData(
+            color: statsHabitDisplayColor(s.habit, statsColorById),
+            completedDays: s.completedDays,
+          ),
+        )
+        .toList();
+
+    final scrollBottomPad = ShellContentInsets.bottom(context) + 40;
+    final topUnderChrome =
+        ShellContentInsets.top(context) + kStatsPeriodAppBarHeight + 8;
+
+    return Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppResponsive.sidePadding(context),
+          topUnderChrome,
+          AppResponsive.sidePadding(context),
+          0,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildPeriodChips(theme),
-            const SizedBox(height: 16),
             Expanded(
               child: SingleChildScrollView(
+                clipBehavior: Clip.none,
+                padding: EdgeInsets.fromLTRB(0, 8, 0, scrollBottomPad),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CircleStat(
-                            title: 'Всё вместе',
-                            percent: overallPercent,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _CircleStat(
-                            title: 'Привычки',
-                            percent: _averagePercent(habitStats),
-                            color: Colors.lightBlueAccent,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _CircleStat(
-                            title: 'События',
-                            percent: _averagePercent(eventStats),
-                            color: Colors.pinkAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSummaryCard(
-                      context: context,
-                      theme: theme,
-                      title: 'Привычки',
-                      stats: habitStats,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSummaryCard(
-                      context: context,
-                      theme: theme,
-                      title: 'События',
-                      stats: eventStats,
-                    ),
-                    const SizedBox(height: 8),
+                            _buildTopMetrics(context, l, totalGoalsDone, bestStreak),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: _StatsProgressRing(
+                                percent: overallPercent,
+                                segments: ringSegments,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _motivationPhrase,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.merriweather(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: _accentOrange,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            if (withPlan.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      l.statsEmptyTitle,
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      l.statsEmptyBody,
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else ...[
+                              _habitStatsTableHeader(context, l),
+                              ...withPlan.map(
+                                (s) => _habitRow(
+                                  context,
+                                  l,
+                                  s,
+                                  range,
+                                  statsColorById,
+                                ),
+                              ),
+                            ],
+                    const SizedBox(height: 12),
                     Text(
-                      'Период: ${_formatDate(range.$1)} — ${_formatDate(range.$2)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                      l.statsMotivationFooter,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: _coffeeDark.withValues(alpha: 0.75),
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
           ],
         ),
+    );
+  }
+
+  Widget _buildTopMetrics(
+    BuildContext context,
+    AppLocalizations l,
+    int totalGoalsDone,
+    int bestStreak,
+  ) {
+    final labelStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: _coffeeDark.withValues(alpha: 0.72),
+          fontWeight: FontWeight.w500,
+        );
+    final valueStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: _coffeeDark,
+          fontWeight: FontWeight.w800,
+        );
+    final gap = AppResponsive.gap(context, base: 4);
+    return Padding(
+      padding: EdgeInsets.only(bottom: gap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _StatsMetricCard(
+            icon: HabitCardLeadingSlot(
+              child: Image.asset(
+                _assetCheckMark,
+                width: _statsMetricIconSize,
+                height: _statsMetricIconSize,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+            label: l.statsTotalCompletedLabel,
+            value: l.statsGoalsCount(totalGoalsDone),
+            labelStyle: labelStyle,
+            valueStyle: valueStyle,
+          ),
+          SizedBox(height: gap),
+          _StatsMetricCard(
+            icon: HabitCardLeadingSlot(
+              child: Image.asset(
+                _assetStreakIcon,
+                width: _statsMetricIconSize,
+                height: _statsMetricIconSize,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+            label: l.statsBestStreakLabel,
+            value: l.statsStreakDays(bestStreak),
+            labelStyle: labelStyle,
+            valueStyle: valueStyle,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPeriodChips(ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _PeriodChip(
-          label: 'Неделя',
-          selected: _period == StatsPeriod.week,
-          onTap: () {
-            setState(() => _period = StatsPeriod.week);
-            _load();
-          },
-        ),
-        const SizedBox(width: 8),
-        _PeriodChip(
-          label: 'Месяц',
-          selected: _period == StatsPeriod.month,
-          onTap: () {
-            setState(() => _period = StatsPeriod.month);
-            _load();
-          },
-        ),
-        const SizedBox(width: 8),
-        _PeriodChip(
-          label: 'Всё время',
-          selected: _period == StatsPeriod.allTime,
-          onTap: () {
-            setState(() => _period = StatsPeriod.allTime);
-            _load();
-          },
-        ),
-      ],
+  Widget _habitStatsTableHeader(BuildContext context, AppLocalizations l) {
+    final hPad = AppResponsive.gap(context, base: 16);
+    final headerStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: _coffeeDark.withValues(alpha: 0.62),
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+        );
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: _habitStatSwatchSize + 12),
+          Expanded(
+            child: Text(l.statsHabitTableHabit, style: headerStyle),
+          ),
+          SizedBox(
+            width: _habitStatCountColWidth,
+            child: Text(
+              l.statsHabitTableCount,
+              style: headerStyle,
+              textAlign: TextAlign.end,
+            ),
+          ),
+          SizedBox(
+            width: _habitStatStreakColWidth,
+            child: Text(
+              l.statsHabitTableStreak,
+              style: headerStyle,
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildSummaryCard({
-    required BuildContext context,
-    required ThemeData theme,
-    required String title,
-    required List<HabitStats> stats,
-  }) {
-    final active = stats.where((s) => s.habit.isActive).toList();
-    final inactive = stats.where((s) => !s.habit.isActive).toList();
-    final avgPercent = active.isEmpty
-        ? null
-        : active
-                .map((s) => s.percent ?? 0)
-                .fold<double>(0, (a, b) => a + b) /
-            active.length;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+  Widget _habitRow(
+    BuildContext context,
+    AppLocalizations l,
+    HabitStats s,
+    (DateTime, DateTime) range,
+    Map<String, Color> statsColorById,
+  ) {
+    final streakLabel = s.longestStreakInPeriod >= 7
+        ? '🔥'
+        : l.statsStreakDays(s.longestStreakInPeriod);
+    final rowStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: _coffeeDark,
+          height: 1.35,
+        );
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: AppResponsive.gap(context, base: 4)),
+      decoration: _habitCardShellDecoration(),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            final logs = _logs.where((log) => log.habitId == s.habit.id).toList();
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => HabitDetailStatsScreen(
+                  habit: s.habit,
+                  logs: logs,
+                  from: range.$1,
+                  to: range.$2,
+                ),
               ),
+            );
+          },
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppResponsive.gap(context, base: 16),
+              vertical: AppResponsive.gap(context, base: 8),
             ),
-            const SizedBox(height: 8),
-            Text(
-              active.isEmpty
-                  ? 'Нет активных записей за этот период.'
-                  : 'Активных: ${active.length}, неактивных: ${inactive.length}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (avgPercent != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Среднее выполнение: ${avgPercent.toStringAsFixed(0)}%',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-            if (active.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ...active.take(5).map(
-                (s) => _HabitStatsTile(
-                      stats: s,
-                      onTap: () {
-                        final range = _currentRange();
-                        final logs = _logs
-                            .where((l) => l.habitId == s.habit.id)
-                            .toList();
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => HabitDetailStatsScreen(
-                              habit: s.habit,
-                              logs: logs,
-                              from: range.$1,
-                              to: range.$2,
-                            ),
-                          ),
-                        );
-                      },
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: _habitStatSwatchSize,
+                  height: _habitStatSwatchSize,
+                  decoration: BoxDecoration(
+                    color: statsHabitDisplayColor(s.habit, statsColorById),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      width: 1,
                     ),
-              ),
-            ],
-          ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    s.habit.name,
+                    style: rowStyle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(
+                  width: _habitStatCountColWidth,
+                  child: Text(
+                    '${s.completedDays}/${s.totalPlannedDays}',
+                    style: rowStyle,
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+                SizedBox(
+                  width: _habitStatStreakColWidth,
+                  child: Text(
+                    streakLabel,
+                    style: rowStyle,
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
-  }
-
-  double _averagePercent(List<HabitStats> stats) {
-    final active = stats.where((s) => s.habit.isActive).toList();
-    if (active.isEmpty) return 0;
-    final sum = active
-        .map((s) => s.percent ?? 0)
-        .fold<double>(0, (a, b) => a + b);
-    return sum / active.length;
   }
 
   int _countPlannedDays(Habit habit, DateTime start, DateTime end) {
@@ -311,18 +535,75 @@ class _StatsScreenState extends State<StatsScreen> {
     var d = DateTime(start.year, start.month, start.day);
     final last = DateTime(end.year, end.month, end.day);
     while (!d.isAfter(last)) {
-      if (habit.isScheduledForDate(d)) {
+      if (habit.forDate(d).isScheduledForDate(d)) {
         count++;
       }
       d = d.add(const Duration(days: 1));
     }
     return count;
   }
+}
 
-  String _formatDate(DateTime d) {
-    final day = d.day.toString().padLeft(2, '0');
-    final month = d.month.toString().padLeft(2, '0');
-    return '$day.$month.${d.year}';
+class _StatsMetricCard extends StatelessWidget {
+  const _StatsMetricCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.labelStyle,
+    required this.valueStyle,
+  });
+
+  final Widget icon;
+  final String label;
+  final String value;
+  final TextStyle? labelStyle;
+  final TextStyle? valueStyle;
+
+  /// Ширина слота иконки ([HabitCardLeadingSlot]) + зазор до текста — зеркалим справа для центра текста в плашке.
+  static const double _leadingWidth = 48 + 12;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      alignment: Alignment.center,
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.gap(context, base: 16),
+        vertical: AppResponsive.gap(context, base: 8),
+      ),
+      decoration: _habitCardShellDecoration(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          icon,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: labelStyle,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: valueStyle,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: _leadingWidth),
+        ],
+      ),
+    );
   }
 }
 
@@ -332,203 +613,191 @@ class HabitStats {
     required this.totalPlannedDays,
     required this.completedDays,
     required this.percent,
+    required this.longestStreakInPeriod,
   });
 
   final Habit habit;
   final int totalPlannedDays;
   final int completedDays;
   final double? percent;
+  /// Самая длинная серия успехов внутри выбранного периода (неделя / месяц / год).
+  final int longestStreakInPeriod;
 }
 
-class _HabitStatsTile extends StatelessWidget {
-  const _HabitStatsTile({required this.stats, required this.onTap});
-
-  final HabitStats stats;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final p = stats.percent ?? 0;
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Container(
-              width: 6,
-              height: 32,
-              decoration: BoxDecoration(
-                color: stats.habit.color,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    stats.habit.name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  LinearProgressIndicator(
-                  value: p.isNaN
-                      ? 0.0
-                      : (p / 100).clamp(0.0, 1.0).toDouble(),
-                    minHeight: 4,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.6),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(stats.habit.color),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${p.toStringAsFixed(0)}%',
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PeriodChip extends StatelessWidget {
-  const _PeriodChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      labelStyle: theme.textTheme.labelMedium?.copyWith(
-        color: selected ? theme.colorScheme.onPrimary : null,
-      ),
-    );
-  }
-}
-
-class _CircleStat extends StatelessWidget {
-  const _CircleStat({
-    required this.title,
-    required this.percent,
+class _StatsRingSegmentData {
+  const _StatsRingSegmentData({
     required this.color,
+    required this.completedDays,
   });
 
-  final String title;
-  final double percent;
   final Color color;
+  final int completedDays;
+}
+
+/// Кольцо прогресса: фон + цветные дуги по весу [completedDays]; в центре — иконка и средний %.
+class _StatsProgressRing extends StatelessWidget {
+  const _StatsProgressRing({
+    required this.percent,
+    required this.segments,
+  });
+
+  static const _assetPlantIcon = 'assets/icons/planticon.png';
+
+  final double percent;
+  final List<_StatsRingSegmentData> segments;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final p = percent.isNaN ? 0.0 : percent.clamp(0.0, 100.0).toDouble();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 72,
-              height: 72,
-              child: CustomPaint(
-                painter: _DonutPainter(
-                  percent: p / 100,
-                  color: color,
-                  backgroundColor:
-                      theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.6,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    '${p.toStringAsFixed(0)}%',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+    const ringSize = 220.0;
+    final iconSize = 256.0 * 1.1;
+    final ringInset = (iconSize - ringSize) / 2;
+    final p = (percent.isNaN ? 0.0 : percent).clamp(0.0, 100.0);
+    final progress = p / 100.0;
+    // Высота больше [iconSize]: иконка со сдвигом и антиалиасинг рисуются ниже бокса —
+    // иначе SingleChildScrollView обрезает низ по линии вьюпорта (над bottom bar).
+    final h = iconSize + 48;
+    return SizedBox(
+      width: iconSize,
+      height: h,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: ringInset,
+            top: ringInset,
+            width: ringSize,
+            height: ringSize,
+            child: CustomPaint(
+              size: const Size(ringSize, ringSize),
+              painter: _StatsRingPainter(
+                progress: progress,
+                segments: segments,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            width: iconSize,
+            height: iconSize,
+            child: Center(
+              child: Transform.translate(
+                offset: const Offset(0, 6),
+                child: Image.asset(
+                  _assetPlantIcon,
+                  width: iconSize,
+                  height: iconSize,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
                 ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w500,
+          ),
+          Positioned(
+            left: ringInset,
+            top: ringInset,
+            width: ringSize,
+            height: ringSize,
+            child: Align(
+              alignment: const Alignment(0, 0.44),
+              child: Text(
+                '${p.round()}%',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black38,
+                      blurRadius: 4,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DonutPainter extends CustomPainter {
-  _DonutPainter({
-    required this.percent,
-    required this.color,
-    required this.backgroundColor,
+class _StatsRingPainter extends CustomPainter {
+  _StatsRingPainter({
+    required this.progress,
+    required this.segments,
   });
 
-  final double percent;
-  final Color color;
-  final Color backgroundColor;
+  final double progress;
+  final List<_StatsRingSegmentData> segments;
+
+  static const _track = Color(0xFFE8DCCB);
+  static const _stroke = 12.0;
+
+  static List<double> _normalizedWeights(List<_StatsRingSegmentData> segments) {
+    final sum = segments.fold<int>(0, (a, s) => a + s.completedDays);
+    if (sum > 0) {
+      return segments.map((s) => s.completedDays / sum).toList();
+    }
+    final n = segments.length;
+    if (n == 0) return [];
+    return List.filled(n, 1.0 / n);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final strokeWidth = 8.0;
-    final rect = Offset.zero & size;
-    final center = rect.center;
-    final radius = math.min(size.width, size.height) / 2 - strokeWidth;
+    final center = size.center(Offset.zero);
+    final radius = size.width / 2 - 10;
 
-    final bgPaint = Paint()
-      ..color = backgroundColor
+    final backgroundPaint = Paint()
+      ..color = _track
       ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
+      ..strokeWidth = _stroke;
 
-    canvas.drawCircle(center, radius, bgPaint);
+    canvas.drawCircle(center, radius, backgroundPaint);
 
-    if (percent <= 0) return;
+    final t = progress.clamp(0.0, 1.0);
+    if (t <= 0 || segments.isEmpty) return;
 
-    final fgPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    final weights = _normalizedWeights(segments);
+    final totalSweep = 2 * math.pi * t;
+    var nonZeroCount = 0;
+    for (var i = 0; i < segments.length; i++) {
+      if (totalSweep * weights[i] > 1e-9) nonZeroCount++;
+    }
 
-    final startAngle = -math.pi / 2;
-    final sweepAngle = 2 * math.pi * percent.clamp(0.0, 1.0);
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    var startAngle = -math.pi / 2;
 
-    final arcRect = Rect.fromCircle(center: center, radius: radius);
-    canvas.drawArc(arcRect, startAngle, sweepAngle, false, fgPaint);
+    for (var i = 0; i < segments.length; i++) {
+      final sweep = totalSweep * weights[i];
+      if (sweep <= 1e-9) continue;
+
+      final progressPaint = Paint()
+        ..color = segments[i].color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _stroke
+        ..strokeCap = nonZeroCount == 1 ? StrokeCap.round : StrokeCap.butt;
+
+      canvas.drawArc(rect, startAngle, sweep, false, progressPaint);
+      startAngle += sweep;
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _DonutPainter oldDelegate) {
-    return oldDelegate.percent != percent ||
-        oldDelegate.color != color ||
-        oldDelegate.backgroundColor != backgroundColor;
+  bool shouldRepaint(covariant _StatsRingPainter oldDelegate) {
+    if (oldDelegate.progress != progress ||
+        oldDelegate.segments.length != segments.length) {
+      return true;
+    }
+    for (var i = 0; i < segments.length; i++) {
+      if (oldDelegate.segments[i].color != segments[i].color ||
+          oldDelegate.segments[i].completedDays != segments[i].completedDays) {
+        return true;
+      }
+    }
+    return false;
   }
 }
