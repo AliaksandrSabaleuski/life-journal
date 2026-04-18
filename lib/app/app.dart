@@ -22,7 +22,7 @@ class JournalApp extends StatelessWidget {
       valueListenable: AppLocaleController.locale,
       builder: (context, debugLocale, _) {
         return MaterialApp(
-          title: 'Habit Run',
+          title: 'About Me',
           theme: AppTheme.light,
           darkTheme: AppTheme.light,
           themeMode: ThemeMode.light,

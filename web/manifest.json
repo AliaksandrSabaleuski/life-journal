@@ -1,6 +1,6 @@
 {
-    "name": "Habit Run",
-    "short_name": "Habit Run",
+    "name": "About Me",
+    "short_name": "About Me",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

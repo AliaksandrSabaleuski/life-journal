@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In ru, this message translates to:
-  /// **'About Me: Habit tracker'**
+  /// **'About Me'**
   String get appTitle;
 
   /// No description provided for @newEventTitle.
@@ -149,7 +149,7 @@ abstract class AppLocalizations {
   /// No description provided for @subscriptionBody.
   ///
   /// In ru, this message translates to:
-  /// **'Подпишись, чтобы не потерять свой дневник.\n\n(Пока без реального функционала — просто заглушка.)'**
+  /// **'Подписка открывает безлимитные привычки и события.'**
   String get subscriptionBody;
 
   /// No description provided for @noEventsForDay.
@@ -191,7 +191,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPlaceholder.
   ///
   /// In ru, this message translates to:
-  /// **'Здесь будут настройки темы, языка, звуков и др.'**
+  /// **'Настройки'**
   String get settingsPlaceholder;
 
   /// No description provided for @tabMain.

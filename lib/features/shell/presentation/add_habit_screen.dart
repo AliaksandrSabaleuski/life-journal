@@ -58,6 +58,14 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   bool _daily = true;
   final Set<int> _weekdays = {1, 2, 3, 4, 5, 6, 7};
 
+  /// One template row (vertical padding + icon / single-line text).
+  static const double _presetRowHeight = 42;
+  static const double _presetSeparator = 8;
+  /// ListView `padding: all(10)` top + bottom.
+  static const double _presetListVerticalInset = 20;
+  /// ~4.5 rows + separators so the next item is slightly clipped (scroll hint).
+  static const double _presetListMaxHeight =
+      _presetListVerticalInset + 4.5 * _presetRowHeight + 4 * _presetSeparator;
 
   @override
   void initState() {
@@ -289,7 +297,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     }
 
     final templates = _templatesForCategory(_category);
-    final visibleTemplates = templates.take(4).toList(growable: false);
+    final visibleTemplates = templates;
     final selectedId = _selectedTemplateId;
 
     return Scaffold(
@@ -342,74 +350,81 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                     color: theme.colorScheme.outline.withValues(alpha: 0.4),
                   ),
                 ),
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(10),
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: visibleTemplates.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (ctx, i) {
-                    final t = visibleTemplates[i];
-                    final isSelected = (selectedId ??
-                            (visibleTemplates.isEmpty
-                                ? null
-                                : visibleTemplates.first.templateId)) ==
-                        t.templateId;
-                    return Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          setState(() {
-                            _selectedTemplateId = t.templateId;
-                            _nameController.text = t.name;
-                            _selectedColor = const Color(0x00000000);
-                            _daily = t.repeatDays.isEmpty || _isEveryDay(t.repeatDays);
-                            _weekdays
-                              ..clear()
-                              ..addAll(t.repeatDays.isEmpty
-                                  ? const [1, 2, 3, 4, 5, 6, 7]
-                                  : t.repeatDays);
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? accent.withValues(alpha: 0.10)
-                                : Colors.transparent,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: _presetListMaxHeight),
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.all(10),
+                      primary: false,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: visibleTemplates.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, i) {
+                        final t = visibleTemplates[i];
+                        final isSelected = (selectedId ??
+                                (visibleTemplates.isEmpty
+                                    ? null
+                                    : visibleTemplates.first.templateId)) ==
+                            t.templateId;
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? accent.withValues(alpha: 0.55)
-                                  : theme.colorScheme.outline
-                                      .withValues(alpha: 0.25),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_outlined,
-                                size: 18,
-                                color: theme.colorScheme.onSurfaceVariant,
+                            onTap: () {
+                              setState(() {
+                                _selectedTemplateId = t.templateId;
+                                _nameController.text = t.name;
+                                _selectedColor = const Color(0x00000000);
+                                _daily = t.repeatDays.isEmpty || _isEveryDay(t.repeatDays);
+                                _weekdays
+                                  ..clear()
+                                  ..addAll(t.repeatDays.isEmpty
+                                      ? const [1, 2, 3, 4, 5, 6, 7]
+                                      : t.repeatDays);
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  t.name,
-                                  style: theme.textTheme.bodyMedium,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? accent.withValues(alpha: 0.10)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? accent.withValues(alpha: 0.55)
+                                      : theme.colorScheme.outline
+                                          .withValues(alpha: 0.25),
                                 ),
                               ),
-                            ],
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      t.name,
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -434,97 +449,129 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
               ),
               const SizedBox(height: 12),
               // Имя берём из пресета; редактирование здесь не даём.
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Цвет карточки'),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      children: [
-                        InkWell(
-                          onTap: () => setState(
-                            () => _selectedColor = const Color(0x00000000),
+                  Text(
+                    'Цвет карточки',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF5A3E2B),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      InkWell(
+                        onTap: () => setState(
+                          () => _selectedColor = const Color(0x00000000),
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFF3EFE9),
+                            border: Border.all(
+                              color: _selectedColor.value == 0
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.85)
+                                  : Colors.black26,
+                              width: 2,
+                            ),
                           ),
+                          child: Center(
+                            child: Container(
+                              width: 8,
+                              height: 2,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF5A3E2B).withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      ...ColorRegistry.allColors.take(8).map((c) {
+                        final selected = c.value == _selectedColor.value;
+                        return InkWell(
+                          onTap: () => setState(() => _selectedColor = c),
                           borderRadius: BorderRadius.circular(999),
                           child: Container(
                             width: 18,
                             height: 18,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFFF3EFE9),
+                              color: c,
                               border: Border.all(
-                                color: _selectedColor.value == 0
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withValues(alpha: 0.85)
-                                    : Colors.black26,
+                                color: selected ? Colors.black54 : Colors.transparent,
                                 width: 2,
                               ),
                             ),
-                            child: Center(
-                              child: Container(
-                                width: 8,
-                                height: 2,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF5A3E2B).withValues(alpha: 0.55),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                              ),
-                            ),
                           ),
-                        ),
-                        ...ColorRegistry.allColors.take(8).map((c) {
-                          final selected = c.value == _selectedColor.value;
-                          return InkWell(
-                            onTap: () => setState(() => _selectedColor = c),
-                            borderRadius: BorderRadius.circular(999),
-                            child: Container(
-                              width: 18,
-                              height: 18,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: c,
-                                border: Border.all(
-                                  color: selected ? Colors.black54 : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
+                        );
+                      }),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Повторимость'),
-                  const SizedBox(width: 12),
-                  UnderlinePill(
-                    text: 'Ежедневно',
-                    selected: _daily,
-                    accent: accent,
-                    onTap: () => setState(() {
-                      _daily = true;
-                      _weekdays
-                        ..clear()
-                        ..addAll(const [1, 2, 3, 4, 5, 6, 7]);
-                    }),
+                  Text(
+                    'Повторимость',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF5A3E2B),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  UnderlinePill(
-                    text: 'Выбрать дни',
-                    selected: !_daily,
-                    accent: accent,
-                    onTap: () async {
-                      final applied = await _pickWeekdays();
-                      if (!mounted) return;
-                      if (!applied) return;
-                    },
+                  const SizedBox(height: 8),
+                  ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      scrollbars: false,
+                      dragDevices: const {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.trackpad,
+                      },
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          UnderlinePill(
+                            text: 'Ежедневно',
+                            selected: _daily,
+                            accent: accent,
+                            onTap: () => setState(() {
+                              _daily = true;
+                              _weekdays
+                                ..clear()
+                                ..addAll(const [1, 2, 3, 4, 5, 6, 7]);
+                            }),
+                          ),
+                          const SizedBox(width: 8),
+                          UnderlinePill(
+                            text: 'Выбрать дни',
+                            selected: !_daily,
+                            accent: accent,
+                            onTap: () async {
+                              final applied = await _pickWeekdays();
+                              if (!mounted) return;
+                              if (!applied) return;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),

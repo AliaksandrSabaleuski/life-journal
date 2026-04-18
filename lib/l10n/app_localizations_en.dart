@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'About Me: Habit tracker';
+  String get appTitle => 'About Me';
 
   @override
   String get newEventTitle => 'New event for today';
@@ -34,7 +34,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subscriptionBody =>
-      'Subscribe so you don\'t lose your journal.\n\n(Placeholder for now.)';
+      'Subscribe to unlock unlimited habits and events.';
 
   @override
   String get noEventsForDay =>
@@ -56,8 +56,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
-  String get settingsPlaceholder =>
-      'Theme, language, sounds, and more will live here.';
+  String get settingsPlaceholder => 'Settings';
 
   @override
   String get tabMain => 'Home';

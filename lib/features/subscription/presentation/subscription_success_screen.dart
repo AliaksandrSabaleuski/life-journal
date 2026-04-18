@@ -10,20 +10,20 @@ class SubscriptionSuccessScreen extends StatelessWidget {
   /// Название выбранного плана (7 дней бесплатно, ежемесячно, ежегодно).
   final String? planName;
 
-  static const _purpleLight = Color(0xFFB8A4E0);
-  static const _purpleStart = Color(0xFF6B4EAA);
-  static const _purpleEnd = Color(0xFF9B7EDE);
+  static const _coffee = Color(0xFF6B5A4E);
+  static const _warmCard = Color(0xFFF6EEE5);
 
   @override
   Widget build(BuildContext context) {
     final planText = planName ?? 'Премиум';
+    final theme = Theme.of(context);
 
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/images/subscription_passed_bg.png',
+              'assets/images/subscripded_bg.png',
               fit: BoxFit.cover,
             ),
           ),
@@ -34,71 +34,67 @@ class SubscriptionSuccessScreen extends StatelessWidget {
                   children: [
                     const Spacer(flex: 2),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 28,
-                      ),
+                      // Как на первом экране подписки: компактное "стекло" с теми же отступами/радиусом.
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(16),
+                        // В стиле первого экрана подписки: тёплое “стекло” без повторного бэка.
+                        color: _warmCard.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.55),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 24,
+                            offset: const Offset(0, 14),
+                          ),
+                        ],
                       ),
                       child: Column(
                         children: [
                           Text(
                             'ПОЗДРАВЛЯЕМ!',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                              color: _purpleLight,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: _coffee.withValues(alpha: 0.92),
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
                             ),
                           ),
                           const SizedBox(height: 32),
-                          _buildCheckmarkCircle(),
+                          _buildCheckmarkIcon(),
                           const SizedBox(height: 32),
                           Text(
                             'Подписка оформлена на',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontWeight: FontWeight.w500,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             planText,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: _coffee.withValues(alpha: 0.92),
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(height: 28),
                           Text(
                             'Отслеживайте свои успехи с неограниченным количеством целей.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              height: 1.5,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Раскрой свой потенциал!',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -116,65 +112,38 @@ class SubscriptionSuccessScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCheckmarkCircle() {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_purpleStart, _purpleEnd],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: _purpleEnd.withValues(alpha: 0.6),
-            blurRadius: 32,
-            spreadRadius: 4,
-          ),
-        ],
-      ),
-      child: const Icon(
-        Icons.check,
-        size: 64,
-        color: Colors.white,
+  Widget _buildCheckmarkIcon() {
+    return Center(
+      child: Image.asset(
+        'assets/icons/CheckMark.png',
+        width: 192,
+        height: 192,
+        fit: BoxFit.contain,
       ),
     );
   }
 
   Widget _buildCtaButton(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox(
       width: double.infinity,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _purpleEnd.withValues(alpha: 0.8),
-                width: 2,
-              ),
-            ),
-            child: Text(
-              'ДОСТИГАЙТЕ СВОИХ ЦЕЛЕЙ',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
+      height: 56,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
+          textStyle: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
           ),
         ),
+        onPressed: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        child: const Text('Достигайте своих целей'),
       ),
     );
   }

@@ -9,7 +9,7 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
-  String get appTitle => 'About Me: Habit tracker';
+  String get appTitle => 'About Me';
 
   @override
   String get newEventTitle => 'Новое событие за сегодня';
@@ -34,7 +34,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subscriptionBody =>
-      'Подпишись, чтобы не потерять свой дневник.\n\n(Пока без реального функционала — просто заглушка.)';
+      'Подписка открывает безлимитные привычки и события.';
 
   @override
   String get noEventsForDay =>
@@ -56,8 +56,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsTitle => 'Настройки';
 
   @override
-  String get settingsPlaceholder =>
-      'Здесь будут настройки темы, языка, звуков и др.';
+  String get settingsPlaceholder => 'Настройки';
 
   @override
   String get tabMain => 'Главная';

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../shell/shell_content_insets.dart';
 
-/// Экран помощника. Пока заглушка.
+/// Экран помощника.
 class AssistantScreen extends StatelessWidget {
   const AssistantScreen({super.key});
 

@@ -84,8 +84,7 @@ flutter:
     - assets/images/FirstLaunchBack.png
     - assets/images/HabitBack.png
     - assets/images/subscription_bg.png
-    - assets/images/subscription_passed_bg.png
-    - assets/images/subscribed_bg.png
+    - assets/images/subscripded_bg.png
 
 # App icon — run: dart run flutter_launcher_icons
 flutter_launcher_icons:

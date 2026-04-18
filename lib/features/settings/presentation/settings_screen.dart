@@ -79,6 +79,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
+    const cardRadius = 14.0;
+    const tilePadding = EdgeInsets.symmetric(horizontal: 16, vertical: 14);
+
+    Widget settingsTile({
+      required String title,
+      String? subtitle,
+      Widget? trailing,
+      VoidCallback? onTap,
+    }) {
+      return Material(
+        color: Colors.white.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(cardRadius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(cardRadius),
+          onTap: onTap,
+          child: Padding(
+            padding: tilePadding,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 12),
+                  trailing,
+                ] else ...[
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget blockTitle(String text) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 12),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.35,
+          ),
+        ),
+      );
+    }
+
+    Widget listShadowWrapper(Widget child) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(cardRadius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: child,
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -91,239 +180,223 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Text(
-                    'Имя пользователя',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
+                  ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                     children: [
-                      Expanded(
-                        child: Text(
-                          _userName.isEmpty ? 'Гость' : _userName,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
+                      blockTitle(
+                        'Настрой приложение под себя\nи сделай привычки ещё удобнее.',
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Первая плитка со switch (как на рефе)
+                      listShadowWrapper(
+                        Material(
+                          color: Colors.white.withValues(alpha: 0.68),
+                          borderRadius: BorderRadius.circular(cardRadius),
+                          child: Padding(
+                            padding: tilePadding,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Push‑уведомления',
+                                        style: theme.textTheme.titleSmall?.copyWith(
+                                          color: theme.colorScheme.onSurface,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Напоминания о привычках и важные события',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: _notificationsEnabled,
+                                  onChanged: (value) {
+                                    setState(() => _notificationsEnabled = value);
+                                    _saveNotificationsEnabled(value);
+                                    NotificationService.instance.setNotificationsEnabled(value);
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        tooltip: 'Изменить имя',
-                        onPressed: _editUserName,
+                      const SizedBox(height: 12),
+
+                      // Плитки-опции
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Управление подпиской',
+                          onTap: () => SubscriptionScreen.show(context),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Предложить улучшения',
+                          onTap: _openFeedbackForm,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Рассказать друзьям',
+                          onTap: () {
+                            AnalyticsService.instance.logShareTapped();
+                            Share.share(
+                              'Я веду дневник привычек в приложении «${l.appTitle}». Попробуй и ты!',
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Поставить оценку',
+                          onTap: _openStoreRating,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                      Text(
+                        'Язык приложения',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _LanguageChip(
+                              code: 'ru',
+                              label: 'Русский',
+                              flag: '🇷🇺',
+                              selected: _languageCode == 'ru',
+                              onTap: () {
+                                setState(() => _languageCode = 'ru');
+                                _saveLanguage('ru');
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _LanguageChip(
+                              code: 'en',
+                              label: 'English',
+                              flag: '🇺🇸',
+                              selected: _languageCode == 'en',
+                              onTap: () {
+                                setState(() => _languageCode = 'en');
+                                _saveLanguage('en');
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (kDebugMode) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Debug',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        listShadowWrapper(
+                          settingsTile(
+                            title: 'Debug: язык UI',
+                            subtitle: AppLocaleController.locale.value == null
+                                ? 'Не задан — как в блоке «Язык приложения» / система.'
+                                : (AppLocaleController.locale.value?.languageCode == 'en'
+                                    ? 'Принудительно: English'
+                                    : 'Принудительно: Русский'),
+                            trailing: FilledButton.tonal(
+                              onPressed: () {
+                                AppLocaleController.toggleRuEn();
+                                final loc = AppLocaleController.locale.value;
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Locale: ${loc?.languageCode ?? '?'}')),
+                                );
+                              },
+                              child: const Text('RU ⇄ EN'),
+                            ),
+                            onTap: null,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              AppLocaleController.locale.value = null;
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Debug locale сброшен')),
+                              );
+                            },
+                            child: const Text('Сбросить debug-локаль'),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 16),
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Удалить аккаунт',
+                          onTap: _confirmDeleteAccount,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Условия пользования',
+                          onTap: () => _openUrl(Uri.parse(
+                            'https://docs.google.com/document/d/1kzfe6FwYZZPCzmZlmNBBQy-0mg2y_C2PdtGoP7UNQ3w/view?usp=sharing',
+                          )),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Политика конфиденциальности',
+                          onTap: () => _openUrl(Uri.parse(
+                            'https://docs.google.com/document/d/1jaLmnQvmo2GXfMC5_L6wCLwshuF2eGD8QdlfhQzPJjw/view?usp=sharing',
+                          )),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Вы супер!',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w500,
+
+                  // Версия внизу (как на рефе)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      child: Text(
+                        'Версия приложения $_appVersion',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          SwitchListTile(
-            title: const Text('Push‑уведомления'),
-            subtitle: const Text('Напоминания о привычках и важные события'),
-            value: _notificationsEnabled,
-            onChanged: (value) {
-              setState(() => _notificationsEnabled = value);
-              _saveNotificationsEnabled(value);
-              NotificationService.instance.setNotificationsEnabled(value);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    value
-                        ? 'Уведомления включены. Настройка конкретных типов появится позже.'
-                        : 'Уведомления отключены. Вы сможете включить их снова в настройках.',
-                  ),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.card_membership_outlined),
-            title: const Text('Управление подпиской'),
-            subtitle: const Text('Статус, лимиты и переход на Премиум'),
-            onTap: () => SubscriptionScreen.show(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.lightbulb_outline),
-            title: const Text('Предложить улучшения'),
-            onTap: _openFeedbackForm,
-          ),
-          ListTile(
-            leading: const Icon(Icons.share_outlined),
-            title: const Text('Рассказать друзьям'),
-            onTap: () {
-              AnalyticsService.instance.logShareTapped();
-              Share.share(
-                'Я веду дневник привычек в приложении «Habit Run». Попробуй и ты!',
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.star_rate_outlined),
-            title: const Text('Поставить оценку'),
-            onTap: _openStoreRating,
-          ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 4),
-            child: Text(
-              'Язык приложения',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _LanguageChip(
-                  code: 'ru',
-                  label: 'Русский',
-                  flag: '🇷🇺',
-                  selected: _languageCode == 'ru',
-                  onTap: () {
-                    setState(() => _languageCode = 'ru');
-                    _saveLanguage('ru');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Русский язык уже активен')),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _LanguageChip(
-                  code: 'en',
-                  label: 'English',
-                  flag: '🇺🇸',
-                  selected: _languageCode == 'en',
-                  onTap: () {
-                    setState(() => _languageCode = 'en');
-                    _saveLanguage('en');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Английская локализация появится в одной из следующих версий.'),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          if (kDebugMode) ...[
-            const SizedBox(height: 16),
-            const Divider(),
-            ListTile(
-              leading: Icon(
-                Icons.translate_rounded,
-                color: theme.colorScheme.primary,
-              ),
-              title: const Text('Debug: язык UI'),
-              subtitle: ValueListenableBuilder<Locale?>(
-                valueListenable: AppLocaleController.locale,
-                builder: (context, loc, _) {
-                  if (loc == null) {
-                    return const Text(
-                      'Не задан — как в блоке «Язык приложения» / система.',
-                    );
-                  }
-                  return Text(
-                    loc.languageCode == 'en'
-                        ? 'Принудительно: English'
-                        : 'Принудительно: Русский',
-                  );
-                },
-              ),
-              trailing: FilledButton.tonal(
-                onPressed: () {
-                  AppLocaleController.toggleRuEn();
-                  final loc = AppLocaleController.locale.value;
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Locale: ${loc?.languageCode ?? '?'}'),
-                    ),
-                  );
-                },
-                child: const Text('RU ⇄ EN'),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  AppLocaleController.locale.value = null;
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Debug locale сброшен'),
-                    ),
-                  );
-                },
-                child: const Text('Сбросить debug-локаль'),
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.delete_outline, color: Colors.red),
-            title: const Text('Удалить аккаунт'),
-            onTap: _confirmDeleteAccount,
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Выход'),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Функция выхода появится, когда добавим аккаунты.'),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('Версия приложения'),
-            subtitle: Text(_appVersion),
-          ),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Условия пользования'),
-            onTap: () => _openUrl(Uri.parse(
-              'https://docs.google.com/document/d/1kzfe6FwYZZPCzmZlmNBBQy-0mg2y_C2PdtGoP7UNQ3w/view?usp=sharing',
-            )),
-          ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('Политика конфиденциальности'),
-            onTap: () => _openUrl(Uri.parse(
-              'https://docs.google.com/document/d/1jaLmnQvmo2GXfMC5_L6wCLwshuF2eGD8QdlfhQzPJjw/view?usp=sharing',
-            )),
-          ),
-        ],
-      ),
             ),
     );
   }
