@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
@@ -72,6 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _saveLanguage(String code) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsLanguageKey, code);
+    AppLocaleController.locale.value = Locale(code);
   }
 
   @override
@@ -307,53 +307,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
 
-                      if (kDebugMode) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          'Debug',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        listShadowWrapper(
-                          settingsTile(
-                            title: 'Debug: язык UI',
-                            subtitle: AppLocaleController.locale.value == null
-                                ? 'Не задан — как в блоке «Язык приложения» / система.'
-                                : (AppLocaleController.locale.value?.languageCode == 'en'
-                                    ? 'Принудительно: English'
-                                    : 'Принудительно: Русский'),
-                            trailing: FilledButton.tonal(
-                              onPressed: () {
-                                AppLocaleController.toggleRuEn();
-                                final loc = AppLocaleController.locale.value;
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Locale: ${loc?.languageCode ?? '?'}')),
-                                );
-                              },
-                              child: const Text('RU ⇄ EN'),
-                            ),
-                            onTap: null,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              AppLocaleController.locale.value = null;
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Debug locale сброшен')),
-                              );
-                            },
-                            child: const Text('Сбросить debug-локаль'),
-                          ),
-                        ),
-                      ],
-
                       const SizedBox(height: 16),
                       listShadowWrapper(
                         settingsTile(
@@ -512,7 +465,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openStoreRating() async {
-    // TODO: заменить на реальные ссылки на сторы.
     const url = 'https://play.google.com/store';
     await _openUrl(Uri.parse(url));
   }
@@ -552,6 +504,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
+      AppLocaleController.locale.value = null;
       if (!mounted) return;
       setState(() {
         _userName = '';

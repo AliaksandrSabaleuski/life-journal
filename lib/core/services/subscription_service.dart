@@ -5,8 +5,7 @@ import '../catalog/habit_template.dart';
 import '../catalog/habits_catalog.dart';
 import '../models/habit.dart';
 
-/// Сервис подписки: хранит статус premium в SharedPreferences.
-/// Логика без реальных платежей — только переключение free/premium.
+/// Сервис подписки: хранит статус premium в SharedPreferences после покупки / restore.
 class SubscriptionService {
   SubscriptionService._();
 
@@ -55,20 +54,11 @@ class SubscriptionService {
   static CatalogLimits get currentLimits =>
       isPremium ? premiumLimits : freeLimits;
 
-  /// Симулируем переход на премиум (без реальных платежей).
   static Future<void> upgradeToPremium() async {
     if (isPremiumNotifier.value) return;
     isPremiumNotifier.value = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumKey, true);
-  }
-
-  /// Симулируем отмену премиума (для тестирования).
-  static Future<void> downgradeToFree() async {
-    if (!isPremiumNotifier.value) return;
-    isPremiumNotifier.value = false;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_premiumKey, false);
   }
 
   /// Общее количество записей (привычек + событий).

@@ -149,7 +149,7 @@ abstract class AppLocalizations {
   /// No description provided for @subscriptionBody.
   ///
   /// In ru, this message translates to:
-  /// **'Подписка открывает безлимитные привычки и события.'**
+  /// **'Подписка открывает безлимитные привычки и события, а также даёт доступ к подробной статистике.'**
   String get subscriptionBody;
 
   /// No description provided for @noEventsForDay.

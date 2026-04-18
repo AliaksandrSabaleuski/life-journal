@@ -1,15 +1,9 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/habit.dart';
 import '../../../../core/services/calendar_indicators_service.dart';
 import '../../../../l10n/app_localizations.dart';
-
-/// Включить замеры производительности календаря.
-/// Логи с префиксом [PERF] — скопируй и скинь для анализа.
-const bool _kDebugCalendarPerf = true;
 
 /// Экран календаря: переключатель Месяц/Год; вид месяца — скролл по месяцам с цифрами дней.
 class CalendarScreen extends StatefulWidget {
@@ -37,8 +31,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   ScrollController? _scrollController;
   ScrollController? _yearScrollController;
   final ValueNotifier<DateTime?> _selectedDateNotifier = ValueNotifier<DateTime?>(null);
-  bool _monthFirstFrameLogged = false;
-  bool _yearFirstFrameLogged = false;
   late final CalendarIndicatorsService _indicators;
 
   @override
@@ -90,9 +82,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final preloadStart = DateTime(now.year - 2, 1, 1);
     final preloadEnd = DateTime(now.year + 2, 12, 31);
     _indicators.preloadRange(preloadStart, preloadEnd);
-    if (_kDebugCalendarPerf) {
-      debugPrint('[PERF] CALENDAR_TAB_OPENED');
-    }
   }
 
   @override
@@ -135,9 +124,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             selected: {_isMonthView},
             onSelectionChanged: (Set<bool> selected) {
               final isMonthView = selected.first;
-              if (_kDebugCalendarPerf) {
-                debugPrint('[PERF] SWITCH_TO_${isMonthView ? "MONTH" : "YEAR"}');
-              }
               setState(() => _isMonthView = isMonthView);
               _selectedDateNotifier.value = null;
             },
@@ -156,9 +142,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Switch(
                 value: _showIndicators,
                 onChanged: (value) {
-                  if (_kDebugCalendarPerf) {
-                    debugPrint('[PERF] TOGGLE_INDICATORS enabled=$value');
-                  }
                   setState(() => _showIndicators = value);
                 },
               ),
@@ -179,9 +162,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildMonthViewContent(ThemeData theme, bool showIndicators) {
-    if (_kDebugCalendarPerf) {
-      debugPrint('[PERF] MONTH_VIEW_BUILD_START');
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -205,12 +185,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               _scrollController ??= ScrollController(
                 initialScrollOffset: _initialScrollOffset(constraints.maxHeight),
               );
-              if (_kDebugCalendarPerf && !_monthFirstFrameLogged) {
-                _monthFirstFrameLogged = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  debugPrint('[PERF] MONTH_VIEW_FIRST_FRAME_DONE');
-                });
-              }
               return ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(
                   scrollbars: false,
@@ -232,15 +206,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       showIndicators: showIndicators,
                       selectedDateNotifier: _selectedDateNotifier,
                       onDaySelected: (date) {
-                        if (_kDebugCalendarPerf) {
-                          final t0 = DateTime.now();
-                          _selectedDateNotifier.value = date;
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            debugPrint('[PERF] MONTH_DAY_SELECT date=$date frame_done_ms=${DateTime.now().difference(t0).inMilliseconds}');
-                          });
-                        } else {
-                          _selectedDateNotifier.value = date;
-                        }
+                        _selectedDateNotifier.value = date;
                       },
                     );
                   },
@@ -276,23 +242,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildYearViewContent(ThemeData theme, bool showIndicators) {
     final today = DateTime.now();
-    if (_kDebugCalendarPerf) {
-      debugPrint('[PERF] YEAR_VIEW_BUILD_START');
-    }
 
-    final t0 = _kDebugCalendarPerf ? DateTime.now() : null;
-
-    final widgetTree = LayoutBuilder(
+    return LayoutBuilder(
       builder: (context, constraints) {
         _yearScrollController ??= ScrollController(
           initialScrollOffset: _initialYearScrollOffset(constraints.maxHeight),
         );
-        if (_kDebugCalendarPerf && !_yearFirstFrameLogged) {
-          _yearFirstFrameLogged = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            debugPrint('[PERF] YEAR_VIEW_FIRST_FRAME_DONE');
-          });
-        }
         return ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(
             scrollbars: false,
@@ -313,17 +268,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 showIndicators: showIndicators,
                 selectedDateNotifier: _selectedDateNotifier,
                 onDaySelected: (date) {
-                  if (_kDebugCalendarPerf) {
-                    final t0 = DateTime.now();
-                    developer.Timeline.startSync('CalendarDaySelected');
-                    _selectedDateNotifier.value = date;
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      developer.Timeline.finishSync();
-                      debugPrint('[PERF] YEAR_DAY_SELECT date=$date frame_done_ms=${DateTime.now().difference(t0).inMilliseconds}');
-                    });
-                  } else {
-                    _selectedDateNotifier.value = date;
-                  }
+                  _selectedDateNotifier.value = date;
                 },
               );
             },
@@ -331,15 +276,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         );
       },
     );
-
-    if (_kDebugCalendarPerf && t0 != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ms = DateTime.now().difference(t0).inMilliseconds;
-        debugPrint('[PERF] YEAR_VIEW_BUILD_DONE ms=$ms');
-      });
-    }
-
-    return widgetTree;
   }
 }
 

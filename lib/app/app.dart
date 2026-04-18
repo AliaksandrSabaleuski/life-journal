@@ -20,13 +20,14 @@ class JournalApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Locale?>(
       valueListenable: AppLocaleController.locale,
-      builder: (context, debugLocale, _) {
+      builder: (context, localeOverride, _) {
         return MaterialApp(
           title: 'About Me',
+          debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
           darkTheme: AppTheme.light,
           themeMode: ThemeMode.light,
-          locale: debugLocale,
+          locale: localeOverride,
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,

@@ -34,7 +34,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subscriptionBody =>
-      'Подписка открывает безлимитные привычки и события.';
+      'Подписка открывает безлимитные привычки и события, а также даёт доступ к подробной статистике.';
 
   @override
   String get noEventsForDay =>

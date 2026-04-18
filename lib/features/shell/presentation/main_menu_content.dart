@@ -55,7 +55,6 @@ class MainMenuContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final t0 = DateTime.now();
 
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -126,10 +125,6 @@ class MainMenuContent extends StatelessWidget {
       ],
     ),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ms = DateTime.now().difference(t0).inMilliseconds;
-      debugPrint('[PERF] MAIN_MENU_BUILD date=$selectedDate ms=$ms');
-    });
     return result;
   }
 
@@ -139,10 +134,6 @@ class MainMenuContent extends StatelessWidget {
     List<Habit> active,
     List<Habit> inactive,
   ) {
-    debugPrint(
-      '[PERF] LIST_SECTION active=${active.length} inactive=${inactive.length}',
-    );
-
     if (active.isEmpty && inactive.isEmpty) {
       return [
         const SizedBox(height: 30),
@@ -859,20 +850,11 @@ class _CalendarStripState extends State<_CalendarStrip> {
 
                       return InkWell(
                         onTap: () {
-                          final t0 = DateTime.now();
                           if (!_isSameDay(_selectedDate, date)) {
                             _selectedDate = date;
                             widget.onDateSelected?.call(date);
                             setState(() {});
                           }
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            final ms = DateTime.now()
-                                .difference(t0)
-                                .inMilliseconds;
-                            debugPrint(
-                              '[PERF] STRIP_DAY_SELECT date=$date ms=$ms',
-                            );
-                          });
                         },
                         borderRadius: BorderRadius.circular(24),
                         child: Column(

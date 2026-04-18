@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,7 +13,9 @@ import '../../../../core/models/habit_log.dart';
 import '../../../../core/logic/habit_streak.dart';
 import '../../../../core/repositories/habit_logs_repository.dart';
 import '../../../../core/repositories/habits_repository.dart';
+import '../../../../core/services/subscription_service.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../subscription/presentation/subscription_screen.dart';
 import 'habit_detail_stats_screen.dart';
 import 'stats_habit_colors.dart';
 import '../../shell/shell_content_insets.dart';
@@ -122,10 +125,24 @@ class _StatsScreenState extends State<StatsScreen> {
 
   String _motivationPhrase = '';
 
+  VoidCallback? _premiumListener;
+
   @override
   void initState() {
     super.initState();
+    _premiumListener = () {
+      if (mounted) setState(() {});
+    };
+    SubscriptionService.isPremiumNotifier.addListener(_premiumListener!);
     _load();
+  }
+
+  @override
+  void dispose() {
+    if (_premiumListener != null) {
+      SubscriptionService.isPremiumNotifier.removeListener(_premiumListener!);
+    }
+    super.dispose();
   }
 
   @override
@@ -259,92 +276,156 @@ class _StatsScreenState extends State<StatsScreen> {
     final topUnderChrome =
         ShellContentInsets.top(context) + kStatsPeriodAppBarHeight + 8;
 
-    return Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppResponsive.sidePadding(context),
-          topUnderChrome,
-          AppResponsive.sidePadding(context),
-          0,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                clipBehavior: Clip.none,
-                padding: EdgeInsets.fromLTRB(0, 8, 0, scrollBottomPad),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                            _buildTopMetrics(context, l, totalGoalsDone, bestStreak),
-                            const SizedBox(height: 8),
-                            Center(
-                              child: _StatsProgressRing(
-                                percent: overallPercent,
-                                segments: ringSegments,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _motivationPhrase,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.merriweather(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: _accentOrange,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            if (withPlan.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 24),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      l.statsEmptyTitle,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context).textTheme.titleMedium,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      l.statsEmptyBody,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else ...[
-                              _habitStatsTableHeader(context, l),
-                              ...withPlan.map(
-                                (s) => _habitRow(
-                                  context,
-                                  l,
-                                  s,
-                                  range,
-                                  statsColorById,
-                                ),
-                              ),
-                            ],
-                    const SizedBox(height: 12),
-                    Text(
-                      l.statsMotivationFooter,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: _coffeeDark.withValues(alpha: 0.75),
-                            fontWeight: FontWeight.w500,
+    final body = Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppResponsive.sidePadding(context),
+        topUnderChrome,
+        AppResponsive.sidePadding(context),
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              clipBehavior: Clip.none,
+              padding: EdgeInsets.fromLTRB(0, 8, 0, scrollBottomPad),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildTopMetrics(context, l, totalGoalsDone, bestStreak),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: _StatsProgressRing(
+                      percent: overallPercent,
+                      segments: ringSegments,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _motivationPhrase,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.merriweather(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: _accentOrange,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (withPlan.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Column(
+                        children: [
+                          Text(
+                            l.statsEmptyTitle,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
+                          const SizedBox(height: 8),
+                          Text(
+                            l.statsEmptyBody,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    _habitStatsTableHeader(context, l),
+                    ...withPlan.map(
+                      (s) => _habitRow(
+                        context,
+                        l,
+                        s,
+                        range,
+                        statsColorById,
+                      ),
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  Text(
+                    l.statsMotivationFooter,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: _coffeeDark.withValues(alpha: 0.75),
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (SubscriptionService.isPremium) {
+      return body;
+    }
+
+    final theme = Theme.of(context);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        body,
+        Positioned.fill(
+          child: IgnorePointer(
+            ignoring: true,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withValues(alpha: 0.22),
+                  ),
                 ),
               ),
             ),
-          ],
+          ),
         ),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Material(
+              color: theme.colorScheme.surface.withValues(alpha: 0.94),
+              elevation: 3,
+              shadowColor: Colors.black26,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => SubscriptionScreen.show(context),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l.subscriptionBody,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: _coffeeDark.withValues(alpha: 0.88),
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      FilledButton(
+                        onPressed: () => SubscriptionScreen.show(context),
+                        child: Text(l.subscriptionTitle),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -1,10 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/iap_service.dart';
 import '../../../../core/services/subscription_service.dart';
-import 'subscription_success_screen.dart';
 
 /// План подписки.
 enum SubscriptionPlan {
@@ -61,11 +59,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   void initState() {
     super.initState();
     AnalyticsService.instance.logSubscriptionScreenViewed();
-    // Временный сброс премиума при каждом входе на экран подписки (для dev/fallback-флоу).
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await SubscriptionService.downgradeToFree();
-      if (mounted) setState(() {});
-    });
     _premiumListener = () {
       if (SubscriptionService.isPremium && mounted) {
         setState(() {});
@@ -383,21 +376,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       }
     }
 
-    // Fallback: локальная активация премиума (Windows/Web/dev без Google Play).
     if (!mounted) return;
-    final msg = kIsWeb
-        ? 'Покупки в веб-версии недоступны — включим премиум локально для теста.'
-        : defaultTargetPlatform == TargetPlatform.android
-            ? 'Google Play недоступен — включим премиум локально для теста.'
-            : 'Покупки через магазин недоступны на этой платформе — включим премиум локально для теста.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-
-    await SubscriptionService.upgradeToPremium();
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => SubscriptionSuccessScreen(planName: planName),
-        fullscreenDialog: true,
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Покупка сейчас недоступна. Откройте приложение из Google Play или попробуйте позже.',
+        ),
       ),
     );
   }

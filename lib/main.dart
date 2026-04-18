@@ -1,15 +1,17 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
-import 'core/config/dev_overrides.dart';
-import 'core/dev/stats_demo_seed.dart';
+import 'app/locale_controller.dart';
 import 'core/config/ga_keys.dart';
 import 'core/services/analytics_service.dart';
 import 'core/services/iap_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/onboarding_service.dart';
 import 'core/services/subscription_service.dart';
+
+/// Должен совпадать с ключом в `SettingsScreen`.
+const _prefsAppLanguageKey = 'app_language';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,11 +24,13 @@ Future<void> main() async {
   await NotificationService.instance.init();
   await SubscriptionService.init();
   await IapService.instance.init();
-  if (kDebugMode && DevOverrides.injectStatsDemoSeed) {
-    await injectStatsDemoSeedIfEnabled();
+
+  final prefs = await SharedPreferences.getInstance();
+  final lang = prefs.getString(_prefsAppLanguageKey);
+  if (lang != null && (lang == 'ru' || lang == 'en')) {
+    AppLocaleController.locale.value = Locale(lang);
   }
-  final completed = DevOverrides.forceFirstLaunch
-      ? false
-      : await OnboardingService.isCompleted();
+
+  final completed = await OnboardingService.isCompleted();
   runApp(JournalApp(onboardingCompleted: completed));
 }

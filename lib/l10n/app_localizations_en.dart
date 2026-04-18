@@ -34,7 +34,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subscriptionBody =>
-      'Subscribe to unlock unlimited habits and events.';
+      'Subscribe to unlock unlimited habits and events, and get access to detailed statistics.';
 
   @override
   String get noEventsForDay =>

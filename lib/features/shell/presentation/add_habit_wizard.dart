@@ -593,13 +593,12 @@ class _AddHabitWizardState extends State<AddHabitWizard> {
         _catalogLoadError = null;
         _ensurePresetSelectedForSource();
       });
-    } catch (e, st) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _catalogLoadError = e.toString();
         _catalog = null;
       });
-      debugPrint('Catalog load failed: $e\n$st');
     } finally {
       if (mounted) {
         setState(() => _isCatalogLoading = false);
