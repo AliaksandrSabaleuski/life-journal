@@ -62,7 +62,7 @@ class SubscriptionService {
   }
 
   /// Общее количество записей (привычек + событий).
-  static int _totalCount(List<Habit> habits) => habits.length;
+  static int _totalCount(List<Habit> habits) => habits.where((h) => h.isActive).length;
 
   /// Можно ли добавить ещё одну запись (привычку или событие).
   /// Бесплатный тариф: максимум 6 записей. При попытке добавить 7-ю показываем подписку.

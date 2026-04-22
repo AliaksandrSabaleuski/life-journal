@@ -1,14 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/analytics_service.dart';
+import '../../../../core/services/iap_service.dart';
 import '../../../../core/services/notification_service.dart';
-import '../../../app/locale_controller.dart';
-import '../../../../l10n/app_localizations.dart';
+import '../../../../app/strings_ru.dart';
 import '../../subscription/presentation/subscription_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -21,14 +22,12 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   static const _prefsUserNameKey = 'user_name';
   static const _prefsNotificationsKey = 'notifications_enabled';
-  static const _prefsLanguageKey = 'app_language';
 
   static const _supportEmail = 'support@lifejournal.app';
   static const _appVersion = '1.0.0';
 
   String _userName = '';
   bool _notificationsEnabled = true;
-  String _languageCode = 'ru';
 
   bool _loading = true;
 
@@ -50,7 +49,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _userName = prefs.getString(_prefsUserNameKey) ?? '';
         _notificationsEnabled = prefs.getBool(_prefsNotificationsKey) ?? true;
-        _languageCode = prefs.getString(_prefsLanguageKey) ?? 'ru';
         _loading = false;
       });
     } catch (_) {
@@ -68,15 +66,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await prefs.setBool(_prefsNotificationsKey, value);
   }
 
-  Future<void> _saveLanguage(String code) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsLanguageKey, code);
-    AppLocaleController.locale.value = Locale(code);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
     const cardRadius = 14.0;
@@ -173,9 +164,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: l.closeButton,
+          tooltip: StringsRu.close,
         ),
-        title: Text(l.settingsTitle),
+        title: const Text(StringsRu.settings),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -235,11 +226,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 12),
 
+                      if (kDebugMode) ...[
+                        listShadowWrapper(
+                          settingsTile(
+                            title: 'DEV: уведомление сейчас',
+                            onTap: () async {
+                              await NotificationService.instance.showTestNow();
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        listShadowWrapper(
+                          settingsTile(
+                            title: 'DEV: уведомление через 1 минуту',
+                            onTap: () async {
+                              await NotificationService.instance
+                                  .scheduleTestAfter(const Duration(minutes: 1));
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Запланировано на +1 минуту')),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        listShadowWrapper(
+                          settingsTile(
+                            title: 'DEV: уведомление через 5 минут',
+                            onTap: () async {
+                              await NotificationService.instance
+                                  .scheduleTestAfter(const Duration(minutes: 5));
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Запланировано на +5 минут')),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
                       // Плитки-опции
                       listShadowWrapper(
                         settingsTile(
                           title: 'Управление подпиской',
                           onTap: () => SubscriptionScreen.show(context),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      listShadowWrapper(
+                        settingsTile(
+                          title: 'Восстановить покупки',
+                          onTap: () async {
+                            AnalyticsService.instance.logRestoreStarted();
+                            final res = await IapService.instance.restore();
+                            if (!mounted) return;
+                            if (res == IapPurchaseResult.unavailable) {
+                              AnalyticsService.instance.logPurchaseUnavailable(where: 'restore');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Восстановление недоступно')),
+                              );
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Проверяем покупки...')),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -256,7 +308,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onTap: () {
                             AnalyticsService.instance.logShareTapped();
                             Share.share(
-                              'Я веду дневник привычек в приложении «${l.appTitle}». Попробуй и ты!',
+                              'Я веду дневник привычек в приложении «${StringsRu.appTitle}». Попробуй и ты!',
                             );
                           },
                         ),
@@ -267,44 +319,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: 'Поставить оценку',
                           onTap: _openStoreRating,
                         ),
-                      ),
-
-                      const SizedBox(height: 16),
-                      Text(
-                        'Язык приложения',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _LanguageChip(
-                              code: 'ru',
-                              label: 'Русский',
-                              flag: '🇷🇺',
-                              selected: _languageCode == 'ru',
-                              onTap: () {
-                                setState(() => _languageCode = 'ru');
-                                _saveLanguage('ru');
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _LanguageChip(
-                              code: 'en',
-                              label: 'English',
-                              flag: '🇺🇸',
-                              selected: _languageCode == 'en',
-                              onTap: () {
-                                setState(() => _languageCode = 'en');
-                                _saveLanguage('en');
-                              },
-                            ),
-                          ),
-                        ],
                       ),
 
                       const SizedBox(height: 16),
@@ -504,64 +518,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-      AppLocaleController.locale.value = null;
       if (!mounted) return;
       setState(() {
         _userName = '';
         _notificationsEnabled = true;
-        _languageCode = 'ru';
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Данные на этом устройстве удалены.')),
       );
     }
-  }
-}
-
-class _LanguageChip extends StatelessWidget {
-  const _LanguageChip({
-    required this.code,
-    required this.label,
-    required this.flag,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String code;
-  final String label;
-  final String flag;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: selected
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(flag, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

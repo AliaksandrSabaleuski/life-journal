@@ -6,7 +6,7 @@ import '../../../../core/widgets/active_habit_card.dart';
 import '../../../../core/widgets/bool_habit_card.dart';
 import '../../../../core/widgets/habit_counter_card.dart';
 import '../../../../core/widgets/underline_pill.dart';
-import '../../../../l10n/app_localizations.dart';
+import '../../../../app/strings_ru.dart';
 
 Future<Habit?> showEditHabitDialog(
   BuildContext context,
@@ -125,7 +125,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
     super.dispose();
   }
 
-  Future<void> _pickTimedUnit(AppLocalizations l) async {
+  Future<void> _pickTimedUnit() async {
     final theme = Theme.of(context);
     const minLabel = 'мин';
     const hLabel = 'ч';
@@ -137,12 +137,12 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: Text(l.unitMinutesLong),
+              title: const Text(StringsRu.unitMinutesLong),
               trailing: Text(minLabel, style: theme.textTheme.titleSmall),
               onTap: () => Navigator.pop(ctx, minLabel),
             ),
             ListTile(
-              title: Text(l.unitHoursLong),
+              title: const Text(StringsRu.unitHoursLong),
               trailing: Text(hLabel, style: theme.textTheme.titleSmall),
               onTap: () => Navigator.pop(ctx, hLabel),
             ),
@@ -156,14 +156,13 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
   }
 
   Future<bool> _pickWeekdays() async {
-    final l = AppLocalizations.of(context)!;
     final selected = Set<int>.from(_repeatWeekdays);
     final res = await showDialog<Set<int>>(
       context: context,
       builder: (ctx) {
         const names = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
         return AlertDialog(
-          title: Text(l.pickDaysTitle),
+          title: const Text(StringsRu.pickDaysTitle),
           content: StatefulBuilder(
             builder: (ctx, setStateDialog) {
               return Wrap(
@@ -192,11 +191,11 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(l.cancelButton),
+              child: const Text(StringsRu.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, selected),
-              child: Text(l.okButton),
+              child: const Text(StringsRu.ok),
             ),
           ],
         );
@@ -348,7 +347,6 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final h = widget.habit;
@@ -357,8 +355,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
     final isCounted = h.measurement == HabitMeasurement.counted;
 
     final typeKindLabel = isBinary
-        ? l.editHabitExecutionKind
-        : (isTimed ? l.goalTypeTime : l.goalTypeQuantity);
+        ? StringsRu.editHabitExecutionKind
+        : (isTimed ? StringsRu.goalTypeTime : StringsRu.goalTypeQuantity);
 
     final now = DateTime.now();
     final invocationDay = widget.selectedDate != null
@@ -371,7 +369,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l.editHabitTitle),
+        title: const Text(StringsRu.editHabitTitle),
       ),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -382,14 +380,14 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l.cancelButton),
+                  child: const Text(StringsRu.cancel),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
                   onPressed: _save,
-                  child: Text(l.saveButton),
+                  child: const Text(StringsRu.save),
                 ),
               ),
             ],
@@ -403,8 +401,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: l.editHabitNameLabel,
-                hintText: l.editHabitNameHint,
+                labelText: StringsRu.editHabitNameLabel,
+                hintText: StringsRu.editHabitNameHint,
               ),
               textCapitalization: TextCapitalization.sentences,
               onChanged: (_) => setState(() {}),
@@ -426,7 +424,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                       style: theme.textTheme.titleSmall,
                       children: [
                         TextSpan(
-                          text: '${l.editHabitTypePrefix} ',
+                          text: '${StringsRu.editHabitTypePrefix} ',
                           style: theme.textTheme.titleSmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -448,7 +446,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                         SizedBox(
                           width: 72,
                           child: Text(
-                            l.editHabitGoalRow,
+                            StringsRu.editHabitGoalRow,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -456,7 +454,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                         ),
                         Expanded(
                           child: Text(
-                            l.editHabitExecutionKind,
+                            StringsRu.editHabitExecutionKind,
                             style: theme.textTheme.bodyLarge?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -466,7 +464,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      l.editHabitBinaryDetail,
+                      StringsRu.editHabitBinaryDetail,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         height: 1.35,
@@ -477,8 +475,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                       controller: _goalController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: l.editHabitGoalRow.replaceAll(':', ''),
-                        hintText: l.editHabitTimeGoalHint,
+                        labelText: StringsRu.editHabitGoalRow.replaceAll(':', ''),
+                        hintText: StringsRu.editHabitTimeGoalHint,
                         suffixText: _unitController.text,
                       ),
                       onChanged: (_) => setState(() {}),
@@ -487,7 +485,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        l.editHabitUnitRow,
+                        StringsRu.editHabitUnitRow,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -505,15 +503,15 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                           ),
                         ],
                       ),
-                      onTap: () => _pickTimedUnit(l),
+                      onTap: () => _pickTimedUnit(),
                     ),
                   ] else if (isCounted) ...[
                     TextField(
                       controller: _goalController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: l.editHabitGoalRow.replaceAll(':', ''),
-                        hintText: l.editHabitCountGoalHint,
+                        labelText: StringsRu.editHabitGoalRow.replaceAll(':', ''),
+                        hintText: StringsRu.editHabitCountGoalHint,
                       ),
                       onChanged: (_) => setState(() {}),
                     ),
@@ -521,7 +519,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                     TextField(
                       controller: _unitController,
                       decoration: InputDecoration(
-                        labelText: l.editHabitUnitRow.replaceAll(':', ''),
+                        labelText: StringsRu.editHabitUnitRow.replaceAll(':', ''),
                         hintText: 'раз, км, стр.',
                       ),
                       onChanged: (_) => setState(() {}),
@@ -533,7 +531,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Text(l.cardColorLabel),
+                const Text(StringsRu.cardColorLabel),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Wrap(
@@ -545,8 +543,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                         ),
                         borderRadius: BorderRadius.circular(999),
                         child: Container(
-                          width: 18,
-                          height: 18,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: const Color(0xFFF3EFE9),
@@ -559,8 +557,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                           ),
                           child: Center(
                             child: Container(
-                              width: 8,
-                              height: 2,
+                              width: 16,
+                              height: 3,
                               decoration: BoxDecoration(
                                 color: _coffee.withValues(alpha: 0.55),
                                 borderRadius: BorderRadius.circular(999),
@@ -575,8 +573,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                           onTap: () => setState(() => _selectedColor = c),
                           borderRadius: BorderRadius.circular(999),
                           child: Container(
-                            width: 18,
-                            height: 18,
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: c,
@@ -596,9 +594,9 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
             const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(l.editHabitOneTimeTitle),
+              title: const Text(StringsRu.editHabitOneTimeTitle),
               subtitle: Text(
-                l.editHabitOneTimeSubtitle,
+                StringsRu.editHabitOneTimeSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -626,7 +624,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
-                    child: Text(l.repeatabilityLabel),
+                    child: const Text(StringsRu.repeatabilityLabel),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -635,7 +633,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                       runSpacing: 8,
                       children: [
                         UnderlinePill(
-                          text: l.repeatDaily,
+                          text: StringsRu.repeatDaily,
                           selected: _daily,
                           accent: accent,
                           onTap: () => setState(() {
@@ -646,7 +644,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                           }),
                         ),
                         UnderlinePill(
-                          text: l.repeatPickDays,
+                          text: StringsRu.repeatPickDays,
                           selected: !_daily,
                           accent: accent,
                           onTap: () async {
@@ -661,7 +659,6 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
               ),
               const SizedBox(height: 12),
               _SchedulePeriodSection(
-                l: l,
                 invocationDay: invocationDay,
                 endDate: _endDate,
                 onPickEnd: () async {
@@ -711,17 +708,17 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: Text(l.editDeleteHabitConfirmTitle),
-                    content: Text(l.editDeleteHabitConfirmBody),
+                    title: const Text(StringsRu.editDeleteHabitConfirmTitle),
+                    content: const Text(StringsRu.editDeleteHabitConfirmBody),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
-                        child: Text(l.cancelButton),
+                        child: const Text(StringsRu.cancel),
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(true),
                         style: TextButton.styleFrom(foregroundColor: Colors.red),
-                        child: Text(l.deleteButton),
+                        child: const Text(StringsRu.delete),
                       ),
                     ],
                   ),
@@ -731,13 +728,13 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                 }
               },
               icon: const Icon(Icons.delete_outline, color: Colors.red),
-              label: Text(l.deleteButton, style: const TextStyle(color: Colors.red)),
+              label: const Text(StringsRu.delete, style: TextStyle(color: Colors.red)),
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                l.previewTitle,
+                StringsRu.previewTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: _coffee,
@@ -759,13 +756,11 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
 
 class _SchedulePeriodSection extends StatelessWidget {
   const _SchedulePeriodSection({
-    required this.l,
     required this.invocationDay,
     required this.endDate,
     required this.onPickEnd,
   });
 
-  final AppLocalizations l;
   /// День открытия редактора — нижняя граница для выбора конца периода.
   final DateTime invocationDay;
   final DateTime? endDate;
@@ -782,7 +777,7 @@ class _SchedulePeriodSection extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.event_outlined),
-      title: Text(l.habitPeriodEnd),
+      title: const Text(StringsRu.habitPeriodEnd),
       subtitle: Text(
         endStr,
         style: theme.textTheme.bodySmall?.copyWith(

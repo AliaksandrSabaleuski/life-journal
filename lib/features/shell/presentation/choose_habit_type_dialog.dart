@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../l10n/app_localizations.dart';
+import '../../../../app/strings_ru.dart';
 
 /// Первое окно при добавлении записи: выбор типа привычки — хорошая или плохая.
 /// Возвращает [true] для хорошей, [false] для плохой, [null] при отмене.
@@ -9,16 +9,15 @@ class ChooseHabitTypeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
     return AlertDialog(
-      title: Text(l.chooseHabitTypeTitle),
+      title: const Text(StringsRu.chooseHabitTypeTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            l.chooseHabitTypeHint,
+            StringsRu.chooseHabitTypeHint,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -29,7 +28,7 @@ class ChooseHabitTypeDialog extends StatelessWidget {
               Expanded(
                 child: _TypeCard(
                   icon: Icons.thumb_up_rounded,
-                  label: l.goodHabitLabel,
+                  label: StringsRu.goodHabitLabel,
                   color: Colors.green,
                   onTap: () => Navigator.of(context).pop<bool>(true),
                 ),
@@ -38,7 +37,7 @@ class ChooseHabitTypeDialog extends StatelessWidget {
               Expanded(
                 child: _TypeCard(
                   icon: Icons.thumb_down_rounded,
-                  label: l.badHabitLabel,
+                  label: StringsRu.badHabitLabel,
                   color: Colors.orange,
                   onTap: () => Navigator.of(context).pop<bool>(false),
                 ),
@@ -50,7 +49,7 @@ class ChooseHabitTypeDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop<bool?>(null),
-          child: Text(l.cancelButton),
+          child: const Text(StringsRu.cancel),
         ),
       ],
     );

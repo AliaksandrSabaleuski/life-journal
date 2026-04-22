@@ -14,7 +14,7 @@ import '../../../../core/logic/habit_streak.dart';
 import '../../../../core/repositories/habit_logs_repository.dart';
 import '../../../../core/repositories/habits_repository.dart';
 import '../../../../core/services/subscription_service.dart';
-import '../../../../l10n/app_localizations.dart';
+import '../../../../app/strings_ru.dart';
 import '../../subscription/presentation/subscription_screen.dart';
 import 'habit_detail_stats_screen.dart';
 import 'stats_habit_colors.dart';
@@ -38,7 +38,6 @@ class StatsPeriodTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final accent = Theme.of(context).colorScheme.primary;
     Widget pill(String label, StatsPeriod value) {
       return Expanded(
@@ -56,11 +55,11 @@ class StatsPeriodTabBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: Row(
         children: [
-          pill(l.statsPeriodWeek, StatsPeriod.week),
+          pill(StringsRu.statsPeriodWeek, StatsPeriod.week),
           const SizedBox(width: 8),
-          pill(l.statsPeriodMonth, StatsPeriod.month),
+          pill(StringsRu.statsPeriodMonth, StatsPeriod.month),
           const SizedBox(width: 8),
-          pill(l.statsPeriodYear, StatsPeriod.year),
+          pill(StringsRu.statsPeriodYear, StatsPeriod.year),
         ],
       ),
     );
@@ -151,7 +150,7 @@ class _StatsScreenState extends State<StatsScreen> {
     // Первая подпись до первого кадра (вкл. hot restart на вкладке статистики).
     if (_motivationPhrase.isEmpty) {
       _motivationPhrase =
-          StatsMotivationPhrases.pick(Localizations.localeOf(context));
+          StatsMotivationPhrases.pick(const Locale('ru'));
     }
   }
 
@@ -164,7 +163,7 @@ class _StatsScreenState extends State<StatsScreen> {
     if (oldWidget.motivationNonce != widget.motivationNonce) {
       setState(() {
         _motivationPhrase =
-            StatsMotivationPhrases.pick(Localizations.localeOf(context));
+            StatsMotivationPhrases.pick(const Locale('ru'));
       });
     }
   }
@@ -215,8 +214,6 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -293,7 +290,7 @@ class _StatsScreenState extends State<StatsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildTopMetrics(context, l, totalGoalsDone, bestStreak),
+                  _buildTopMetrics(context, totalGoalsDone, bestStreak),
                   const SizedBox(height: 8),
                   Center(
                     child: _StatsProgressRing(
@@ -318,13 +315,13 @@ class _StatsScreenState extends State<StatsScreen> {
                       child: Column(
                         children: [
                           Text(
-                            l.statsEmptyTitle,
+                            StringsRu.statsEmptyTitle,
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            l.statsEmptyBody,
+                            StringsRu.statsEmptyBody,
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: Theme.of(context)
@@ -336,11 +333,10 @@ class _StatsScreenState extends State<StatsScreen> {
                       ),
                     )
                   else ...[
-                    _habitStatsTableHeader(context, l),
+                    _habitStatsTableHeader(context),
                     ...withPlan.map(
                       (s) => _habitRow(
                         context,
-                        l,
                         s,
                         range,
                         statsColorById,
@@ -349,7 +345,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   ],
                   const SizedBox(height: 12),
                   Text(
-                    l.statsMotivationFooter,
+                    StringsRu.statsMotivationFooter,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: _coffeeDark.withValues(alpha: 0.75),
@@ -405,7 +401,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        l.subscriptionBody,
+                        StringsRu.subscriptionBody,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: _coffeeDark.withValues(alpha: 0.88),
@@ -416,7 +412,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       const SizedBox(height: 18),
                       FilledButton(
                         onPressed: () => SubscriptionScreen.show(context),
-                        child: Text(l.subscriptionTitle),
+                        child: const Text(StringsRu.subscriptionTitle),
                       ),
                     ],
                   ),
@@ -431,7 +427,6 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _buildTopMetrics(
     BuildContext context,
-    AppLocalizations l,
     int totalGoalsDone,
     int bestStreak,
   ) {
@@ -459,8 +454,8 @@ class _StatsScreenState extends State<StatsScreen> {
                 filterQuality: FilterQuality.medium,
               ),
             ),
-            label: l.statsTotalCompletedLabel,
-            value: l.statsGoalsCount(totalGoalsDone),
+            label: StringsRu.statsTotalCompletedLabel,
+            value: StringsRu.statsGoalsCount(totalGoalsDone),
             labelStyle: labelStyle,
             valueStyle: valueStyle,
           ),
@@ -475,8 +470,8 @@ class _StatsScreenState extends State<StatsScreen> {
                 filterQuality: FilterQuality.medium,
               ),
             ),
-            label: l.statsBestStreakLabel,
-            value: l.statsStreakDays(bestStreak),
+            label: StringsRu.statsBestStreakLabel,
+            value: StringsRu.statsStreakDays(bestStreak),
             labelStyle: labelStyle,
             valueStyle: valueStyle,
           ),
@@ -485,7 +480,7 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  Widget _habitStatsTableHeader(BuildContext context, AppLocalizations l) {
+  Widget _habitStatsTableHeader(BuildContext context) {
     final hPad = AppResponsive.gap(context, base: 16);
     final headerStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
           color: _coffeeDark.withValues(alpha: 0.62),
@@ -499,12 +494,12 @@ class _StatsScreenState extends State<StatsScreen> {
         children: [
           SizedBox(width: _habitStatSwatchSize + 12),
           Expanded(
-            child: Text(l.statsHabitTableHabit, style: headerStyle),
+            child: Text(StringsRu.statsHabitTableHabit, style: headerStyle),
           ),
           SizedBox(
             width: _habitStatCountColWidth,
             child: Text(
-              l.statsHabitTableCount,
+              StringsRu.statsHabitTableCount,
               style: headerStyle,
               textAlign: TextAlign.end,
             ),
@@ -512,7 +507,7 @@ class _StatsScreenState extends State<StatsScreen> {
           SizedBox(
             width: _habitStatStreakColWidth,
             child: Text(
-              l.statsHabitTableStreak,
+              StringsRu.statsHabitTableStreak,
               style: headerStyle,
               textAlign: TextAlign.end,
             ),
@@ -524,14 +519,13 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _habitRow(
     BuildContext context,
-    AppLocalizations l,
     HabitStats s,
     (DateTime, DateTime) range,
     Map<String, Color> statsColorById,
   ) {
     final streakLabel = s.longestStreakInPeriod >= 7
         ? '🔥'
-        : l.statsStreakDays(s.longestStreakInPeriod);
+        : StringsRu.statsStreakDays(s.longestStreakInPeriod);
     final rowStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: _coffeeDark,
           height: 1.35,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../l10n/app_localizations.dart';
+import '../../../../app/strings_ru.dart';
 import '../../shell/shell_content_insets.dart';
 
 /// Экран помощника.
@@ -9,7 +9,6 @@ class AssistantScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.only(
         top: ShellContentInsets.top(context),
@@ -17,7 +16,7 @@ class AssistantScreen extends StatelessWidget {
       ),
       child: Center(
         child: Text(
-          l.tabAssistant,
+          StringsRu.tabAssistant,
           style: Theme.of(context).textTheme.titleLarge,
         ),
       ),

@@ -1,17 +1,18 @@
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/models/habit.dart';
 import '../../../../core/models/habit_log.dart';
+import '../../../../core/services/active_timer_service.dart';
 import '../../../../core/services/calendar_indicators_service.dart';
 import '../../../../core/widgets/active_habit_card.dart';
 import '../../../../core/widgets/bool_habit_card.dart';
 import '../../../../core/widgets/habit_counter_card.dart';
 import '../../../../core/ui/app_icons.dart';
-import '../../../../l10n/app_localizations.dart';
-import 'add_habit_wizard.dart';
+import '../../../../app/strings_ru.dart';
 import '../shell_content_insets.dart';
 
 /// Контент главной вкладки: календарная полоса + все записи (привычки и события) в одном списке.
@@ -31,6 +32,8 @@ class MainMenuContent extends StatelessWidget {
     this.onHabitTap,
     this.onLog,
     this.onReorderActive,
+    this.timerService,
+    this.onToggleTimer,
   });
 
   /// Вызывается при перетаскивании карточки (oldIndex, newIndex в списке активных).
@@ -51,48 +54,17 @@ class MainMenuContent extends StatelessWidget {
   final VoidCallback? onAddPressed;
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
+  final ActiveTimerService? timerService;
+  final void Function(Habit habit, DateTime selectedDate, HabitLog? todayLog)? onToggleTimer;
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     final active = habits.where((h) => h.isActive).toList();
     final inactive = habits.where((h) => !h.isActive).toList();
-
-    bool isBoolType(Habit h) {
-      final hd = h.forDate(selectedDate);
-      return hd.type == HabitType.ritual || hd.type == HabitType.temptation;
-    }
-
-    void sortForToday(List<Habit> list) {
-      // Делает порядок детерминированным (dart sort не stable).
-      final originalIndexById = <String, int>{
-        for (final e in list.asMap().entries) e.value.id: e.key,
-      };
-
-      // Сортировка:
-      // 1) невыполненные сверху, выполненные снизу (isCompleted == true)
-      // 2) внутри группы: булевые сверху, каунтер/таймер ниже
-      // 3) иначе сохраняем исходный порядок
-      list.sort((a, b) {
-        final aDone = todayLogs[a.id]?.isCompleted == true;
-        final bDone = todayLogs[b.id]?.isCompleted == true;
-        if (aDone != bDone) return aDone ? 1 : -1;
-
-        final aBool = isBoolType(a);
-        final bBool = isBoolType(b);
-        if (aBool != bBool) return aBool ? -1 : 1;
-
-        return (originalIndexById[a.id] ?? 0) - (originalIndexById[b.id] ?? 0);
-      });
-    }
-
-    sortForToday(active);
-    sortForToday(inactive);
 
     final bottomPadding = ShellContentInsets.bottom(context) + 12;
     final result = Padding(
@@ -101,7 +73,7 @@ class MainMenuContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(28, 6, 28, 10),
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
           child: _CalendarStripWithRecenter(
           isVisible: isMainMenuVisible,
           recenterTrigger: recenterCalendarTrigger,
@@ -118,7 +90,7 @@ class MainMenuContent extends StatelessWidget {
             ),
             child: ListView(
               padding: EdgeInsets.only(bottom: bottomPadding),
-              children: _buildListSection(context, l, active, inactive),
+              children: _buildListSection(context, active, inactive),
             ),
           ),
         ),
@@ -130,7 +102,6 @@ class MainMenuContent extends StatelessWidget {
 
   List<Widget> _buildListSection(
     BuildContext context,
-    AppLocalizations l,
     List<Habit> active,
     List<Habit> inactive,
   ) {
@@ -154,6 +125,8 @@ class MainMenuContent extends StatelessWidget {
         onHabitTap: onHabitTap,
         onLog: onLog,
         onReorder: onReorderActive,
+        timerService: timerService,
+        onToggleTimer: onToggleTimer,
       ),
       if (inactive.isNotEmpty) ...[
         const SizedBox(height: 8),
@@ -241,13 +214,21 @@ class MainMenuContent extends StatelessWidget {
 
             if (h.type == HabitType.timer) {
               final goalMinutes = h.goal.value?.round() ?? 15;
-              final initialSeconds = ((todayLog?.value ?? 0.0) * 60).round();
+              final baseSeconds = ((todayLog?.value ?? 0.0) * 60).round();
+              final svc = timerService;
+              final running = svc?.isRunningFor(h.id, selectedDate) ?? false;
+              final initialSeconds =
+                  running ? (svc?.currentElapsedSecondsFor(h.id, selectedDate) ?? baseSeconds) : baseSeconds;
               return ActiveHabitCard(
                   title: h.name,
                   unit: h.unit ?? 'мин',
                   goalMinutes: goalMinutes,
                   accent: Theme.of(ctx).colorScheme.primary,
                   initialSeconds: initialSeconds,
+                  externalRunning: running,
+                  onToggleRunning: onToggleTimer == null
+                      ? null
+                      : () => onToggleTimer!(h, selectedDate, todayLog),
                   isCompleted: todayLog?.isCompleted == true,
                   customColor: h.color.value == 0 ? null : h.color,
                   onOpenEdit: onTap,
@@ -483,6 +464,8 @@ class _ReorderableList extends StatefulWidget {
     this.onHabitTap,
     this.onLog,
     this.onReorder,
+    this.timerService,
+    this.onToggleTimer,
   }) : super(key: key);
 
   final List<Habit> habits;
@@ -491,6 +474,8 @@ class _ReorderableList extends StatefulWidget {
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
   final void Function(int oldIndex, int newIndex)? onReorder;
+  final ActiveTimerService? timerService;
+  final void Function(Habit habit, DateTime selectedDate, HabitLog? todayLog)? onToggleTimer;
 
   @override
   State<_ReorderableList> createState() => _ReorderableListState();
@@ -498,6 +483,20 @@ class _ReorderableList extends StatefulWidget {
 
 class _ReorderableListState extends State<_ReorderableList> {
   late List<Habit> _items;
+
+  bool get _useDesktopDragStart {
+    if (kIsWeb) return true;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.windows:
+      case TargetPlatform.macOS:
+      case TargetPlatform.linux:
+        return true;
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+      case TargetPlatform.fuchsia:
+        return false;
+    }
+  }
 
   HabitLog _buildLog({
     required Habit habit,
@@ -596,13 +595,21 @@ class _ReorderableListState extends State<_ReorderableList> {
           );
         } else if (h.type == HabitType.timer) {
           final goalMinutes = h.goal.value?.round() ?? 15;
-          final initialSeconds = ((todayLog?.value ?? 0.0) * 60).round();
+          final baseSeconds = ((todayLog?.value ?? 0.0) * 60).round();
+          final svc = widget.timerService;
+          final running = svc?.isRunningFor(h.id, widget.logDate) ?? false;
+          final initialSeconds =
+              running ? (svc?.currentElapsedSecondsFor(h.id, widget.logDate) ?? baseSeconds) : baseSeconds;
           card = ActiveHabitCard(
             title: h.name,
             unit: h.unit ?? 'мин',
             goalMinutes: goalMinutes,
             accent: Theme.of(context).colorScheme.primary,
             initialSeconds: initialSeconds,
+            externalRunning: running,
+            onToggleRunning: widget.onToggleTimer == null
+                ? null
+                : () => widget.onToggleTimer!(h, widget.logDate, todayLog),
             isCompleted: todayLog?.isCompleted == true,
             customColor: h.color.value == 0 ? null : h.color,
             onOpenEdit: onTap,
@@ -664,10 +671,14 @@ class _ReorderableListState extends State<_ReorderableList> {
           mainAxisSize: MainAxisSize.min,
           children: [
             canReorder
-                ? ReorderableDragStartListener(
-                    index: index,
-                    child: card,
-                  )
+                ? (_useDesktopDragStart
+                    // На десктопе long-press с мышью часто не срабатывает/конфликтует.
+                    // Поэтому даём "сразу тянуть" как в обычных списках.
+                    ? ReorderableDragStartListener(index: index, child: card)
+                    : ReorderableDelayedDragStartListener(
+                        index: index,
+                        child: card,
+                      ))
                 : card,
             // Вертикальный отступ держим за счёт margin карточек.
             if (index < _items.length - 1) const SizedBox(height: 0),
@@ -795,8 +806,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
 
   @override
   Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context);
-    final weekdayShortFormat = DateFormat('E', locale.toString());
+    final weekdayShortFormat = DateFormat('E', 'ru');
     final theme = Theme.of(context);
     final padding = MediaQuery.paddingOf(context);
     // Боковые отступы (16) задаются снаружи в MainMenuContent.
@@ -860,12 +870,27 @@ class _CalendarStripState extends State<_CalendarStrip> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              weekdayShort,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                    color: headerCoffee,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                            Padding(
+                              // На некоторых Android (например, Samsung) маленький labelSmall может
+                              // визуально "резать" верхние части букв из-за метрик шрифта.
+                              // Даём небольшой запас и фиксируем высоту строки через strut.
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                weekdayShort,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                      color: headerCoffee,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.visible,
+                                strutStyle: StrutStyle(
+                                  fontSize:
+                                      theme.textTheme.labelSmall?.fontSize ?? 11,
+                                  height: 1.25,
+                                  forceStrutHeight: true,
+                                ),
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Stack(
@@ -1058,30 +1083,5 @@ class _CalendarStripState extends State<_CalendarStrip> {
       },
     );
   }
-}
-
-/// Открыть визард добавления привычки/действия (4 шага). Возвращает [Habit] или null.
-Future<Habit?> showAddHabitWizard(
-  BuildContext context, {
-  DateTime? initialDate,
-  HabitDirection? initialDirection,
-  HabitMeasurement? initialMeasurement,
-  int startStep = 0,
-  bool isEventMode = false,
-  String? initialCreationSource,
-  List<Habit> existingHabits = const [],
-}) {
-  return showDialog<Habit>(
-    context: context,
-    builder: (ctx) => AddHabitWizard(
-      initialDate: initialDate,
-      initialDirection: initialDirection,
-      initialMeasurement: initialMeasurement,
-      startStep: startStep,
-      isEventMode: isEventMode,
-      initialCreationSource: initialCreationSource,
-      existingHabits: existingHabits,
-    ),
-  );
 }
 

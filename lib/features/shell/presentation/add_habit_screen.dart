@@ -1,8 +1,9 @@
-import 'dart:ui';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/catalog/color_registry.dart';
+import '../../../../core/catalog/icon_registry.dart';
 import '../../../../core/catalog/habit_template.dart';
 import '../../../../core/catalog/habits_catalog.dart';
 import '../../../../core/models/habit.dart';
@@ -11,7 +12,6 @@ import '../../../../core/widgets/bool_habit_card.dart';
 import '../../../../core/widgets/habit_counter_card.dart';
 import '../../../../core/widgets/category_pill.dart';
 import '../../../../core/widgets/underline_pill.dart';
-import 'add_habit_wizard.dart';
 import 'add_custom_habit_screen.dart';
 
 Future<Habit?> showAddHabitScreen(
@@ -250,17 +250,20 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
         ? null
         : start.add(Duration(days: t.durationDays! - 1));
 
+    final templateColor = ColorRegistry.byKey(t.colorKey);
+    final templateIcon = IconRegistry.byKey(t.iconKey);
+
     final habit = t.createInstance(
       instanceId: '${t.templateId}_${DateTime.now().millisecondsSinceEpoch}',
-      color: _selectedColor.value == 0 ? const Color(0x00000000) : _selectedColor,
-      icon: null,
+      color: _selectedColor.value == 0 ? templateColor : _selectedColor,
+      icon: templateIcon,
       startDate: start,
       endDate: end,
       templateId: t.templateId,
     ).copyWith(
       name: name,
       repeatDays: _daily ? const [] : (_weekdays.toList()..sort()),
-      reminder: null,
+      reminder: t.defaultReminder,
     );
 
     if (!mounted) return;
@@ -313,14 +316,14 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Отмена'),
+                  child: const Text('Назад'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
                   onPressed: _createFromPreset,
-                  child: const Text('Создать привычку'),
+                  child: const Text('Готово'),
                 ),
               ),
             ],
@@ -470,8 +473,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                         ),
                         borderRadius: BorderRadius.circular(999),
                         child: Container(
-                          width: 18,
-                          height: 18,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: const Color(0xFFF3EFE9),
@@ -487,8 +490,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                           ),
                           child: Center(
                             child: Container(
-                              width: 8,
-                              height: 2,
+                              width: 16,
+                              height: 3,
                               decoration: BoxDecoration(
                                 color: const Color(0xFF5A3E2B).withValues(alpha: 0.55),
                                 borderRadius: BorderRadius.circular(999),
@@ -503,8 +506,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                           onTap: () => setState(() => _selectedColor = c),
                           borderRadius: BorderRadius.circular(999),
                           child: Container(
-                            width: 18,
-                            height: 18,
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: c,
@@ -688,6 +691,7 @@ class _AdaptiveCategoryBar extends StatelessWidget {
     final accent = theme.colorScheme.primary;
     const gap = 10.0;
     const height = 34.0;
+    const underlineOverflow = 8.0;
 
     return LayoutBuilder(
       builder: (ctx, constraints) {
@@ -721,7 +725,7 @@ class _AdaptiveCategoryBar extends StatelessWidget {
         }
 
         return SizedBox(
-          height: height,
+          height: height + underlineOverflow,
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
               scrollbars: false,
@@ -732,15 +736,19 @@ class _AdaptiveCategoryBar extends StatelessWidget {
               },
             ),
             child: SingleChildScrollView(
+              clipBehavior: Clip.none,
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: [
-                  for (var i = 0; i < pills.length; i++) ...[
-                    if (i != 0) const SizedBox(width: gap),
-                    pills[i],
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: underlineOverflow),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < pills.length; i++) ...[
+                      if (i != 0) const SizedBox(width: gap),
+                      pills[i],
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),

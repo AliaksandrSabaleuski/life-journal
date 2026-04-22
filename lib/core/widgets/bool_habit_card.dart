@@ -68,7 +68,7 @@ class BoolHabitCard extends StatelessWidget {
 
     final previewMargin = EdgeInsets.symmetric(
       vertical: isPreview ? 3 : AppResponsive.gap(context, base: 4),
-      horizontal: isPreview ? 0 : AppResponsive.sidePadding(context),
+      horizontal: isPreview ? 0 : 14,
     );
     final previewPadding = EdgeInsets.symmetric(
       horizontal: isPreview ? 12 : AppResponsive.gap(context, base: 16),

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:gameanalytics_sdk/gameanalytics.dart';
 
+import 'appmetrica_service.dart';
+
 /// Analytics service: GameAnalytics on Android for store builds.
 /// No-op on other platforms or when not configured.
 class AnalyticsService {
@@ -34,10 +36,18 @@ class AnalyticsService {
   bool get _enabled => _initialized;
 
   void _designEvent(String eventId, [double? value]) {
-    if (!_enabled) return;
-    final args = <String, dynamic>{"eventId": eventId};
-    if (value != null) args["value"] = value;
-    GameAnalytics.addDesignEvent(args);
+    // GameAnalytics
+    if (_enabled) {
+      final args = <String, dynamic>{"eventId": eventId};
+      if (value != null) args["value"] = value;
+      GameAnalytics.addDesignEvent(args);
+    }
+
+    // AppMetrica (дублируем без value, как простой event)
+    AppMetricaService.instance.reportEvent(
+      eventId,
+      attributes: value == null ? null : {'value': value},
+    );
   }
 
   /// Log screen view (e.g. main, settings, subscription).
@@ -80,6 +90,26 @@ class AnalyticsService {
 
   Future<void> logSubscriptionStarted({required String plan}) async {
     _designEvent("subscription_started:$plan");
+  }
+
+  Future<void> logPurchaseSuccess({required String plan}) async {
+    _designEvent("purchase_success:$plan");
+  }
+
+  Future<void> logPurchaseFailed({required String plan, required String reason}) async {
+    _designEvent("purchase_failed:$plan:$reason");
+  }
+
+  Future<void> logPurchaseUnavailable({String? where}) async {
+    _designEvent("purchase_unavailable${where == null ? '' : ':$where'}");
+  }
+
+  Future<void> logRestoreStarted() async {
+    _designEvent("restore_started");
+  }
+
+  Future<void> logRestoreSuccess() async {
+    _designEvent("restore_success");
   }
 
   Future<void> logOnboardingCompleted() async {

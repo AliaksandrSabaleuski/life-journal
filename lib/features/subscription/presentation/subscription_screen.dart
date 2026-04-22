@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/analytics_service.dart';
@@ -7,8 +8,8 @@ import '../../../../core/services/subscription_service.dart';
 /// План подписки.
 enum SubscriptionPlan {
   trial,
-  monthly,
   annual,
+  lifetime,
 }
 
 /// Полноэкранное окно подписки в стиле макета: тёмная тема, градиенты, карточки планов.
@@ -91,7 +92,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       return _buildPremiumThanks(context, appName: appName);
     }
 
-    return Scaffold(
+    final iap = IapService.instance;
+    final prices = iap.pricingSnapshot();
+    final trialPrice = (prices?['trialLine'] as String?) ??
+        '0 ₽ сегодня, затем 30 ₽ / месяц';
+    final annualPrice = (prices?['annualPrice'] as String?) ?? '2 390 ₽ / год';
+    final annualOldPrice = (prices?['annualOldPrice'] as String?) ?? '5 975 ₽ / год';
+    final annualBenefit = (prices?['annualBenefit'] as int?) ?? 60;
+    final lifetimePrice = (prices?['lifetimeLine'] as String?) ??
+        '2 990 ₽ — единоразово';
+
+    return ValueListenableBuilder<int>(
+      valueListenable: iap.productsVersion,
+      builder: (context, _, __) {
+        final prices2 = iap.pricingSnapshot();
+        final trialPrice2 = (prices2?['trialLine'] as String?) ?? trialPrice;
+        final annualPrice2 = (prices2?['annualPrice'] as String?) ?? annualPrice;
+        final annualOldPrice2 =
+            (prices2?['annualOldPrice'] as String?) ?? annualOldPrice;
+        final annualBenefit2 = (prices2?['annualBenefit'] as int?) ?? annualBenefit;
+        final lifetimePrice2 =
+            (prices2?['lifetimeLine'] as String?) ?? lifetimePrice;
+
+        return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
@@ -172,37 +195,38 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             _buildPlanCard(
                               plan: SubscriptionPlan.trial,
                               title: '7 дней бесплатно',
-                              price: '0,00 ₽ сегодня',
+                              price: trialPrice2,
                               isSelected: _selectedPlan == SubscriptionPlan.trial,
                               onTap: () => setState(() => _selectedPlan = SubscriptionPlan.trial),
                             ),
                             const SizedBox(height: 10),
                             _buildPlanCard(
-                              plan: SubscriptionPlan.monthly,
-                              title: 'Ежемесячно',
-                              price: '299 ₽ / месяц',
-                              isSelected: _selectedPlan == SubscriptionPlan.monthly,
-                              onTap: () => setState(() {
-                                _selectedPlan = SubscriptionPlan.monthly;
-                                _isAnnualSelected = false;
-                              }),
-                            ),
-                            const SizedBox(height: 10),
-                            _buildPlanCard(
                               plan: SubscriptionPlan.annual,
                               title: 'Ежегодно',
-                              price: '199 ₽ / месяц (2 390 ₽ год)',
+                              price: annualPrice2,
+                              oldPrice: annualOldPrice2,
                               isSelected: _selectedPlan == SubscriptionPlan.annual,
-                              badge: 'Выгоднее',
+                              badge: 'Выгода $annualBenefit2%',
                               onTap: () => setState(() {
                                 _selectedPlan = SubscriptionPlan.annual;
                                 _isAnnualSelected = true;
                               }),
                             ),
+                            const SizedBox(height: 10),
+                            _buildPlanCard(
+                              plan: SubscriptionPlan.lifetime,
+                              title: 'Навсегда',
+                              price: lifetimePrice2,
+                              isSelected: _selectedPlan == SubscriptionPlan.lifetime,
+                              onTap: () => setState(() {
+                                _selectedPlan = SubscriptionPlan.lifetime;
+                                _isAnnualSelected = false;
+                              }),
+                            ),
                             const SizedBox(height: 14),
                             _buildContinueButton(),
                             const SizedBox(height: 10),
-                            _buildDisclaimer(),
+                            if (_selectedPlan == SubscriptionPlan.trial) _buildDisclaimer(),
                           ],
                         ),
                       ),
@@ -227,12 +251,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ],
       ),
     );
+      },
+    );
   }
 
   Widget _buildPlanCard({
     required SubscriptionPlan plan,
     required String title,
     required String price,
+    String? oldPrice,
     required bool isSelected,
     required VoidCallback onTap,
     IconData? icon,
@@ -287,13 +314,36 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        price,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      if (oldPrice == null)
+                        Text(
+                          price,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Text(
+                              price,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              oldPrice,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.65),
+                                decoration: TextDecoration.lineThrough,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -354,20 +404,33 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     final iap = IapService.instance;
     if (iap.isAvailable) {
-      final result = await iap.purchase(planName);
+      final result = await iap.purchasePlan(_iapPlanKey());
       switch (result) {
         case IapPurchaseResult.started:
           // Purchase UI opened. When done, _onPurchaseUpdate will set premium
           // and listener will trigger setState → build shows thanks.
           return;
         case IapPurchaseResult.productNotFound:
+          AnalyticsService.instance.logPurchaseFailed(
+            plan: planName,
+            reason: 'product_not_found',
+          );
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Продукты подписки ещё не настроены. Попробуйте позже.')),
           );
           return;
         case IapPurchaseResult.unavailable:
+          AnalyticsService.instance.logPurchaseUnavailable(where: 'iap');
+          AnalyticsService.instance.logPurchaseFailed(
+            plan: planName,
+            reason: 'unavailable',
+          );
         case IapPurchaseResult.failed:
+          AnalyticsService.instance.logPurchaseFailed(
+            plan: planName,
+            reason: 'failed_to_start',
+          );
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Покупка недоступна. Проверьте подключение к Google Play.')),
@@ -376,6 +439,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       }
     }
 
+    AnalyticsService.instance.logPurchaseUnavailable(where: 'no_iap');
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -390,10 +454,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     switch (_selectedPlan) {
       case SubscriptionPlan.trial:
         return '7 дней бесплатно';
-      case SubscriptionPlan.monthly:
-        return 'Ежемесячно';
       case SubscriptionPlan.annual:
         return 'Ежегодно';
+      case SubscriptionPlan.lifetime:
+        return 'Навсегда';
+    }
+  }
+
+  String _iapPlanKey() {
+    switch (_selectedPlan) {
+      case SubscriptionPlan.annual:
+        return 'yearly';
+      case SubscriptionPlan.lifetime:
+        return 'lifetime';
+      case SubscriptionPlan.trial:
+        return 'trial_monthly';
     }
   }
 

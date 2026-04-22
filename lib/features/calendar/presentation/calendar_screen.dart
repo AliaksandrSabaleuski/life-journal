@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/habit.dart';
 import '../../../../core/services/calendar_indicators_service.dart';
-import '../../../../l10n/app_localizations.dart';
+import '../../../../app/strings_ru.dart';
 
 /// Экран календаря: переключатель Месяц/Год; вид месяца — скролл по месяцам с цифрами дней.
 class CalendarScreen extends StatefulWidget {
@@ -108,7 +108,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
     return Column(
@@ -118,8 +117,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: SegmentedButton<bool>(
             segments: [
-              ButtonSegment(value: true, label: Text(l.calendarViewMonth)),
-              ButtonSegment(value: false, label: Text(l.calendarViewYear)),
+              const ButtonSegment(value: true, label: Text(StringsRu.calendarViewMonth)),
+              const ButtonSegment(value: false, label: Text(StringsRu.calendarViewYear)),
             ],
             selected: {_isMonthView},
             onSelectionChanged: (Set<bool> selected) {

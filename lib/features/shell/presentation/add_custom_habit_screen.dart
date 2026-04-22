@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -21,7 +19,7 @@ Future<Habit?> showAddCustomHabitScreen(
   );
 }
 
-enum _CustomKind { timeLimit, countLimit }
+enum _CustomKind { normal, timeLimit, countLimit }
 
 class AddCustomHabitScreen extends StatefulWidget {
   const AddCustomHabitScreen({super.key, this.initialDate});
@@ -37,7 +35,7 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
   final _goalController = TextEditingController(text: '30');
   final _unitController = TextEditingController(text: 'раз');
 
-  _CustomKind _kind = _CustomKind.timeLimit;
+  _CustomKind _kind = _CustomKind.normal;
 
   // 0x00000000 = "дефолтный, без кастомного цвета"
   Color _selectedColor = const Color(0x00000000);
@@ -111,7 +109,9 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
 
   int _parseGoalOrDefault() {
     final v = int.tryParse(_goalController.text.trim());
-    if (v == null) return _kind == _CustomKind.timeLimit ? 30 : 1;
+    if (v == null) {
+      return _kind == _CustomKind.timeLimit ? 30 : 1;
+    }
     return v.clamp(1, 9999);
   }
 
@@ -123,21 +123,26 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
     final end = start.add(const Duration(days: 365 - 1));
 
     final kind = _kind;
+    final isNormal = kind == _CustomKind.normal;
     final goalValue = _parseGoalOrDefault();
-    final measurement = kind == _CustomKind.timeLimit
-        ? HabitMeasurement.timed
-        : HabitMeasurement.counted;
-    final unit = kind == _CustomKind.timeLimit ? 'минут' : _unitController.text.trim();
+    final measurement = isNormal
+        ? HabitMeasurement.binary
+        : (kind == _CustomKind.timeLimit ? HabitMeasurement.timed : HabitMeasurement.counted);
+    final unit = isNormal
+        ? null
+        : (kind == _CustomKind.timeLimit ? 'минут' : _unitController.text.trim());
 
     return Habit(
       id: 'custom_${now.millisecondsSinceEpoch}',
       name: _nameController.text.trim().isEmpty ? 'Новая привычка' : _nameController.text.trim(),
       direction: HabitDirection.good,
       measurement: measurement,
-      goal: HabitGoal.target(goalValue.toDouble()),
+      goal: isNormal ? const HabitGoal.noGoal() : HabitGoal.target(goalValue.toDouble()),
       color: _selectedColor.value == 0 ? const Color(0x00000000) : _selectedColor,
       icon: null,
-      unit: unit.isEmpty ? (measurement == HabitMeasurement.timed ? 'минут' : 'раз') : unit,
+      unit: unit == null
+          ? null
+          : (unit.isEmpty ? (measurement == HabitMeasurement.timed ? 'минут' : 'раз') : unit),
       repeatDays: _daily ? const [] : (_weekdays.toList()..sort()),
       reminder: null,
       startDate: start,
@@ -155,27 +160,34 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
     final habit = _buildHabit();
     final goalValue = (habit.goal.value ?? 1).round();
 
-    final preview = habit.measurement == HabitMeasurement.timed
-        ? ActiveHabitCard(
+    final preview = habit.measurement == HabitMeasurement.binary
+        ? BoolHabitCard(
             title: habit.name,
-            unit: habit.unit ?? 'минут',
-            goalMinutes: goalValue,
-            accent: accent,
-            initialSeconds: 0,
-            onSave: null,
+            state: BoolHabitState.notDone,
             customColor: habit.color.value == 0 ? null : habit.color,
-            readOnly: true,
+            onToggle: null,
           )
-        : HabitCounterCard(
-            title: habit.name,
-            unit: habit.unit ?? 'раз',
-            current: 0,
-            goal: goalValue,
-            accent: accent,
-            customColor: habit.color.value == 0 ? null : habit.color,
-            onAdd: null,
-            onSetValue: null,
-          );
+        : (habit.measurement == HabitMeasurement.timed
+            ? ActiveHabitCard(
+                title: habit.name,
+                unit: habit.unit ?? 'минут',
+                goalMinutes: goalValue,
+                accent: accent,
+                initialSeconds: 0,
+                onSave: null,
+                customColor: habit.color.value == 0 ? null : habit.color,
+                readOnly: true,
+              )
+            : HabitCounterCard(
+                title: habit.name,
+                unit: habit.unit ?? 'раз',
+                current: 0,
+                goal: goalValue,
+                accent: accent,
+                customColor: habit.color.value == 0 ? null : habit.color,
+                onAdd: null,
+                onSetValue: null,
+              ));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Создать свою')),
@@ -188,14 +200,14 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Отмена'),
+                  child: const Text('Назад'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
                   onPressed: () => Navigator.of(context).pop(_buildHabit()),
-                  child: const Text('Создать привычку'),
+                  child: const Text('Готово'),
                 ),
               ),
             ],
@@ -214,8 +226,12 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
                   _kind = k;
                   if (k == _CustomKind.timeLimit) {
                     if (_goalController.text.trim().isEmpty) _goalController.text = '30';
-                  } else {
+                    if (_unitController.text.trim().isEmpty) _unitController.text = 'раз';
+                  } else if (k == _CustomKind.countLimit) {
                     if (_goalController.text.trim().isEmpty) _goalController.text = '1';
+                    if (_unitController.text.trim().isEmpty) _unitController.text = 'раз';
+                  } else {
+                    // Обычная (булевая) — цель/единицы не нужны.
                   }
                 });
               },
@@ -226,68 +242,70 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
               decoration: const InputDecoration(labelText: 'Название привычки'),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final label =
-                    _kind == _CustomKind.timeLimit ? 'Минут в день' : 'Сколько в день';
-                final tight = constraints.maxWidth < 360;
+            if (_kind != _CustomKind.normal) ...[
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final label =
+                      _kind == _CustomKind.timeLimit ? 'Минут в день' : 'Сколько в день';
+                  final tight = constraints.maxWidth < 360;
 
-                final goalField = SizedBox(
-                  width: 120,
-                  child: TextField(
-                    controller: _goalController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(4),
-                    ],
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                );
-
-                final unitWidget = _kind == _CustomKind.countLimit
-                    ? SizedBox(
-                        width: 120,
-                        child: TextField(
-                          controller: _unitController,
-                          decoration: const InputDecoration(labelText: 'Ед.'),
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      )
-                    : const Text('мин');
-
-                if (!tight) {
-                  return Row(
-                    children: [
-                      Text(label),
-                      const SizedBox(width: 12),
-                      goalField,
-                      const SizedBox(width: 10),
-                      unitWidget,
-                    ],
+                  final goalField = SizedBox(
+                    width: 120,
+                    child: TextField(
+                      controller: _goalController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(),
+                      onChanged: (_) => setState(() {}),
+                    ),
                   );
-                }
 
-                // Узкий экран: переносим единицы на следующую строку, чтобы не было overflow.
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label),
-                    const SizedBox(height: 8),
-                    Row(
+                  final unitWidget = _kind == _CustomKind.countLimit
+                      ? SizedBox(
+                          width: 120,
+                          child: TextField(
+                            controller: _unitController,
+                            decoration: const InputDecoration(labelText: 'Ед.'),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        )
+                      : const Text('мин');
+
+                  if (!tight) {
+                    return Row(
                       children: [
+                        Text(label),
+                        const SizedBox(width: 12),
                         goalField,
                         const SizedBox(width: 10),
-                        Flexible(child: unitWidget),
+                        unitWidget,
                       ],
-                    ),
-                  ],
-                );
-              },
-            ),
+                    );
+                  }
+
+                  // Узкий экран: переносим единицы на следующую строку, чтобы не было overflow.
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          goalField,
+                          const SizedBox(width: 10),
+                          Flexible(child: unitWidget),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -295,7 +313,7 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: SizedBox(
-                    height: 22,
+                    height: 36,
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
@@ -306,8 +324,8 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
                             ),
                             borderRadius: BorderRadius.circular(999),
                             child: Container(
-                              width: 18,
-                              height: 18,
+                              width: 36,
+                              height: 36,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: const Color(0xFFF3EFE9),
@@ -320,8 +338,8 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
                               ),
                               child: Center(
                                 child: Container(
-                                  width: 8,
-                                  height: 2,
+                                  width: 16,
+                                  height: 3,
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF5A3E2B)
                                         .withValues(alpha: 0.55),
@@ -340,8 +358,8 @@ class _AddCustomHabitScreenState extends State<AddCustomHabitScreen> {
                                 onTap: () => setState(() => _selectedColor = c),
                                 borderRadius: BorderRadius.circular(999),
                                 child: Container(
-                                  width: 18,
-                                  height: 18,
+                                  width: 36,
+                                  height: 36,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: c,
@@ -441,6 +459,12 @@ class _AdaptiveModeBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (ctx, constraints) {
         const gap = 10.0;
+        final normal = _ModePill(
+          text: 'Обычная',
+          selected: selected == _CustomKind.normal,
+          accent: accent,
+          onTap: () => onSelected(_CustomKind.normal),
+        );
         final left = _ModePill(
           text: 'Лимит времени',
           selected: selected == _CustomKind.timeLimit,
@@ -456,7 +480,7 @@ class _AdaptiveModeBar extends StatelessWidget {
 
         // Если влазит — растягиваем на всю ширину. Если нет — горизонтальный скролл.
         const approxPill = 140.0;
-        final fits = constraints.maxWidth >= (approxPill * 2 + gap);
+        final fits = constraints.maxWidth >= (approxPill * 3 + gap * 2);
 
         if (fits) {
           return SizedBox(
@@ -464,6 +488,7 @@ class _AdaptiveModeBar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                normal,
                 left,
                 right,
               ],
@@ -477,6 +502,8 @@ class _AdaptiveModeBar extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                normal,
+                const SizedBox(width: gap),
                 left,
                 const SizedBox(width: gap),
                 right,

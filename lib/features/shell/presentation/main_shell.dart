@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/models/habit.dart';
 import '../../../../core/models/habit_log.dart';
 import '../../../../core/repositories/habit_logs_repository.dart';
 import '../../../../core/repositories/habits_repository.dart';
+import '../../../../core/services/active_timer_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/subscription_service.dart';
-import '../../../../l10n/app_localizations.dart';
+import '../../../../app/strings_ru.dart';
 import '../../subscription/presentation/subscription_screen.dart';
 import 'main_menu_content.dart';
 import '../../calendar/presentation/calendar_screen.dart';
@@ -46,6 +46,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   bool _habitsLoaded = false;
   DateTime _lastToday = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   bool _didOpenAddMenuOnStart = false;
+  final ActiveTimerService _timerService = ActiveTimerService.instance;
 
   @override
   void initState() {
@@ -53,11 +54,20 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     AnalyticsService.instance.logScreenView(screenName: 'main');
     _loadHabits();
+    _timerService.load();
+    _timerService.addListener(_onTimerTick);
+  }
+
+  void _onTimerTick() {
+    if (!mounted) return;
+    // Просто форсим ребилд, чтобы обновлялись initialSeconds у карточек.
+    setState(() {});
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _timerService.removeListener(_onTimerTick);
     super.dispose();
   }
 
@@ -66,6 +76,63 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _handleDateRolloverIfNeeded();
     }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _flushRunningTimerProgress();
+    }
+  }
+
+  Future<void> _flushRunningTimerProgress() async {
+    if (!_timerService.hasAnyRunning) return;
+    for (final t in _timerService.runningTimers) {
+      final day = DateTime.fromMillisecondsSinceEpoch(t.dayMs);
+      final seconds = _timerService.currentElapsedSecondsFor(t.habitId, day);
+      await _saveTimerSecondsToLog(habitId: t.habitId, day: day, seconds: seconds);
+    }
+  }
+
+  Future<void> _saveTimerSecondsToLog({
+    required String habitId,
+    required DateTime day,
+    required int seconds,
+  }) async {
+    Habit? habit;
+    for (final h in _habits) {
+      if (h.id == habitId) {
+        habit = h;
+        break;
+      }
+    }
+    if (habit == null) return;
+    final goalMinutes = habit.goal.value?.round() ?? 15;
+    final minutes = seconds / 60.0;
+    final reachedGoal = goalMinutes > 0 && minutes >= goalMinutes;
+    final dayOnly = DateTime(day.year, day.month, day.day);
+    final existing = await _logsRepository.getLogForDate(habitId, dayOnly);
+    final log = HabitLog(
+      id: existing?.id ?? '${habitId}_${dayOnly.millisecondsSinceEpoch}',
+      habitId: habitId,
+      date: DateTime(dayOnly.year, dayOnly.month, dayOnly.day, 12, 0),
+      value: minutes,
+      isCompleted: reachedGoal ? true : existing?.isCompleted,
+    );
+    await _onLog(log);
+  }
+
+  Future<void> _toggleGlobalTimer(Habit habit, DateTime day, HabitLog? todayLog) async {
+    if (habit.measurement != HabitMeasurement.timed) return;
+    final svc = _timerService;
+
+    // Если уже бежит этот же таймер — ставим на паузу и сохраняем.
+    if (svc.isRunningFor(habit.id, day)) {
+      final seconds = await svc.stopFor(habitId: habit.id, day: day);
+      await _saveTimerSecondsToLog(habitId: habit.id, day: day, seconds: seconds);
+      return;
+    }
+
+    final baseSeconds = ((todayLog?.value ?? 0.0) * 60).round();
+    await svc.start(habitId: habit.id, day: day, baseSeconds: baseSeconds);
   }
 
   Future<void> _handleDateRolloverIfNeeded() async {
@@ -140,6 +207,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       return;
     }
 
+    if (!mounted) return;
     final habit = await showAddHabitScreen(
       context,
       existingHabits: _habits,
@@ -191,15 +259,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           (h) => h.forDate(_selectedDate).isScheduledForDate(_selectedDate),
         )
         .toList();
-    var active = dayHabits.where((h) => h.isActive).toList();
-    // Та же сортировка, что и в MainMenuContent: невыполненные сверху
-    active = List.from(active)
-      ..sort((a, b) {
-        final aDone = _dayLogs[a.id]?.isCompleted == true;
-        final bDone = _dayLogs[b.id]?.isCompleted == true;
-        if (aDone == bDone) return 0;
-        return aDone ? 1 : -1;
-      });
+    final active = dayHabits.where((h) => h.isActive).toList();
     if (oldIndex < 0 || oldIndex >= active.length || newIndex < 0 || newIndex >= active.length) return;
     if (newIndex > oldIndex) newIndex -= 1;
     final reordered = List<Habit>.from(active);
@@ -232,8 +292,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-
     if (widget.openAddMenuOnStart && !_didOpenAddMenuOnStart) {
       _didOpenAddMenuOnStart = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -262,6 +320,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             isMainMenuVisible: _currentIndex == 0,
             recenterCalendarTrigger: _recenterCalendarTrigger,
             selectedDate: _selectedDate,
+            timerService: _timerService,
+            onToggleTimer: _toggleGlobalTimer,
             onSelectedDateChanged: (date) {
               if (!mounted) return;
               setState(() {
@@ -312,7 +372,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           padding: const EdgeInsets.only(left: 10),
           child: _TopIconButton(
             icon: isMainMenu ? Icons.settings_outlined : Icons.arrow_back,
-            tooltip: isMainMenu ? l.settingsTooltip : l.closeButton,
+            tooltip: isMainMenu ? StringsRu.settingsTooltip : StringsRu.close,
             onPressed: () {
               if (isMainMenu) {
                 Navigator.of(context).push(
@@ -329,7 +389,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         title: Text(
           isMainMenu
               ? _formatMainTitle(_selectedDate)
-              : (_currentIndex == 1 ? l.tabStats : l.tabAssistant),
+              : (_currentIndex == 1 ? StringsRu.tabStats : StringsRu.tabAssistant),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: coffee.withValues(alpha: 0.92),
                 fontWeight: FontWeight.w700,
@@ -352,19 +412,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           if (isMainMenu && !_isTodayVisibleInStrip)
             _TopIconButton(
               icon: Icons.today_outlined,
-              tooltip: l.backToTodayTooltip,
+              tooltip: StringsRu.backToTodayTooltip,
               onPressed: () => setState(() => _recenterCalendarTrigger++),
             ),
           if (isMainMenu)
             _TopIconButton(
               icon: Icons.calendar_month_outlined,
-              tooltip: l.tabCalendar,
+              tooltip: StringsRu.tabCalendar,
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => Scaffold(
                       appBar: AppBar(
-                        title: Text(l.tabCalendar),
+                        title: const Text(StringsRu.tabCalendar),
                       ),
                       body: CalendarScreen(
                         selectedTabIndex: 1,
@@ -381,7 +441,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           if (isMainMenu)
             _TopIconButton(
               icon: Icons.card_giftcard_outlined,
-              tooltip: l.subscriptionTitle,
+              tooltip: StringsRu.subscriptionTitle,
               onPressed: () => _showSubscriptionDialog(),
             )
           else
@@ -401,8 +461,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       ),
       bottomNavigationBar: _WarmBottomNavBar(
         currentIndex: _currentIndex,
-        tabStatsLabel: l.tabStats,
-        tabAssistantLabel: l.tabAssistant,
+        tabStatsLabel: StringsRu.tabStats,
+        tabAssistantLabel: StringsRu.tabAssistant,
         onStats: () => setState(() {
           if (_currentIndex != 1) _statsMotivationNonce++;
           _currentIndex = 1;
@@ -412,107 +472,118 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             context: context,
             builder: (dialogContext) {
               final theme = Theme.of(dialogContext);
-              final loc = AppLocalizations.of(dialogContext)!;
-              // Один шаг: слева / сверху / снизу контента и зазор иконка → текст.
-              const g = 20.0;
-              const iconSlotH = 208.0;
+              final size = MediaQuery.sizeOf(dialogContext);
+              final isCompact = size.width < 360 || size.height < 560;
+
+              // Отступы / размеры под маленькие экраны.
+              final g = isCompact ? 16.0 : 20.0;
+              final iconSize = isCompact ? 150.0 : 210.0;
+
               const coffeeTitle = Color(0xFF5A3E2B);
               const coffeeBody = Color(0xFF8A6A54);
+
+              final titleStyle = theme.textTheme.titleLarge?.copyWith(
+                fontSize: isCompact ? 20 : 22,
+                fontWeight: FontWeight.w700,
+                color: coffeeTitle,
+              );
+              final bodyStyle = theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isCompact ? 13.5 : null,
+                color: coffeeBody,
+                height: 1.4,
+              );
+
+              Widget iconBlock() {
+                final iconBoxSize = isCompact ? 120.0 : 128.0;
+                return Container(
+                  width: iconBoxSize,
+                  height: iconBoxSize,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3EFE9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: Image.asset(
+                        'assets/icons/assistant.png',
+                        width: iconSize,
+                        height: iconSize,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              Widget textBlock({required double maxBodyHeight}) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      StringsRu.assistantInDevelopmentTitle,
+                      textAlign: TextAlign.center,
+                      style: titleStyle,
+                    ),
+                    const SizedBox(height: 10),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: maxBodyHeight),
+                      child: SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: Text(
+                          StringsRu.assistantInDevelopmentBody,
+                          textAlign: TextAlign.start,
+                          style: bodyStyle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: const Text(StringsRu.assistantGotItButton),
+                      ),
+                    ),
+                  ],
+                );
+              }
               return AlertDialog(
                 backgroundColor: const Color(0xFFF7F2EC),
                 surfaceTintColor: Colors.transparent,
                 contentPadding: EdgeInsets.zero,
                 content: Padding(
-                  padding: const EdgeInsets.fromLTRB(g, g, g, g),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: EdgeInsets.fromLTRB(g, g, g, g),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 112,
-                        height: iconSlotH,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3EFE9),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        child: Transform.translate(
-                          offset: const Offset(0, 4),
-                          child: OverflowBox(
-                            alignment: Alignment.center,
-                            minWidth: 0,
-                            minHeight: 0,
-                            maxWidth: double.infinity,
-                            maxHeight: double.infinity,
-                            child: Image.asset(
-                              'assets/icons/assistant.png',
-                              width: 264,
-                              height: 264,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: g),
-                      Expanded(
-                        child: SizedBox(
-                          height: iconSlotH,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                loc.assistantInDevelopmentTitle,
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: coffeeTitle,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  physics: const ClampingScrollPhysics(),
-                                  child: Text(
-                                    loc.assistantInDevelopmentBody,
-                                    textAlign: TextAlign.start,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: coffeeBody,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Center(
-                                child: FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 28,
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                  ),
-                                  onPressed: () =>
-                                      Navigator.of(dialogContext).pop(),
-                                  child: Text(loc.assistantGotItButton),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      Center(child: iconBlock()),
+                      const SizedBox(height: 14),
+                      textBlock(
+                        maxBodyHeight:
+                            isCompact ? size.height * 0.28 : size.height * 0.32,
                       ),
                     ],
                   ),

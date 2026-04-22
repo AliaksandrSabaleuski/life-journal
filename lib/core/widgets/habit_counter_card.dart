@@ -79,7 +79,7 @@ class HabitCounterCard extends StatelessWidget {
     return Container(
       margin: EdgeInsets.symmetric(
         vertical: AppResponsive.gap(context, base: 4),
-        horizontal: AppResponsive.sidePadding(context),
+        horizontal: 14,
       ),
       padding: EdgeInsets.symmetric(
         horizontal: AppResponsive.gap(context, base: 16),

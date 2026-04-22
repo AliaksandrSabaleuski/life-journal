@@ -13,6 +13,8 @@ class ActiveHabitCard extends StatefulWidget {
     this.goalMinutes = 15,
     this.accent = const Color(0xFFFF7A00),
     this.initialSeconds = 0,
+    this.externalRunning,
+    this.onToggleRunning,
     this.isCompleted = false,
     this.customColor,
     this.readOnly = false,
@@ -26,6 +28,10 @@ class ActiveHabitCard extends StatefulWidget {
   final int goalMinutes;
   final Color accent;
   final int initialSeconds;
+  /// Если задано — состояние "запущен/на паузе" контролируется снаружи.
+  final bool? externalRunning;
+  /// Тоггл состояния таймера, когда управление внешнее.
+  final VoidCallback? onToggleRunning;
   final bool isCompleted;
   /// Если задан и не равен 0x00000000 — тонирует фон карточки.
   final Color? customColor;
@@ -38,10 +44,15 @@ class ActiveHabitCard extends StatefulWidget {
   State<ActiveHabitCard> createState() => _ActiveHabitCardState();
 }
 
-class _ActiveHabitCardState extends State<ActiveHabitCard> {
+class _ActiveHabitCardState extends State<ActiveHabitCard>
+    with WidgetsBindingObserver {
+  static const _maxSeconds = 24 * 60 * 60;
+
   bool isRunning = false;
   Duration elapsed = Duration.zero;
   Timer? timer;
+
+  bool _wasRunningBeforePause = false;
 
   Color _tint(Color base, Color tint) {
     final opaque = Color(tint.value | 0xFF000000);
@@ -51,46 +62,91 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
   @override
   void initState() {
     super.initState();
-    elapsed = Duration(seconds: widget.initialSeconds.clamp(0, 24 * 60 * 60));
+    elapsed = Duration(seconds: widget.initialSeconds.clamp(0, _maxSeconds));
+    // Если таймер управляется снаружи — карточка не должна жить своим ticker'ом.
+    if (widget.externalRunning == null) {
+      WidgetsBinding.instance.addObserver(this);
+    }
   }
 
   @override
   void didUpdateWidget(covariant ActiveHabitCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!isRunning && oldWidget.initialSeconds != widget.initialSeconds) {
+    final externallyControlled = widget.externalRunning != null;
+    if ((externallyControlled || !isRunning) &&
+        oldWidget.initialSeconds != widget.initialSeconds) {
       elapsed = Duration(
-        seconds: widget.initialSeconds.clamp(0, 24 * 60 * 60),
+        seconds: widget.initialSeconds.clamp(0, _maxSeconds),
       );
     }
   }
 
-  void _toggleTimer() {
-    if (isRunning) {
-      timer?.cancel();
-      timer = null;
-      setState(() => isRunning = false);
-      widget.onSave?.call(elapsed);
-      return;
-    }
+  void _saveProgress() {
+    widget.onSave?.call(elapsed);
+  }
 
+  void _startTicking() {
     timer?.cancel();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
-        elapsed += const Duration(seconds: 1);
+        final next = elapsed + const Duration(seconds: 1);
+        elapsed = next.inSeconds > _maxSeconds
+            ? const Duration(seconds: _maxSeconds)
+            : next;
       });
     });
+  }
+
+  void _toggleTimer() {
+    if (widget.externalRunning != null) {
+      widget.onToggleRunning?.call();
+      return;
+    }
+    if (isRunning) {
+      timer?.cancel();
+      timer = null;
+      setState(() => isRunning = false);
+      _saveProgress();
+      return;
+    }
+
+    _startTicking();
     setState(() => isRunning = true);
   }
 
   void _stopTimer() {
     timer?.cancel();
     timer = null;
-    widget.onSave?.call(elapsed);
+    _saveProgress();
     setState(() {
       isRunning = false;
       elapsed = Duration.zero;
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (widget.externalRunning != null) return;
+    // Сохраняем прогресс при сворачивании/уходе в фон и при выгрузке.
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      if (elapsed > Duration.zero) {
+        _saveProgress();
+      }
+      _wasRunningBeforePause = isRunning;
+      timer?.cancel();
+      timer = null;
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed) {
+      if (_wasRunningBeforePause && isRunning) {
+        _startTicking();
+      }
+      _wasRunningBeforePause = false;
+    }
   }
 
   String _formatTime(Duration d) {
@@ -194,12 +250,19 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
 
   @override
   void dispose() {
+    if (widget.externalRunning == null) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
+    if (elapsed > Duration.zero) {
+      _saveProgress();
+    }
     timer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final running = widget.externalRunning ?? isRunning;
     final goal = Duration(minutes: widget.goalMinutes <= 0 ? 1 : widget.goalMinutes);
     final progress = (elapsed.inSeconds / goal.inSeconds).clamp(0.0, 1.0);
     final percent = (progress * 100).round();
@@ -214,7 +277,7 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
     return Container(
       margin: EdgeInsets.symmetric(
         vertical: AppResponsive.gap(context, base: 4),
-        horizontal: AppResponsive.sidePadding(context),
+        horizontal: 14,
       ),
       padding: EdgeInsets.symmetric(
         horizontal: AppResponsive.gap(context, base: 16),
@@ -289,42 +352,14 @@ class _ActiveHabitCardState extends State<ActiveHabitCard> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
-                            isRunning ? Icons.pause : Icons.play_arrow,
+                            running ? Icons.pause : Icons.play_arrow,
                             color: widget.accent,
                             size: 22,
                           ),
                         ),
                       ),
                     ),
-                    if (elapsed > Duration.zero)
-                      Positioned(
-                        right: -6,
-                        bottom: -6,
-                        child: InkResponse(
-                          onTap: widget.readOnly ? null : _stopTimer,
-                          radius: 16,
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.10),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.stop_rounded,
-                              size: 14,
-                              color: widget.accent.withValues(alpha: 0.90),
-                            ),
-                          ),
-                        ),
-                      ),
+                    // Кнопку "сброс" убрали: случайно нажимается и мешает UX.
                   ],
                 ),
               ),

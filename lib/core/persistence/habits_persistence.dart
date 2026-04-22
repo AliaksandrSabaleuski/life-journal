@@ -38,9 +38,9 @@ class HabitsPersistence {
       'measurement': h.measurement.index,
       'goal': {'kind': h.goal.kind.index, 'value': h.goal.value},
       'color': h.color.value,
-      'icon': h.icon != null
-          ? {'codePoint': h.icon!.codePoint, 'fontFamily': h.icon!.fontFamily}
-          : null,
+      // Важно для release: не создаём IconData динамически (ломает tree-shake icons).
+      // Храним ключ иконки, а в рантайме берём из IconRegistry.
+      'iconKey': IconRegistry.keyByIcon(h.icon),
       'unit': h.unit,
       'repeatDays': h.repeatDays,
       'isActive': h.isActive,
@@ -71,9 +71,7 @@ class HabitsPersistence {
       'color': r.color.value,
       'unit': r.unit,
       'repeatDays': r.repeatDays,
-      'icon': r.icon != null
-          ? {'codePoint': r.icon!.codePoint, 'fontFamily': r.icon!.fontFamily}
-          : null,
+      'iconKey': IconRegistry.keyByIcon(r.icon),
     };
   }
 
@@ -91,14 +89,22 @@ class HabitsPersistence {
       };
     }
     IconData? icon;
-    final iconMap = m['icon'] as Map<String, dynamic>?;
-    if (iconMap != null) {
-      final codePoint = iconMap['codePoint'] as int?;
-      if (codePoint != null) {
-        icon = IconData(
-          codePoint,
-          fontFamily: iconMap['fontFamily'] as String? ?? 'MaterialIcons',
-        );
+    final iconKey = m['iconKey'] as String?;
+    if (iconKey != null) {
+      icon = IconRegistry.byKey(iconKey);
+    } else {
+      // Миграция со старого формата (codePoint/fontFamily) без создания IconData.
+      final iconMap = m['icon'] as Map<String, dynamic>?;
+      if (iconMap != null) {
+        final codePoint = iconMap['codePoint'] as int?;
+        final fontFamily = iconMap['fontFamily'] as String?;
+        if (codePoint != null) {
+          final key = IconRegistry.keyByCodePoint(
+            codePoint,
+            fontFamily: fontFamily,
+          );
+          icon = IconRegistry.byKey(key);
+        }
       }
     }
     final repeatDaysRaw = m['repeatDays'];
@@ -134,14 +140,22 @@ class HabitsPersistence {
     }
 
     IconData? icon;
-    final iconMap = m['icon'] as Map<String, dynamic>?;
-    if (iconMap != null) {
-      final codePoint = iconMap['codePoint'] as int?;
-      if (codePoint != null) {
-        icon = IconData(
-          codePoint,
-          fontFamily: iconMap['fontFamily'] as String? ?? 'MaterialIcons',
-        );
+    final iconKey = m['iconKey'] as String?;
+    if (iconKey != null) {
+      icon = IconRegistry.byKey(iconKey);
+    } else {
+      // Миграция со старого формата (codePoint/fontFamily) без создания IconData.
+      final iconMap = m['icon'] as Map<String, dynamic>?;
+      if (iconMap != null) {
+        final codePoint = iconMap['codePoint'] as int?;
+        final fontFamily = iconMap['fontFamily'] as String?;
+        if (codePoint != null) {
+          final key = IconRegistry.keyByCodePoint(
+            codePoint,
+            fontFamily: fontFamily,
+          );
+          icon = IconRegistry.byKey(key);
+        }
       }
     }
 

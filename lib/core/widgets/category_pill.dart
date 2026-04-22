@@ -69,6 +69,7 @@ class CategoryPill extends StatelessWidget {
           Positioned(
             left: 14,
             right: 14,
+            // underline is intentionally outside the pill
             bottom: -6,
             child: Container(
               height: 2,
