@@ -23,7 +23,10 @@ import '../../shell/shell_content_insets.dart';
 enum StatsPeriod { week, month, year }
 
 /// Высота [StatsPeriodTabBar] в AppBar (с нижним отступом).
-const double kStatsPeriodAppBarHeight = 52;
+///
+/// На некоторых телефонах/шрифтах табы занимают больше места, поэтому держим
+/// запас, чтобы контент не начинался "под" ними.
+const double kStatsPeriodAppBarHeight = 64;
 
 /// Вкладки Week / Month / Year — часть хрома, не скролла.
 class StatsPeriodTabBar extends StatelessWidget {
@@ -92,6 +95,7 @@ class StatsScreen extends StatefulWidget {
     required this.logsRepository,
     required this.motivationNonce,
     required this.period,
+    required this.topContentInset,
   });
 
   final HabitsRepository habitsRepository;
@@ -101,6 +105,9 @@ class StatsScreen extends StatefulWidget {
   final int motivationNonce;
 
   final StatsPeriod period;
+
+  /// Реальный отступ сверху до начала контента (включая статусбар, AppBar и табы периода).
+  final double topContentInset;
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -112,6 +119,17 @@ class _StatsScreenState extends State<StatsScreen> {
   List<HabitLog> _logs = [];
   static const Color _coffeeDark = Color(0xFF4A3728);
   static const Color _accentOrange = Color(0xFFB5651D);
+
+  final ScrollController _scrollController =
+      ScrollController(keepScrollOffset: false);
+
+  void _scrollToTopSoon() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
+  }
 
   static const _assetCheckMark = 'assets/icons/CheckMark.png';
   static const _assetStreakIcon = 'assets/icons/Streakicon.png';
@@ -134,6 +152,7 @@ class _StatsScreenState extends State<StatsScreen> {
     };
     SubscriptionService.isPremiumNotifier.addListener(_premiumListener!);
     _load();
+    _scrollToTopSoon();
   }
 
   @override
@@ -141,6 +160,7 @@ class _StatsScreenState extends State<StatsScreen> {
     if (_premiumListener != null) {
       SubscriptionService.isPremiumNotifier.removeListener(_premiumListener!);
     }
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -158,6 +178,7 @@ class _StatsScreenState extends State<StatsScreen> {
   void didUpdateWidget(covariant StatsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.period != widget.period) {
+      _scrollToTopSoon();
       _load();
     }
     if (oldWidget.motivationNonce != widget.motivationNonce) {
@@ -165,6 +186,7 @@ class _StatsScreenState extends State<StatsScreen> {
         _motivationPhrase =
             StatsMotivationPhrases.pick(const Locale('ru'));
       });
+      _scrollToTopSoon();
     }
   }
 
@@ -193,17 +215,16 @@ class _StatsScreenState extends State<StatsScreen> {
   (DateTime, DateTime) _currentRange() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final end = today.subtract(const Duration(days: 1)); // не считаем сегодня
     switch (widget.period) {
       case StatsPeriod.week:
-        final start = today.subtract(Duration(days: today.weekday - 1));
-        return (start, start.add(const Duration(days: 6)));
+        final start = end.subtract(const Duration(days: 6));
+        return (start, end);
       case StatsPeriod.month:
-        final start = DateTime(today.year, today.month, 1);
-        final end = DateTime(today.year, today.month + 1, 0);
+        final start = end.subtract(const Duration(days: 29));
         return (start, end);
       case StatsPeriod.year:
-        final start = DateTime(today.year, 1, 1);
-        final end = DateTime(today.year, 12, 31);
+        final start = end.subtract(const Duration(days: 364));
         return (start, end);
     }
   }
@@ -236,6 +257,13 @@ class _StatsScreenState extends State<StatsScreen> {
         totalPlannedDays: totalDays,
         completedDays: completedDays,
         percent: percent,
+        currentStreakInPeriod: HabitStreak.currentInRange(
+          h,
+          habitLogs,
+          rangeStart,
+          rangeEnd,
+          DateTime.now(),
+        ),
         longestStreakInPeriod:
             HabitStreak.longestInRange(h, habitLogs, rangeStart, rangeEnd),
       );
@@ -270,8 +298,7 @@ class _StatsScreenState extends State<StatsScreen> {
         .toList();
 
     final scrollBottomPad = ShellContentInsets.bottom(context) + 40;
-    final topUnderChrome =
-        ShellContentInsets.top(context) + kStatsPeriodAppBarHeight + 8;
+    final topUnderChrome = widget.topContentInset + 8;
 
     final body = Padding(
       padding: EdgeInsets.fromLTRB(
@@ -285,6 +312,7 @@ class _StatsScreenState extends State<StatsScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController,
               clipBehavior: Clip.none,
               padding: EdgeInsets.fromLTRB(0, 8, 0, scrollBottomPad),
               child: Column(
@@ -523,9 +551,7 @@ class _StatsScreenState extends State<StatsScreen> {
     (DateTime, DateTime) range,
     Map<String, Color> statsColorById,
   ) {
-    final streakLabel = s.longestStreakInPeriod >= 7
-        ? '🔥'
-        : StringsRu.statsStreakDays(s.longestStreakInPeriod);
+    final streakLabel = StringsRu.statsStreakDays(s.currentStreakInPeriod);
     final rowStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: _coffeeDark,
           height: 1.35,
@@ -688,6 +714,7 @@ class HabitStats {
     required this.totalPlannedDays,
     required this.completedDays,
     required this.percent,
+    required this.currentStreakInPeriod,
     required this.longestStreakInPeriod,
   });
 
@@ -695,6 +722,9 @@ class HabitStats {
   final int totalPlannedDays;
   final int completedDays;
   final double? percent;
+
+  /// Текущая серия успехов внутри выбранного периода.
+  final int currentStreakInPeriod;
   /// Самая длинная серия успехов внутри выбранного периода (неделя / месяц / год).
   final int longestStreakInPeriod;
 }

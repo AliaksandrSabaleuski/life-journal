@@ -11,6 +11,7 @@ import '../../../../core/services/subscription_service.dart';
 import '../../../../app/strings_ru.dart';
 import '../../subscription/presentation/subscription_screen.dart';
 import 'main_menu_content.dart';
+import 'main_calendar_strip.dart';
 import '../../calendar/presentation/calendar_screen.dart';
 import '../../stats/presentation/stats_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
@@ -48,6 +49,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   bool _didOpenAddMenuOnStart = false;
   final ActiveTimerService _timerService = ActiveTimerService.instance;
 
+  final GlobalKey _statsTabBarKey = GlobalKey();
+  double _statsTabBarHeight = kStatsPeriodAppBarHeight;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +60,20 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     _loadHabits();
     _timerService.load();
     _timerService.addListener(_onTimerTick);
+  }
+
+  void _measureStatsTabBarSoon() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _statsTabBarKey.currentContext;
+      if (ctx == null) return;
+      final box = ctx.findRenderObject();
+      if (box is! RenderBox) return;
+      final h = box.size.height;
+      if (h <= 0) return;
+      if ((h - _statsTabBarHeight).abs() < 0.5) return;
+      setState(() => _statsTabBarHeight = h);
+    });
   }
 
   void _onTimerTick() {
@@ -312,42 +330,41 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       index: _currentIndex,
       children: [
         SizedBox.expand(
-          child: MainMenuContent(
-            allHabits: _habits,
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: MediaQuery.viewPaddingOf(context).top +
+                  kToolbarHeight +
+                  kMainCalendarHeaderHeight,
+            ),
+            child: MainMenuContent(
             habits: dayHabits,
             todayLogs: _dayLogs,
             isLoading: !_habitsLoaded,
-            isMainMenuVisible: _currentIndex == 0,
-            recenterCalendarTrigger: _recenterCalendarTrigger,
             selectedDate: _selectedDate,
             timerService: _timerService,
             onToggleTimer: _toggleGlobalTimer,
-            onSelectedDateChanged: (date) {
-              if (!mounted) return;
-              setState(() {
-                _selectedDate = DateTime(date.year, date.month, date.day);
-              });
-              _loadLogsForSelectedDate();
-            },
-            onTodayVisibilityInStripChanged: (visible) {
-              if (mounted && _isTodayVisibleInStrip != visible) {
-                setState(() => _isTodayVisibleInStrip = visible);
-              }
-            },
             onAddPressed: _openAddMenu,
             onHabitTap:
                 _canEditHabitsForSelectedDate ? _openEditHabit : null,
             onLog: _onLog,
             onReorderActive: _onReorderActive,
+            ),
           ),
         ),
-        SizedBox.expand(
-          child: StatsScreen(
-            habitsRepository: _habitsRepository,
-            logsRepository: _logsRepository,
-            motivationNonce: _statsMotivationNonce,
-            period: _statsPeriod,
-          ),
+        Builder(
+          builder: (context) {
+            final topInset =
+                MediaQuery.viewPaddingOf(context).top + kToolbarHeight + _statsTabBarHeight;
+            return SizedBox.expand(
+              child: StatsScreen(
+                habitsRepository: _habitsRepository,
+                logsRepository: _logsRepository,
+                motivationNonce: _statsMotivationNonce,
+                period: _statsPeriod,
+                topContentInset: topInset,
+              ),
+            );
+          },
         ),
         const SizedBox.expand(
           child: AssistantScreen(),
@@ -402,12 +419,46 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 child: ColoredBox(
                   color: appBarFill,
                   child: StatsPeriodTabBar(
+                    key: _statsTabBarKey,
                     period: _statsPeriod,
-                    onChanged: (p) => setState(() => _statsPeriod = p),
+                    onChanged: (p) => setState(() {
+                      _statsPeriod = p;
+                      _measureStatsTabBarSoon();
+                    }),
                   ),
                 ),
               )
-            : null,
+            : (isMainMenu
+                ? PreferredSize(
+                    preferredSize:
+                        const Size.fromHeight(kMainCalendarHeaderHeight),
+                    child: ColoredBox(
+                      color: appBarFill,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+                        child: MainCalendarStrip(
+                          isVisible: isMainMenu,
+                          recenterTrigger: _recenterCalendarTrigger,
+                          initialSelectedDate: _selectedDate,
+                          habits: _habits,
+                          onDateSelected: (date) {
+                            if (!mounted) return;
+                            setState(() {
+                              _selectedDate =
+                                  DateTime(date.year, date.month, date.day);
+                            });
+                            _loadLogsForSelectedDate();
+                          },
+                          onTodayVisibilityChanged: (visible) {
+                            if (mounted && _isTodayVisibleInStrip != visible) {
+                              setState(() => _isTodayVisibleInStrip = visible);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  )
+                : null),
         actions: [
           if (isMainMenu && !_isTodayVisibleInStrip)
             _TopIconButton(
@@ -466,6 +517,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         onStats: () => setState(() {
           if (_currentIndex != 1) _statsMotivationNonce++;
           _currentIndex = 1;
+          // Всегда открываем статистику с периода "Неделя", независимо от того,
+          // что было выбрано перед уходом со вкладки.
+          _statsPeriod = StatsPeriod.week;
+          _measureStatsTabBarSoon();
         }),
         onAssistant: () {
           showDialog<void>(

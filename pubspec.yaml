@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+4
+version: 1.0.0+5
 
 environment:
   sdk: ^3.11.0
@@ -79,6 +79,7 @@ flutter:
     - assets/icons/Streakicon.png
     - assets/icons/planticon.png
     - assets/images/Mainback.png
+    - assets/images/LoadingBack.png
     - assets/images/FirstLaunchBack.png
     - assets/images/HabitBack.png
     - assets/images/subscription_bg.png
@@ -88,7 +89,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/StoreIcon 1.png"
+  image_path: "assets/images/StoreIcon.png"
   min_sdk_android: 21
   remove_alpha_ios: true  # iOS требует непрозрачную иконку для App Store
 

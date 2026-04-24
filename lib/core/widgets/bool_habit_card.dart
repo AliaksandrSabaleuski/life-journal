@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../ui/app_icons.dart';
 import '../ui/responsive.dart';
 import 'skipped_indicator.dart';
+import 'success_pulse.dart';
 
 enum BoolHabitState { notDone, done, skipped }
 
@@ -77,31 +78,37 @@ class BoolHabitCard extends StatelessWidget {
     final previewMinHeight =
         isPreview ? 0.0 : AppResponsive.minCardHeight(context);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      margin: previewMargin,
-      padding: previewPadding,
-      constraints: BoxConstraints(minHeight: previewMinHeight),
-      decoration: BoxDecoration(
-        color: effectiveBg,
-        borderRadius: BorderRadius.circular(isPreview ? 14 : 16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.85),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+    final borderRadius = BorderRadius.circular(isPreview ? 14 : 16);
+
+    return SuccessPulse(
+      trigger: isDone,
+      borderRadius: borderRadius,
+      highlightColor: accent,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        margin: previewMargin,
+        padding: previewPadding,
+        constraints: BoxConstraints(minHeight: previewMinHeight),
+        decoration: BoxDecoration(
+          color: effectiveBg,
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.85),
+            width: 1,
           ),
-        ],
-      ),
-      child: Opacity(
-        opacity: contentOpacity,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Opacity(
+          opacity: contentOpacity,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Opacity(
             opacity: isDone ? 0.6 : 1.0,
             child: const HabitCardLeadingSlot(
@@ -129,9 +136,9 @@ class BoolHabitCard extends StatelessWidget {
                     ],
                   )
                 : SizedBox(
-                    height: 48,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           title,
@@ -152,25 +159,23 @@ class BoolHabitCard extends StatelessWidget {
                             color: statusColor,
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(height: 2),
                       ],
                     ),
                   ),
           ),
           if (!isPreview) ...[
             const SizedBox(width: 16),
-            SizedBox(
-              height: 48,
-              child: Center(
-                child: _StatusIndicator(
-                  state: state,
-                  accent: accent,
-                  onToggle: onToggle,
-                ),
+            Center(
+              child: _StatusIndicator(
+                state: state,
+                accent: accent,
+                onToggle: onToggle,
               ),
             ),
           ],
           ],
+        ),
         ),
       ),
     );

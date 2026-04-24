@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +12,7 @@ class SubscriptionService {
   SubscriptionService._();
 
   static const String _premiumKey = 'subscription_premium';
+  static const String _debugPremiumKey = 'subscription_premium_debug';
 
   static final ValueNotifier<bool> isPremiumNotifier = ValueNotifier<bool>(false);
   static bool _loaded = false;
@@ -21,7 +24,15 @@ class SubscriptionService {
   static Future<void> init() async {
     if (_loaded) return;
     final prefs = await SharedPreferences.getInstance();
-    isPremiumNotifier.value = prefs.getBool(_premiumKey) ?? false;
+    var premium = prefs.getBool(_premiumKey) ?? false;
+
+    // Windows debug convenience: allow toggling premium without store.
+    if (kDebugMode && !kIsWeb && Platform.isWindows) {
+      final debugValue = prefs.getBool(_debugPremiumKey);
+      if (debugValue != null) premium = debugValue;
+    }
+
+    isPremiumNotifier.value = premium;
     _loaded = true;
     await _ensureCatalogLoaded();
   }
@@ -59,6 +70,30 @@ class SubscriptionService {
     isPremiumNotifier.value = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumKey, true);
+  }
+
+  /// Debug-only override for Windows builds: simulates subscription purchase.
+  /// Safe no-op outside Windows debug.
+  static Future<void> setDebugPremium(bool value) async {
+    if (!kDebugMode) return;
+    if (kIsWeb) return;
+    if (!Platform.isWindows) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_debugPremiumKey, value);
+    isPremiumNotifier.value = value;
+    // Keep the legacy key in sync for convenience when debugging other flows.
+    await prefs.setBool(_premiumKey, value);
+  }
+
+  static Future<void> clearDebugPremium() async {
+    if (!kDebugMode) return;
+    if (kIsWeb) return;
+    if (!Platform.isWindows) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_debugPremiumKey);
+    // Fall back to stored "real" premium flag.
+    final premium = prefs.getBool(_premiumKey) ?? false;
+    isPremiumNotifier.value = premium;
   }
 
   /// Общее количество записей (привычек + событий).

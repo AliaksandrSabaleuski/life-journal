@@ -15,19 +15,14 @@ import '../../../../core/ui/app_icons.dart';
 import '../../../../app/strings_ru.dart';
 import '../shell_content_insets.dart';
 
-/// Контент главной вкладки: календарная полоса + все записи (привычки и события) в одном списке.
+/// Контент главной вкладки: список карточек (привычки и события).
 class MainMenuContent extends StatelessWidget {
   const MainMenuContent({
     super.key,
-    required this.allHabits,
     required this.habits,
     this.todayLogs = const {},
     this.isLoading = false,
-    this.isMainMenuVisible = true,
-    this.recenterCalendarTrigger = 0,
     required this.selectedDate,
-    this.onSelectedDateChanged,
-    this.onTodayVisibilityInStripChanged,
     this.onAddPressed,
     this.onHabitTap,
     this.onLog,
@@ -39,18 +34,11 @@ class MainMenuContent extends StatelessWidget {
   /// Вызывается при перетаскивании карточки (oldIndex, newIndex в списке активных).
   final void Function(int oldIndex, int newIndex)? onReorderActive;
 
-  /// Все привычки пользователя (нужны для индикаторов под календарём).
-  final List<Habit> allHabits;
-
   /// Привычки, отфильтрованные под выбранный день (для списка ниже).
   final List<Habit> habits;
   final Map<String, HabitLog> todayLogs;
   final bool isLoading;
-  final bool isMainMenuVisible;
-  final int recenterCalendarTrigger;
   final DateTime selectedDate;
-  final void Function(DateTime date)? onSelectedDateChanged;
-  final void Function(bool visible)? onTodayVisibilityInStripChanged;
   final VoidCallback? onAddPressed;
   final void Function(Habit)? onHabitTap;
   final void Function(HabitLog)? onLog;
@@ -67,37 +55,15 @@ class MainMenuContent extends StatelessWidget {
     final inactive = habits.where((h) => !h.isActive).toList();
 
     final bottomPadding = ShellContentInsets.bottom(context) + 12;
-    final result = Padding(
-      padding: EdgeInsets.only(top: ShellContentInsets.top(context)),
-      child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
-          child: _CalendarStripWithRecenter(
-          isVisible: isMainMenuVisible,
-          recenterTrigger: recenterCalendarTrigger,
-          initialSelectedDate: selectedDate,
-          habits: allHabits,
-          onDateSelected: onSelectedDateChanged,
-          onTodayVisibilityChanged: onTodayVisibilityInStripChanged,
-          ),
-        ),
-        Expanded(
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              scrollbars: false,
-            ),
-            child: ListView(
-              padding: EdgeInsets.only(bottom: bottomPadding),
-              children: _buildListSection(context, active, inactive),
-            ),
-          ),
-        ),
-      ],
-    ),
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        scrollbars: false,
+      ),
+      child: ListView(
+        padding: EdgeInsets.only(bottom: bottomPadding),
+        children: _buildListSection(context, active, inactive),
+      ),
     );
-    return result;
   }
 
   List<Widget> _buildListSection(
@@ -369,92 +335,6 @@ class _EmptyHabitsCard extends StatelessWidget {
   }
 }
 
-const _dayCellWidth = 52.0;
-
-/// Обёртка календарной полосы (кнопка центрирования — в хедере, слева от календаря).
-class _CalendarStripWithRecenter extends StatelessWidget {
-  const _CalendarStripWithRecenter({
-    required this.isVisible,
-    required this.recenterTrigger,
-    required this.initialSelectedDate,
-    required this.habits,
-    this.onDateSelected,
-    this.onTodayVisibilityChanged,
-  });
-
-  final bool isVisible;
-  final int recenterTrigger;
-  final DateTime initialSelectedDate;
-  final List<Habit> habits;
-  final void Function(DateTime date)? onDateSelected;
-  final void Function(bool visible)? onTodayVisibilityChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    // Адаптивная высота под разные устройства и textScale.
-    // Стрип содержит: label (день недели) + gap + кружок дня + gap + точки + вертикальные паддинги контейнера.
-    const double verticalPadding = 8 * 2;
-    // Максимальный размер "плашки дня" — с кольцом выделения.
-    const double circleSize = 44;
-    const double dotsHeight = 8;
-    const double gap1 = 4;
-    const double gap2 = 3;
-
-    final theme = Theme.of(context);
-    final textScaler = MediaQuery.textScalerOf(context);
-    final weekdayFontSize = theme.textTheme.labelSmall?.fontSize ?? 11;
-    final weekdayLineHeight = theme.textTheme.labelSmall?.height ?? 1.2;
-    final weekdayTextHeight = textScaler.scale(weekdayFontSize) * weekdayLineHeight;
-
-    // Немного запаса на разные шрифты/рендеринг.
-    final computedHeight = (verticalPadding +
-            weekdayTextHeight +
-            gap1 +
-            circleSize +
-            gap2 +
-            dotsHeight +
-            6)
-        .clamp(104.0, 140.0);
-
-    return SizedBox(
-      height: computedHeight,
-      child: _CalendarStrip(
-        isVisible: isVisible,
-        recenterTrigger: recenterTrigger,
-        initialSelectedDate: initialSelectedDate,
-        habits: habits,
-        onDateSelected: onDateSelected,
-        onTodayVisibilityChanged: onTodayVisibilityChanged,
-      ),
-    );
-  }
-}
-
-/// Диапазон дат как в экране календаря: январь 2022 — декабрь 2036.
-final DateTime _stripStartDate = DateTime(2022, 1, 1);
-final DateTime _stripEndDate = DateTime(2036, 12, 31);
-
-class _CalendarStrip extends StatefulWidget {
-  const _CalendarStrip({
-    required this.isVisible,
-    required this.recenterTrigger,
-    required this.initialSelectedDate,
-    required this.habits,
-    this.onDateSelected,
-    this.onTodayVisibilityChanged,
-  });
-
-  final bool isVisible;
-  final int recenterTrigger;
-  final DateTime initialSelectedDate;
-  final List<Habit> habits;
-  final void Function(DateTime date)? onDateSelected;
-  final void Function(bool visible)? onTodayVisibilityChanged;
-
-  @override
-  State<_CalendarStrip> createState() => _CalendarStripState();
-}
-
 class _ReorderableList extends StatefulWidget {
   const _ReorderableList({
     Key? key,
@@ -496,6 +376,9 @@ class _ReorderableListState extends State<_ReorderableList> {
       case TargetPlatform.fuchsia:
         return false;
     }
+    // Unreachable, but keeps analyzer/older compilers happy.
+    // ignore: dead_code
+    return true;
   }
 
   HabitLog _buildLog({
@@ -552,10 +435,12 @@ class _ReorderableListState extends State<_ReorderableList> {
             widget.onHabitTap != null ? () => widget.onHabitTap!(habit) : null;
 
         Widget card;
+        final cardKey = ValueKey('${habit.id}_${widget.logDate.year}-${widget.logDate.month}-${widget.logDate.day}');
         if (h.type == HabitType.counter) {
           final goal = h.goal.value?.round() ?? 1;
           final current = (todayLog?.value ?? 0).round();
           card = HabitCounterCard(
+            key: cardKey,
             title: h.name,
             unit: h.unit ?? 'раз',
             current: current,
@@ -601,6 +486,7 @@ class _ReorderableListState extends State<_ReorderableList> {
           final initialSeconds =
               running ? (svc?.currentElapsedSecondsFor(h.id, widget.logDate) ?? baseSeconds) : baseSeconds;
           card = ActiveHabitCard(
+            key: cardKey,
             title: h.name,
             unit: h.unit ?? 'мин',
             goalMinutes: goalMinutes,
@@ -633,6 +519,7 @@ class _ReorderableListState extends State<_ReorderableList> {
           // Boolean habits & events: ritual / temptation
           final done = todayLog?.isCompleted == true;
           card = GestureDetector(
+            key: cardKey,
             onTap: onTap,
             child: BoolHabitCard(
               title: h.name,
@@ -687,6 +574,39 @@ class _ReorderableListState extends State<_ReorderableList> {
       },
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy calendar strip implementation (kept for now).
+// The calendar has been moved to `MainShell` header, but parts of the previous
+// implementation remain in this file. We keep stubs so the file continues to
+// compile while refactoring.
+// ---------------------------------------------------------------------------
+
+const _dayCellWidth = 52.0;
+
+final DateTime _stripStartDate = DateTime(2022, 1, 1);
+final DateTime _stripEndDate = DateTime(2036, 12, 31);
+
+class _CalendarStrip extends StatefulWidget {
+  const _CalendarStrip({
+    required this.isVisible,
+    required this.recenterTrigger,
+    required this.initialSelectedDate,
+    required this.habits,
+    this.onDateSelected,
+    this.onTodayVisibilityChanged,
+  });
+
+  final bool isVisible;
+  final int recenterTrigger;
+  final DateTime initialSelectedDate;
+  final List<Habit> habits;
+  final void Function(DateTime date)? onDateSelected;
+  final void Function(bool visible)? onTodayVisibilityChanged;
+
+  @override
+  State<_CalendarStrip> createState() => _CalendarStripState();
 }
 
 class _CalendarStripState extends State<_CalendarStrip> {
@@ -825,7 +745,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
           padding: EdgeInsets.fromLTRB(paddingLeft, 0, paddingRight, 0),
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
-              dragDevices: const {
+              dragDevices: {
                 PointerDeviceKind.touch,
                 PointerDeviceKind.mouse,
                 PointerDeviceKind.trackpad,
@@ -875,22 +795,33 @@ class _CalendarStripState extends State<_CalendarStrip> {
                               // визуально "резать" верхние части букв из-за метрик шрифта.
                               // Даём небольшой запас и фиксируем высоту строки через strut.
                               padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                weekdayShort,
-                                style: theme.textTheme.labelSmall?.copyWith(
+                              child: Builder(builder: (context) {
+                                final fs =
+                                    theme.textTheme.labelSmall?.fontSize ?? 11;
+                                final style = theme.textTheme.labelSmall?.copyWith(
+                                      fontSize: fs,
                                       color: headerCoffee,
                                       fontWeight: FontWeight.w600,
-                                    ),
-                                maxLines: 1,
-                                softWrap: false,
-                                overflow: TextOverflow.visible,
-                                strutStyle: StrutStyle(
-                                  fontSize:
-                                      theme.textTheme.labelSmall?.fontSize ?? 11,
-                                  height: 1.25,
-                                  forceStrutHeight: true,
-                                ),
-                              ),
+                                    ) ??
+                                    TextStyle(
+                                      fontSize: fs,
+                                      color: headerCoffee,
+                                      fontWeight: FontWeight.w600,
+                                    );
+
+                                return Text(
+                                  weekdayShort,
+                                  style: style,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.visible,
+                                  strutStyle: StrutStyle(
+                                    fontSize: fs,
+                                    height: 1.25,
+                                    forceStrutHeight: true,
+                                  ),
+                                );
+                              }),
                             ),
                             const SizedBox(height: 4),
                             Stack(
@@ -1084,4 +1015,3 @@ class _CalendarStripState extends State<_CalendarStrip> {
     );
   }
 }
-

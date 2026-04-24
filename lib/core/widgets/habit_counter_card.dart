@@ -4,6 +4,7 @@ import '../ui/app_icons.dart';
 import '../ui/responsive.dart';
 import 'skipped_indicator.dart';
 import 'time_input_dialog.dart';
+import 'success_pulse.dart';
 
 class HabitCounterCard extends StatelessWidget {
   const HabitCounterCard({
@@ -76,37 +77,44 @@ class HabitCounterCard extends StatelessWidget {
         : cardBg;
     final contentOpacity = (isCompleted || isSkipped) ? 0.78 : 1.0;
 
-    return Container(
-      margin: EdgeInsets.symmetric(
-        vertical: AppResponsive.gap(context, base: 4),
-        horizontal: 14,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: AppResponsive.gap(context, base: 16),
-        vertical: AppResponsive.gap(context, base: 6),
-      ),
-      constraints: BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
-      decoration: BoxDecoration(
-        // В точности как подложки дней в календаре.
-        color: effectiveBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.85),
-          width: 1,
+    const borderRadius = BorderRadius.all(Radius.circular(16));
+
+    return SuccessPulse(
+      trigger: isCompleted && !isSkipped,
+      borderRadius: borderRadius,
+      highlightColor: accent,
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          vertical: AppResponsive.gap(context, base: 4),
+          horizontal: 14,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.gap(context, base: 16),
+          vertical: AppResponsive.gap(context, base: 6),
+        ),
+        constraints:
+            BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
+        decoration: BoxDecoration(
+          // В точности как подложки дней в календаре.
+          color: effectiveBg,
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.85),
+            width: 1,
           ),
-        ],
-      ),
-      child: Opacity(
-        opacity: contentOpacity,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Opacity(
+          opacity: contentOpacity,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Expanded(
             child: onOpenEdit == null
                 ? Row(
@@ -191,6 +199,7 @@ class HabitCounterCard extends StatelessWidget {
             ),
           ),
           ],
+        ),
         ),
       ),
     );

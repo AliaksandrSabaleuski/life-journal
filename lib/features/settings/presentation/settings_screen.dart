@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const _prefsUserNameKey = 'user_name';
   static const _prefsNotificationsKey = 'notifications_enabled';
 
-  static const _supportEmail = 'support@lifejournal.app';
+  static const _defaultSupportEmail = 'alexgmlchn@gmail.com';
   static const _appVersion = '1.0.0';
 
   String _userName = '';
@@ -226,46 +227,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      if (kDebugMode) ...[
-                        listShadowWrapper(
-                          settingsTile(
-                            title: 'DEV: уведомление сейчас',
-                            onTap: () async {
-                              await NotificationService.instance.showTestNow();
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        listShadowWrapper(
-                          settingsTile(
-                            title: 'DEV: уведомление через 1 минуту',
-                            onTap: () async {
-                              await NotificationService.instance
-                                  .scheduleTestAfter(const Duration(minutes: 1));
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Запланировано на +1 минуту')),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        listShadowWrapper(
-                          settingsTile(
-                            title: 'DEV: уведомление через 5 минут',
-                            onTap: () async {
-                              await NotificationService.instance
-                                  .scheduleTestAfter(const Duration(minutes: 5));
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Запланировано на +5 минут')),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
                       // Плитки-опции
                       listShadowWrapper(
                         settingsTile(
@@ -402,6 +363,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _openFeedbackForm() async {
     final controller = TextEditingController();
+    const supportEmail = String.fromEnvironment(
+      'SUPPORT_EMAIL',
+      defaultValue: _defaultSupportEmail,
+    );
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -444,7 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Напишите нам на $_supportEmail или оставьте сообщение ниже.',
+                'Напишите нам на $supportEmail или оставьте сообщение ниже.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -461,11 +426,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
+                  final msg = controller.text.trim();
                   Navigator.of(ctx).pop();
+                  final ok = await _sendFeedbackEmail(
+                    toEmail: supportEmail,
+                    message: msg,
+                  );
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Спасибо за обратную связь! Мы обязательно всё прочитаем.'),
+                    SnackBar(
+                      content: Text(
+                        ok
+                            ? 'Открылось письмо — отправьте его, пожалуйста.'
+                            : 'Не удалось открыть почту на устройстве.',
+                      ),
                     ),
                   );
                 },
@@ -479,8 +454,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openStoreRating() async {
-    const url = 'https://play.google.com/store';
-    await _openUrl(Uri.parse(url));
+    const androidPackage = 'app.zharptychgames.habitrun';
+    final playWeb = Uri.parse(
+      'https://play.google.com/store/apps/details?id=$androidPackage',
+    );
+    final playMarket = Uri.parse('market://details?id=$androidPackage');
+
+    // Prefer Play app deep link on Android; fallback to web.
+    if (!kIsWeb && Platform.isAndroid) {
+      final ok = await launchUrl(
+        playMarket,
+        mode: LaunchMode.externalApplication,
+      );
+      if (ok) return;
+    }
+    await _openUrl(playWeb);
   }
 
   Future<void> _openUrl(Uri uri) async {
@@ -491,6 +479,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _sendFeedbackEmail({
+    required String toEmail,
+    required String message,
+  }) async {
+    final platform = kIsWeb
+        ? 'web'
+        : (Platform.isAndroid
+            ? 'android'
+            : (Platform.isIOS
+                ? 'ios'
+                : (Platform.isWindows
+                    ? 'windows'
+                    : (Platform.isMacOS ? 'macos' : 'other'))));
+
+    final subject = 'About Me — обратная связь';
+    final body = [
+      if (message.isNotEmpty) message,
+      '',
+      '---',
+      'App: About Me',
+      'Version: $_appVersion',
+      'Platform: $platform',
+    ].join('\n');
+
+    final uri = Uri(
+      scheme: 'mailto',
+      path: toEmail,
+      queryParameters: {
+        'subject': subject,
+        'body': body,
+      },
+    );
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _confirmDeleteAccount() async {

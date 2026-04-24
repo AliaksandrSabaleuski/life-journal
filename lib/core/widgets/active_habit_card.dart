@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/app_icons.dart';
 import '../ui/responsive.dart';
+import 'success_pulse.dart';
 
 class ActiveHabitCard extends StatefulWidget {
   const ActiveHabitCard({
@@ -274,37 +275,44 @@ class _ActiveHabitCardState extends State<ActiveHabitCard>
         : cardBg;
     final contentOpacity = widget.isCompleted ? 0.78 : 1.0;
 
-    return Container(
-      margin: EdgeInsets.symmetric(
-        vertical: AppResponsive.gap(context, base: 4),
-        horizontal: 14,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: AppResponsive.gap(context, base: 16),
-        vertical: AppResponsive.gap(context, base: 8),
-      ),
-      constraints: BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
-      decoration: BoxDecoration(
-        // В точности как подложки дней в календаре.
-        color: effectiveBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.85),
-          width: 1,
+    const borderRadius = BorderRadius.all(Radius.circular(16));
+
+    return SuccessPulse(
+      trigger: widget.isCompleted,
+      borderRadius: borderRadius,
+      highlightColor: widget.accent,
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          vertical: AppResponsive.gap(context, base: 4),
+          horizontal: 14,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.gap(context, base: 16),
+          vertical: AppResponsive.gap(context, base: 8),
+        ),
+        constraints:
+            BoxConstraints(minHeight: AppResponsive.minCardHeight(context)),
+        decoration: BoxDecoration(
+          // В точности как подложки дней в календаре.
+          color: effectiveBg,
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.85),
+            width: 1,
           ),
-        ],
-      ),
-      child: Opacity(
-        opacity: contentOpacity,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Opacity(
+          opacity: contentOpacity,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Expanded(
             child: widget.onOpenEdit == null
                 ? Row(
@@ -366,6 +374,7 @@ class _ActiveHabitCardState extends State<ActiveHabitCard>
             ),
           ),
           ],
+        ),
         ),
       ),
     );

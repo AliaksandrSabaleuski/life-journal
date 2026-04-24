@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -227,6 +229,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             _buildContinueButton(),
                             const SizedBox(height: 10),
                             if (_selectedPlan == SubscriptionPlan.trial) _buildDisclaimer(),
+                            if (kDebugMode && !kIsWeb && Platform.isWindows) ...[
+                              const SizedBox(height: 10),
+                              _buildWindowsDebugPurchaseTools(),
+                            ],
                           ],
                         ),
                       ),
@@ -394,6 +400,65 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         fontSize: 10,
         color: Colors.grey.shade500,
         height: 1.3,
+      ),
+    );
+  }
+
+  Widget _buildWindowsDebugPurchaseTools() {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Windows debug',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: _coffee.withValues(alpha: 0.88),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    await SubscriptionService.setDebugPremium(true);
+                    if (mounted) setState(() {});
+                  },
+                  child: const Text('Включить premium'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    await SubscriptionService.setDebugPremium(false);
+                    if (mounted) setState(() {});
+                  },
+                  child: const Text('Выключить premium'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () async {
+              await SubscriptionService.clearDebugPremium();
+              if (mounted) setState(() {});
+            },
+            child: const Text('Сбросить override'),
+          ),
+        ],
       ),
     );
   }

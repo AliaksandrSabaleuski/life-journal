@@ -105,7 +105,8 @@ class NotificationService {
       body: _engagementBodies[rng.nextInt(_engagementBodies.length)],
       scheduledDate: when1,
       notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      // Inexact: doesn't require SCHEDULE_EXACT_ALARM permission on Android 12+.
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: null,
     );
 
@@ -115,7 +116,8 @@ class NotificationService {
       body: _engagementBodies[rng.nextInt(_engagementBodies.length)],
       scheduledDate: when3,
       notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      // Inexact: doesn't require SCHEDULE_EXACT_ALARM permission on Android 12+.
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: null,
     );
   }
@@ -188,7 +190,8 @@ class NotificationService {
         tz.local,
       ),
       notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      // Inexact: daily reminders don't need exact alarm permission.
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
