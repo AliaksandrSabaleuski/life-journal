@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/app_icons.dart';
 import '../ui/responsive.dart';
+import '../ui/card_typography.dart';
 import 'success_pulse.dart';
 
 class ActiveHabitCard extends StatefulWidget {
@@ -186,20 +187,12 @@ class _ActiveHabitCardState extends State<ActiveHabitCard>
           widget.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF5A3E2B),
-          ),
+          style: CardTypography.title(context),
         ),
         const SizedBox(height: 2),
         Text(
           '${_formatTime(elapsed)} / ${widget.goalMinutes.toString().padLeft(2, '0')} ${widget.unit}',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF8A6A54),
-          ),
+          style: CardTypography.secondary(context),
         ),
         const SizedBox(height: 6),
         Row(
@@ -237,11 +230,7 @@ class _ActiveHabitCardState extends State<ActiveHabitCard>
             const SizedBox(width: 10),
             Text(
               '$percent%',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF5A3E2B),
-              ),
+              style: CardTypography.percent(context),
             ),
           ],
         ),

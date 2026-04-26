@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/app_icons.dart';
 import '../ui/responsive.dart';
+import '../ui/card_typography.dart';
 import 'skipped_indicator.dart';
 import 'success_pulse.dart';
 
@@ -144,7 +145,8 @@ class BoolHabitCard extends StatelessWidget {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
+                          style: CardTypography.title(
+                            context,
                             color: isDone
                                 ? notDoneColor
                                 : theme.textTheme.titleSmall?.color,
@@ -153,9 +155,8 @@ class BoolHabitCard extends StatelessWidget {
                         const SizedBox(height: 8),
                         Text(
                           statusText,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.normal,
+                          style: CardTypography.status(
+                            context,
                             color: statusColor,
                           ),
                         ),

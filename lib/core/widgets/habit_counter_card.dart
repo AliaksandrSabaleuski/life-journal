@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/app_icons.dart';
 import '../ui/responsive.dart';
+import '../ui/card_typography.dart';
 import 'skipped_indicator.dart';
 import 'time_input_dialog.dart';
 import 'success_pulse.dart';
@@ -239,11 +240,7 @@ class _HabitCounterMiddle extends StatelessWidget {
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF5A3E2B),
-          ),
+          style: CardTypography.title(context),
         ),
         const SizedBox(height: 1),
         InkWell(
@@ -267,19 +264,14 @@ class _HabitCounterMiddle extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '$clampedCurrent / $safeGoal $unit',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF8A6A54),
-                    ),
+                    style: CardTypography.secondary(context),
                   ),
                   if (isSkipped)
-                    const TextSpan(
+                    TextSpan(
                       text: '  Пропущено',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFC56B5E),
+                      style: CardTypography.secondary(
+                        context,
+                        color: const Color(0xFFC56B5E),
                       ),
                     ),
                 ],
@@ -325,11 +317,7 @@ class _HabitCounterMiddle extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               '$percent%',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF5A3E2B),
-              ),
+              style: CardTypography.percent(context),
             ),
           ],
         ),
