@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for analytics, billing, and any HTTPS traffic in release (debug/profile add this only for dev builds). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Android 13+ runtime permission for notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Required if any SDK accesses Advertising ID on Android 13+ -->

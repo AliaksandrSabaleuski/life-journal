@@ -60,7 +60,7 @@ class AnalyticsService {
     required String name,
     Map<String, Object?>? parameters,
   }) async {
-    if (!_enabled) return;
+    // Do not gate on _enabled: AppMetrica still receives via _designEvent when GA keys are missing.
     final parts = [name];
     if (parameters != null && parameters.isNotEmpty) {
       for (final e in parameters.entries) {
